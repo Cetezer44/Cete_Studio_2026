@@ -753,7 +753,7 @@
     email: 'cetestudio.pro@gmail.com',
     phone: '0658026687',
     phoneLink: '+33658026687',
-    social: [['Instagram', '#'], ['Awwwards', '#'], ['Dribbble', '#']],
+    social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
     menu: [['Works', '#'], ['Services', '#'], ['Studio', '#']],
     legal: [['Cookies', '#'], ['Données', '#'], ['Mentions légales', '#']]
   };
@@ -763,7 +763,8 @@
     function clearLater() { timers.forEach(clearTimeout); timers = []; }
     function col(title, items) {
       return '<div class="cm-col"><p class="cm-head">' + title + '</p>' + items.map(function (it) {
-        return '<a class="cm-link" href="' + it[1] + '">' + it[0] + '</a>';
+        var ext = /^https?:/.test(it[1]) ? ' target="_blank" rel="noopener"' : '';   // liens externes : nouvel onglet
+        return '<a class="cm-link" href="' + it[1] + '"' + ext + '>' + it[0] + '</a>';
       }).join('') + '</div>';
     }
     var bg = document.createElement('div');
