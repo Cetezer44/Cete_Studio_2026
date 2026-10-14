@@ -8,6 +8,8 @@ body{background-color:#f0f0f0;color:#000;font-family:'Be Vietnam Pro',Arial,sans
 a:focus-visible{outline:1px solid currentColor;outline-offset:4px}
 
 /* ---------- Accueil ---------- */
+/* Vignette du showreel : le voile noir (.showreel-shade, opacité 0 dans le Designer) n'apparaît qu'au survol */
+.showreel:hover .showreel-shade, .showreel:focus-visible .showreel-shade { opacity: 1; }
 html[data-page="home"], html[data-page="home"] body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .is-intro .hero-title { opacity: 0; }
 /* Cache plein écran le temps que le loader se mette en place (disparaît seul après 8 s si le script échoue) */
