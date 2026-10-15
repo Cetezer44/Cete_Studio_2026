@@ -1023,7 +1023,11 @@
     box.innerHTML =
       '<div class="cm-cols">' + col('Social', CONTACT.social) + col('Menu', CONTACT.menu) + col('Légal', CONTACT.legal) + '</div>' +
       '<div class="cm-main"><p class="cm-title">Discutons de votre projet</p><div class="cm-coords">' +
-        '<a class="cm-coord" href="mailto:' + CONTACT.email + '">' + CONTACT.email + '</a>' +
+        '<div class="cm-mail">' +
+          '<a class="cm-coord cm-mail-link" href="mailto:' + CONTACT.email + '" aria-label="Copier l’adresse ' + CONTACT.email + '">' + CONTACT.email +
+            '<svg class="cm-copy" viewBox="20 20 9.25 9.25" aria-hidden="true"><path d="M22.3613 21.75V22.25H20.5V28.75H27V26.8887H27.5V29.25H20V21.75H22.3613Z"/><path d="M29.25 20V26H23.25V20H29.25ZM23.75 25.5H28.75V20.5H23.75V25.5Z"/></svg></a>' +
+          '<span class="cm-tip" role="status" aria-live="polite"></span>' +
+        '</div>' +
         '<a class="cm-coord" href="tel:' + CONTACT.phoneLink + '">' + CONTACT.phone + '</a></div></div>' +
       '<button type="button" class="cm-close">Fermer</button>' +
       '<div class="cm-logo" aria-hidden="true"><img src="' + LOADER_LOGO + '" alt=""></div>' +
@@ -1032,6 +1036,38 @@
     document.body.appendChild(bg);
     document.body.appendChild(box);
     glass.addEventListener('click', function () { shut(); });
+
+    // Adresse e-mail : un clic la copie dans le presse-papier, une infobulle le confirme
+    var mailLink = $('.cm-mail-link', box), tip = $('.cm-tip', box), tipTimer = null;
+    function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+      return new Promise(function (res, rej) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) {}
+        document.body.removeChild(ta);
+        ok ? res() : rej();
+      });
+    }
+    function showTip(text) {
+      tip.textContent = text;
+      tip.classList.remove('is-on');
+      void tip.offsetWidth;
+      tip.classList.add('is-on');
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(function () { tip.classList.remove('is-on'); }, 1800);
+    }
+    mailLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      copyText(CONTACT.email).then(function () { showTip('Adresse copiée'); }, function () {
+        window.location.href = 'mailto:' + CONTACT.email;   // copie impossible : on ouvre la messagerie
+      });
+    });
 
     // Chaque texte dans son masque (même système que le loader et l'accueil)
     var heads = $$('.cm-head', box).map(function (el) { return maskText(el); });
@@ -1075,6 +1111,7 @@
     function shut(fast) {
       if (!isOpen) return Promise.resolve();
       isOpen = false; busy = true; clearLater();
+      tip.classList.remove('is-on');
       burger(false);
       var out = reduce || fast ? 0 : 450;
       if (out) {
