@@ -668,21 +668,47 @@
     cards.forEach(function (c) { on(c, 'mouseenter', function () { nudge($('.works-arrow-icon', c)); }); });
     if (contact) on(contact, 'mouseenter', function () { nudge($('.works-arrow-icon', contact)); });
 
-    // Entrée
+    // Entrée : le titre monte dans son masque ; chaque tuile se dévoile de bas en haut (clip-path)
+    // quand elle arrive à l'écran, puis son nom et sa flèche montent dans leur masque
     var titleIn = title ? maskText(title) : null;
     if (reduce) { if (titleIn) titleIn.style.transform = 'none'; }
     else {
       reveal([titleIn], 150, 0, 1000);
-      cards.forEach(function (c, i) {
-        c.style.opacity = '0';
-        c.style.transform = 'translateY(60px)';
-        setTimeout(function () {
-          c.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
-          c.style.opacity = '1';
-          c.style.transform = 'none';
-          setTimeout(function () { c.style.transition = ''; c.style.transform = ''; }, 1150);
-        }, 300 + i * 90);
+      var tiles = cards.map(function (c) {
+        var media = $('.works-media', c);
+        var name = maskText($('.works-card-title', c));
+        var icon = $('.works-arrow-icon', c);
+        if (icon) { icon.dataset.axis = 'y'; hide(icon); }
+        if (media) media.style.clipPath = 'inset(100% 0 0 0)';
+        return { card: c, media: media, texts: [name, icon] };
       });
+      var queue = [], flushTimer = null;
+      function show(t, delay) {
+        setTimeout(function () {
+          if (t.media) {
+            t.media.style.transition = 'clip-path 1200ms ' + INOUT;
+            t.media.style.clipPath = 'inset(0% 0 0 0)';
+            setTimeout(function () { t.media.style.transition = ''; t.media.style.clipPath = ''; }, 1250);
+          }
+          reveal(t.texts, 650, 80, 900);
+        }, delay);
+      }
+      // Les tuiles qui entrent ensemble s'enchaînent avec un léger décalage
+      function flush() { queue.forEach(function (t, i) { show(t, i * 120); }); queue = []; flushTimer = null; }
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (!e.isIntersecting) return;
+            io.unobserve(e.target);
+            tiles.forEach(function (t) { if (t.card === e.target) queue.push(t); });
+          });
+          if (queue.length && !flushTimer) flushTimer = setTimeout(flush, 0);
+        }, { threshold: 0.15 });
+        setTimeout(function () { tiles.forEach(function (t) { io.observe(t.card); }); }, 250);   // après le titre
+        ac.signal.addEventListener('abort', function () { io.disconnect(); });
+      } else {
+        tiles.forEach(function (t, i) { show(t, 250 + i * 120); });
+      }
     }
 
     function leaveTo(path) {
