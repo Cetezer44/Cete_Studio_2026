@@ -383,8 +383,8 @@
     }
     // Changement de projet « d'un cran » (lecture auto, clavier) : en mode masque, courbe ease-in-out lente
     // au lieu du suivi exponentiel utilisé pendant le scroll
-    var SLIDE_MS = 1600, tween = null;
-    function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }   // cubic.inOut
+    var SLIDE_MS = 1800, tween = null;
+    function easeInOut(t) { return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; }   // quart.inOut
     function stepBy(n) {
       target = Math.round(target) + n;
       tween = MASK && !reduce ? { a: cur, b: target, t0: performance.now(), d: SLIDE_MS } : null;
