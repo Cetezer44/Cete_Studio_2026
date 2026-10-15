@@ -30,8 +30,7 @@ En secours, githack sert les mêmes fichiers instantanément :
 
 ## Roulette de l'accueil
 
-Deux modes : la roue qui tourne au scroll, ou le mode **masque** (les vignettes restent en place, le scroll dévoile
-l'image suivante dans chacune, avec passage automatique toutes les 4 s). Le mode masque s'active avec l'attribut
-`data-mode="mask"` sur `.wheel` dans le Designer ; `?wheel=rotate` ou `?wheel=mask` dans l'URL permet de comparer.
+La roue tourne au scroll (molette, tactile, flèches du clavier). Elle passe aussi seule au projet suivant
+toutes les 5 s, avec une courbe quart ease-in-out sur 1,8 s (`AUTO_MS` et `SLIDE_MS` dans `site.js`).
+Pause au survol d'une vignette, modal ouverte, onglet caché ou mouvements réduits.
 
-Le repo doit rester léger et public : jsDelivr refuse les repos GitHub de plus de 50 Mo.
