@@ -78,8 +78,12 @@
     el.appendChild(inner);
     if (getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
     el.style.overflow = 'hidden';
-    el.style.padding = axis === 'x' ? '0 .15em' : '.15em 0';
-    el.style.margin = axis === 'x' ? '0 -.15em' : '-.15em 0';
+    // marge de sécurité de .15em autour du texte, ajoutée aux marges/paddings existants (Designer)
+    var cs = getComputedStyle(el), sides = axis === 'x' ? ['Left', 'Right'] : ['Top', 'Bottom'];
+    sides.forEach(function (sd) {
+      el.style['padding' + sd] = 'calc(' + cs['padding' + sd] + ' + .15em)';
+      el.style['margin' + sd] = 'calc(' + cs['margin' + sd] + ' - .15em)';
+    });
     inner.style.display = 'block';
     inner.dataset.axis = axis || 'y';
     hide(inner);

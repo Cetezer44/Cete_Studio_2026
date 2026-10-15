@@ -176,3 +176,6 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
   .st-team-sticky { position: relative !important; top: auto !important; overflow-x: auto; scrollbar-width: none; }
   .st-team-sticky::-webkit-scrollbar { display: none; }
 }
+.studio-page .st-member .hero-tag { transition: background-color 800ms ease, color 800ms ease; }
+.studio-page[data-theme="dark"] .st-member .hero-tag { background-color: #f0f0f0; color: #000; }
+.studio-page[data-theme="dark"] .st-member-link { color: #f0f0f0; }
