@@ -383,6 +383,22 @@
     }
     function stepBy(n) { target = Math.round(target) + n; }
 
+    // Mode masque : passage automatique au projet suivant toutes les 4 s.
+    // Le compte à rebours repart à chaque scroll/geste/touche ; pause au survol d'une vignette,
+    // modal ouverte, onglet caché ou mouvements réduits.
+    var AUTO_MS = 4000, autoTimer = null, hovering = false;
+    function autoNext() {
+      clearTimeout(autoTimer);
+      if (!MASK || reduce || !alive) return;
+      autoTimer = setTimeout(function () {
+        if (!alive || leaving) return;
+        if (!blocked() && !hovering && !document.hidden) stepBy(1);
+        autoNext();
+      }, AUTO_MS);
+    }
+    on(wheel, 'mouseover', function (e) { hovering = !!(e.target.closest && e.target.closest('.wheel-card')); });
+    on(wheel, 'mouseleave', function () { hovering = false; });
+
     on(window, 'wheel', function (e) {
       e.preventDefault();
       if (blocked()) return;
@@ -394,6 +410,7 @@
       }
       dy = Math.max(-120, Math.min(120, dy));
       if (dy) dir = dy > 0 ? 1 : -1;
+      autoNext();
       target += dy / 450;
       snapLater();
     }, { passive: false });
@@ -408,6 +425,7 @@
       if (ty !== y) dir = ty > y ? 1 : -1;
       target += (ty - y) / 220;
       ty = y;
+      autoNext();
     }, { passive: false });
     on(window, 'touchend', function () {
       ty = null;
@@ -417,8 +435,8 @@
     on(window, 'keydown', function (e) {
       var t = e.target.tagName;
       if (t === 'INPUT' || t === 'TEXTAREA' || blocked()) return;
-      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); stepBy(1); }
-      if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); stepBy(-1); }
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); stepBy(1); autoNext(); }
+      if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); stepBy(-1); autoNext(); }
     });
     if (!MASK) base.forEach(function (c, i) {
       on(c, 'focus', function () {
@@ -441,7 +459,7 @@
             apply(active);
             showInfo();
           }
-          if (p >= 1) { intro = false; cur = target = START; }
+          if (p >= 1) { intro = false; cur = target = START; autoNext(); }
         }
       } else if (reduce) {
         if (cur !== target) { cur = target; dirty = true; }
@@ -486,7 +504,7 @@
     }
 
     var api = {
-      destroy: function () { alive = false; ac.abort(); clearTimeout(timer); clearTimeout(snapTimer); },
+      destroy: function () { alive = false; ac.abort(); clearTimeout(timer); clearTimeout(snapTimer); clearTimeout(autoTimer); },
       leaveTo: leaveTo
     };
     if (reduce) { root.classList.remove('is-loading'); intro = false; return api; }
