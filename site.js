@@ -1035,6 +1035,187 @@
     return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
   }
 
+
+  /* =====================================================================
+     PAGE STUDIO
+     - le fond du body (et la couleur du texte) suit la section au centre de l'écran : pas de coupure nette
+     - textes en masque à leur arrivée à l'écran (même animation que le reste du site)
+     - services : image au survol (CSS), description au clic (une seule ouverte à la fois)
+     - équipe : la section se fixe et défile horizontalement jusqu'à la dernière personne,
+       tuiles dévoilées par un masque de bas en haut
+     ===================================================================== */
+  function Studio(container) {
+    var ac = new AbortController();
+    function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
+    root.classList.remove('is-wintro');
+    var THEMES = { light: ['#f0f0f0', '#000000'], dark: ['#000000', '#f0f0f0'] };
+    var sections = $$('[data-bg]', container);
+    var theme = null;
+    function applyTheme(t, instant) {
+      if (!THEMES[t] || t === theme) return;
+      theme = t;
+      if (instant) { document.body.style.transition = 'none'; container.style.transition = 'none'; }
+      document.body.style.backgroundColor = THEMES[t][0];
+      container.style.color = THEMES[t][1];
+      container.setAttribute('data-theme', t);
+      if (instant) { void document.body.offsetWidth; document.body.style.transition = ''; container.style.transition = ''; }
+    }
+    function pickTheme(instant) {
+      var mid = window.innerHeight * 0.5, t = null;
+      sections.forEach(function (s) {
+        var r = s.getBoundingClientRect();
+        if (r.top <= mid && r.bottom > mid) t = s.getAttribute('data-bg');
+      });
+      if (!t && sections.length) t = sections[0].getAttribute('data-bg');
+      applyTheme(t, instant);
+    }
+
+    // Liens « Découvrir » de l'équipe sans lien renseigné dans le CMS : masqués
+    $$('.st-member-link', container).forEach(function (a) {
+      var h = a.getAttribute('href');
+      if (!h || h === '#') a.style.display = 'none';
+      else if (/^https?:/.test(h)) { a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); }
+    });
+
+    // Flèches : même petite animation que sur le reste du site
+    $$('.st-discover, .st-member-link', container).forEach(function (a) {
+      var icon = $('.works-arrow-icon', a);
+      if (!icon) return;
+      on(icon, 'animationend', function () { icon.classList.remove('is-nudge'); });
+      on(a, 'mouseenter', function () {
+        if (reduce) return;
+        icon.classList.remove('is-nudge'); void icon.offsetWidth; icon.classList.add('is-nudge');
+      });
+    });
+
+    // « Découvrir » : défilement doux jusqu'aux services
+    var discover = $('.st-discover', container);
+    if (discover) on(discover, 'click', function (e) {
+      var target = $('#services', container);
+      if (!target) return;
+      e.preventDefault();
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.pageYOffset, behavior: reduce ? 'auto' : 'smooth' });
+    });
+
+    // Services : clic = la description s'ouvre (l'image disparaît), nouveau clic = fermeture
+    var services = $$('.st-service', container);
+    function setOpen(item, open) {
+      var desc = $('.st-service-desc', item);
+      item.classList.toggle('is-open', open);
+      item.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (!desc) return;
+      var from = desc.getBoundingClientRect().height;
+      desc.style.height = from + 'px';
+      void desc.offsetHeight;
+      desc.style.height = open ? desc.scrollHeight + 'px' : '0px';
+      clearTimeout(desc._t);
+      if (open) desc._t = setTimeout(function () { if (item.classList.contains('is-open')) desc.style.height = 'auto'; }, 720);
+    }
+    services.forEach(function (item) {
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('aria-expanded', 'false');
+      function toggle() {
+        var open = !item.classList.contains('is-open');
+        services.forEach(function (o) { if (o !== item && o.classList.contains('is-open')) setOpen(o, false); });
+        setOpen(item, open);
+      }
+      on(item, 'click', toggle);
+      on(item, 'keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    });
+
+    // Équipe : section fixée, défilement horizontal piloté par le scroll vertical
+    var pin = $('.st-team-pin', container), sticky = $('.st-team-sticky', container), track = $('.st-team-list', container);
+    var dist = 0, stickyTop = 0, horizontal = false;
+    function layout() {
+      if (!pin || !sticky || !track) return;
+      horizontal = window.innerWidth > 767;
+      if (!horizontal) { pin.style.height = ''; track.style.transform = ''; return; }
+      var w = sticky.clientWidth;
+      dist = Math.max(0, track.scrollWidth - w);
+      var h = sticky.offsetHeight;
+      stickyTop = Math.max(20, Math.round((window.innerHeight - h) / 2));
+      sticky.style.top = stickyTop + 'px';
+      pin.style.height = (h + dist) + 'px';
+      update();
+    }
+    function update() {
+      if (!horizontal || !pin) return;
+      var r = pin.getBoundingClientRect();
+      var p = dist ? Math.min(1, Math.max(0, (stickyTop - r.top) / dist)) : 0;
+      track.style.transform = 'translate3d(' + (-p * dist).toFixed(1) + 'px,0,0)';
+    }
+
+    var ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () { ticking = false; pickTheme(false); update(); });
+    }
+    on(window, 'scroll', onScroll, { passive: true });
+    on(window, 'resize', function () { layout(); pickTheme(false); });
+    $$('img', container).forEach(function (img) { if (!img.complete) on(img, 'load', layout); });
+    layout();
+    pickTheme(true);
+
+    // Apparitions
+    if (!reduce && 'IntersectionObserver' in window) {
+      var texts = $$('.st-title, .st-intro, .st-label, .st-head-text, .st-big, .st-small, .st-cta-title, .st-cta-link', container);
+      var masks = texts.map(function (el) { return maskText(el); });
+      var title = masks[0];
+      reveal([title], 150, 0, 1000);
+      var blocks = $$('.st-discover, .st-service, .st-clients', container);
+      blocks.forEach(function (b) { b.style.opacity = '0'; b.style.transform = 'translateY(40px)'; });
+      var members = $$('.st-member', container).map(function (m) {
+        var media = $('.st-member-media', m), info = $('.st-member-info', m);
+        if (media) media.style.clipPath = 'inset(100% 0 0 0)';
+        if (info) { info.style.opacity = '0'; info.style.transform = 'translateY(20px)'; }
+        return { el: m, media: media, info: info };
+      });
+      var queue = [], timer = null;
+      function flush() {
+        queue.forEach(function (el, i) {
+          setTimeout(function () {
+            if (el._mask) { el._mask.style.transition = 'transform 1000ms ' + EASE; el._mask.style.transform = 'none'; }
+            else if (el._member) {
+              var m = el._member;
+              if (m.media) { m.media.style.transition = 'clip-path 1200ms ' + INOUT; m.media.style.clipPath = 'inset(0% 0 0 0)'; }
+              if (m.info) setTimeout(function () { m.info.style.transition = 'opacity 800ms ease, transform 1000ms ' + EASE; m.info.style.opacity = ''; m.info.style.transform = ''; }, 500);
+            } else {
+              el.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
+              el.style.opacity = ''; el.style.transform = '';
+              setTimeout(function () { el.style.transition = ''; }, 1150);
+            }
+          }, i * 90);
+        });
+        queue = []; timer = null;
+      }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          io.unobserve(e.target);
+          queue.push(e.target);
+        });
+        if (queue.length && !timer) timer = setTimeout(flush, 0);
+      }, { threshold: 0.15 });
+      texts.forEach(function (el, i) { if (i > 0) { el._mask = masks[i]; } });
+      setTimeout(function () {
+        texts.forEach(function (el, i) { if (i > 0) io.observe(el); });
+        blocks.forEach(function (b) { io.observe(b); });
+        members.forEach(function (m) { m.el._member = m; io.observe(m.el); });
+      }, 300);
+      ac.signal.addEventListener('abort', function () { io.disconnect(); });
+    }
+
+    return {
+      destroy: function () {
+        ac.abort();
+        document.body.style.backgroundColor = '';
+        document.body.style.transition = '';
+      }
+    };
+  }
+
   /* =====================================================================
      MODAL CONTACT : le fond noir s'étend depuis la barre latérale, le contenu apparaît en masque
      ===================================================================== */
@@ -1043,7 +1224,7 @@
     phone: '0658026687',
     phoneLink: '+33658026687',
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
-    menu: [['Works', '/works'], ['Studio', '#']],   // « Services » retiré en attendant la page
+    menu: [['Works', '/works'], ['Studio', '/studio']],   // « Services » retiré en attendant la page
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
   var Menu = (function () {
@@ -1377,6 +1558,7 @@
     else if (ns === 'work') page = Work(container, opts);
     else if (ns === 'works') page = Works(container, opts);
     else if (ns === 'legal') page = Legal(container, opts);
+    else if (ns === 'studio') page = Studio(container, opts);
     else page = null;
     return page;
   }
@@ -1429,7 +1611,7 @@
   barba.init({
     preventRunning: true,
     timeout: 10000,
-    prevent: function (o) { return o.el && (o.el.closest('.w-editor') || o.el.getAttribute('href') === '#'); },
+    prevent: function (o) { return o.el && (o.el.closest('.w-editor') || (o.el.getAttribute('href') || '').charAt(0) === '#'); },
     transitions: [
       {
         name: 'accueil-vers-projet',       // aussi depuis la page Works : la photo cliquée sert de relais

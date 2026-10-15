@@ -54,10 +54,12 @@ html.is-menu .cm-mark { opacity: 1; transition-delay: 1250ms; }
 /* Logo de la navigation : masqué sous la bande en verre pendant que la modal est ouverte */
 html.is-menu .home-logo { opacity: 0; transition-duration: 300ms; }
 /* Logo et menu fixes : en différence (blanc inversé) sur les pages qui défilent, pour rester lisibles sur les photos */
-html[data-page="works"] .home-nav, html[data-page="legal"] .home-nav,
-html[data-page="works"] .home-logo, html[data-page="legal"] .home-logo { mix-blend-mode: difference; }
-html[data-page="works"] .home-nav .nav-link, html[data-page="legal"] .home-nav .nav-link { color: #fff; }
-html[data-page="works"] .home-logo-img, html[data-page="legal"] .home-logo-img { filter: invert(1); }
+html[data-page="works"] .home-nav, html[data-page="legal"] .home-nav, html[data-page="studio"] .home-nav,
+html[data-page="works"] .home-logo, html[data-page="legal"] .home-logo, html[data-page="studio"] .home-logo,
+html[data-page="studio"] .home-socials { mix-blend-mode: difference; }
+html[data-page="works"] .home-nav .nav-link, html[data-page="legal"] .home-nav .nav-link,
+html[data-page="studio"] .home-nav .nav-link, html[data-page="studio"] .home-socials .nav-link { color: #fff; }
+html[data-page="works"] .home-logo-img, html[data-page="legal"] .home-logo-img, html[data-page="studio"] .home-logo-img { filter: invert(1); }
 .cm-bg { position: fixed; top: 0; right: 0; z-index: 49; width: var(--side, 68px); height: 100vh; background: #000; pointer-events: none; }
 html.is-menu .cm-bg { pointer-events: auto; }
 .cm { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 51; visibility: hidden; pointer-events: none; color: #fff; }
@@ -157,3 +159,20 @@ html:not(.has-cursor) .sr-frame.is-paused .sr-state { opacity: 1; }
 .sr-close:hover span { background: #fff; }
 .sr button:focus-visible, .sr a:focus-visible { outline: 1px solid #fff; outline-offset: 4px; }
 html.is-reel, html.is-reel body { overflow: hidden; }
+
+/* Page Studio : fond du body qui change selon la section (JS), services (image au survol, description au clic), équipe en défilement horizontal */
+html[data-page="studio"] body { transition: background-color 800ms ease; }
+.studio-page { overflow-x: clip; transition: color 800ms ease; }
+.st-service { transition: opacity 500ms ease; outline: none; }
+.st-services-list:hover .st-service:not(:hover):not(.is-open) { opacity: .2; }
+.st-service-media { clip-path: inset(100% 0 0 0); transition: clip-path 700ms cubic-bezier(.65,0,.35,1); }
+@media (hover: hover) { .st-service:hover .st-service-media { clip-path: inset(0 0 0 0); } }
+.st-service.is-open .st-service-media { clip-path: inset(0 0 100% 0); }
+.st-service-desc { transition: height 700ms cubic-bezier(.65,0,.35,1); }
+.st-service-icon { transition: transform 500ms cubic-bezier(.65,0,.35,1); }
+.st-service.is-open .st-service-icon { transform: rotate(45deg); }
+.st-service:focus-visible .st-service-name { text-decoration: underline; }
+@media (max-width: 767px) {
+  .st-team-sticky { position: relative !important; top: auto !important; overflow-x: auto; scrollbar-width: none; }
+  .st-team-sticky::-webkit-scrollbar { display: none; }
+}
