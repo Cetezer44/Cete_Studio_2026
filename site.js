@@ -1002,11 +1002,12 @@
         });
       });
     }
-    // Ouverture : « Contact » ou le burger ; fermeture : « Fermer », le burger (croix) ou Échap
+    // Ouverture : « Contact » (barre latérale, navigation principale [data-contact], « Nous contacter ») ou le burger ;
+    // fermeture : « Fermer », le burger (croix) ou Échap
     document.addEventListener('click', function (e) {
       // Logo de la modal sur l'accueil : on referme simplement la modal
       if (e.target.closest && e.target.closest('.cm-mark') && root.getAttribute('data-page') === 'home') { e.preventDefault(); e.stopPropagation(); shut(); return; }
-      var t = e.target.closest && e.target.closest('.side-contact, .side-burger, .cm-close, .works-contact');
+      var t = e.target.closest && e.target.closest('.side-contact, .side-burger, .cm-close, .works-contact, [data-contact]');
       if (!t) return;
       e.preventDefault();
       e.stopPropagation();
