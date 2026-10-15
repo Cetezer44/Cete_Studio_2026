@@ -897,7 +897,7 @@
     phone: '0658026687',
     phoneLink: '+33658026687',
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
-    menu: [['Works', '/works'], ['Services', '#'], ['Studio', '#']],
+    menu: [['Works', '/works'], ['Studio', '#']],   // « Services » retiré en attendant la page
     legal: [['Cookies', '#'], ['Données', '#'], ['Mentions légales', '#']]
   };
   var Menu = (function () {
