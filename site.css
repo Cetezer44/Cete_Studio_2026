@@ -53,6 +53,11 @@ html.is-menu .cm-glass { opacity: 1; visibility: visible; transition: opacity 60
 html.is-menu .cm-mark { opacity: 1; transition-delay: 1250ms; }
 /* Logo de la navigation : masqué sous la bande en verre pendant que la modal est ouverte */
 html.is-menu .home-logo { opacity: 0; transition-duration: 300ms; }
+/* Logo et menu fixes : en différence (blanc inversé) sur les pages qui défilent, pour rester lisibles sur les photos */
+html[data-page="works"] .home-nav, html[data-page="legal"] .home-nav,
+html[data-page="works"] .home-logo, html[data-page="legal"] .home-logo { mix-blend-mode: difference; }
+html[data-page="works"] .home-nav .nav-link, html[data-page="legal"] .home-nav .nav-link { color: #fff; }
+html[data-page="works"] .home-logo-img, html[data-page="legal"] .home-logo-img { filter: invert(1); }
 .cm-bg { position: fixed; top: 0; right: 0; z-index: 49; width: var(--side, 68px); height: 100vh; background: #000; pointer-events: none; }
 html.is-menu .cm-bg { pointer-events: auto; }
 .cm { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 51; visibility: hidden; pointer-events: none; color: #fff; }
