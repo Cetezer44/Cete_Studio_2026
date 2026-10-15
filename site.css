@@ -18,6 +18,8 @@ html.is-loading body::before { content: ""; position: fixed; top: 0; left: 0; ri
 /* Zoom léger dans l'image au survol d'un projet (survol du parent : impossible dans le Designer) */
 .wheel-card:hover .wheel-img, .wheel-card:focus-visible .wheel-img { transform: scale(1.07); }
 html.is-leaving .wheel-card .wheel-img { transform: scale(1.001); }
+/* Roulette en mode masque : image du projet suivant posée sur la vignette, dévoilée par un clip-path piloté au scroll */
+.wheel-img-next { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; will-change: clip-path; }
 @media (prefers-reduced-motion: reduce) { .wheel-img { transition: none; } .wheel-card:hover .wheel-img { transform: none; } }
 
 /* ---------- Page projet ---------- */

@@ -198,6 +198,47 @@
     var cards = $$('.wheel-card', wheel);
     var M = cards.length;
 
+    // Deux modes de roulette :
+    //  - « rotate » (défaut) : la roue tourne au scroll ;
+    //  - « mask » (essai) : les vignettes restent en place et le scroll dévoile, dans chacune,
+    //    l'image du projet suivant (ou précédent) à travers un masque.
+    // Choix : attribut data-mode="mask" sur .wheel dans le Designer, ou ?wheel=mask / ?wheel=rotate dans l'URL.
+    var MASK = (function () {
+      var q = (location.search.match(/[?&]wheel=(\w+)/) || [])[1];
+      return q ? q === 'mask' : wheel.getAttribute('data-mode') === 'mask';
+    })();
+    var projects = base.map(function (c) {
+      var im = c.querySelector('.wheel-img');
+      return {
+        href: c.getAttribute('href'), num: c.getAttribute('data-num'), title: c.getAttribute('data-title'),
+        src: im && im.getAttribute('src'), srcset: im && im.getAttribute('srcset'), sizes: im && im.getAttribute('sizes')
+      };
+    });
+    function mod(a) { return ((a % N) + N) % N; }
+    function setImg(im, i) {
+      if (!im || im._p === i) return;
+      var pr = projects[i];
+      im._p = i;
+      if (pr.srcset) im.setAttribute('srcset', pr.srcset); else im.removeAttribute('srcset');
+      if (pr.sizes) im.setAttribute('sizes', pr.sizes);
+      im.setAttribute('src', pr.src);
+    }
+    if (MASK) {
+      wheel.classList.add('is-mask');
+      cards.forEach(function (c) {
+        var a = c.querySelector('.wheel-img');
+        var b = a.cloneNode(false);                 // image suivante, révélée par le masque
+        b.classList.add('wheel-img-next');
+        b.setAttribute('alt', '');
+        b.setAttribute('aria-hidden', 'true');
+        b.style.clipPath = 'inset(100% 0 0 0)';
+        c.appendChild(b);
+        c._a = a; c._b = b;
+      });
+    }
+    var MASK_STAGGER = 0.08;   // décalage de la vague : les vignettes éloignées du centre suivent avec un léger retard
+    var hrefsAt = null;
+
     var info = $('.wheel-info', track);
     var num = $('.wheel-num', track);
     var title = $('.wheel-title', track);
@@ -227,13 +268,13 @@
         w: cards[0].offsetWidth,
         h: cards[0].offsetHeight
       };
-      INTRO_FROM = START - INTRO_DEG / g.step;
+      INTRO_FROM = MASK ? START - 1 : START - INTRO_DEG / g.step;   // masque : l'intro dévoile les images
       if (intro && !introGo) cur = INTRO_FROM;
       dirty = true;
     }
     function smooth(t) { return t * t * (3 - 2 * t); }
     function easeIntro(t) { return t >= 1 ? 1 : 1 - Math.pow(1 - t, 4); }   // quart.out
-    function dist(j) { var d = j - cur; d = ((d % M) + M) % M; if (d >= M / 2) d -= M; return d; }
+    function dist(j) { var d = j - (MASK ? 0 : cur); d = ((d % M) + M) % M; if (d >= M / 2) d -= M; return d; }
 
     // Infos du projet : numéro, titre et flèche dans des masques
     var OFF = '170%';
@@ -265,9 +306,9 @@
       });
     }
     function apply(i) {
-      var c = cards[i], h = c.getAttribute('href');
-      numIn.textContent = c.getAttribute('data-num');
-      titleIn.textContent = c.getAttribute('data-title');
+      var pr = projects[i], h = pr.href;
+      numIn.textContent = pr.num;
+      titleIn.textContent = pr.title;
       title.setAttribute('href', h);
       arrow.setAttribute('href', h);
     }
@@ -298,12 +339,37 @@
         c.style.filter = 'grayscale(' + (1 - f).toFixed(3) + ')';   // noir et blanc derrière, couleur devant
         c.style.visibility = ad > 6.5 ? 'hidden' : 'visible';
       }
+      if (MASK) renderMask();
       var aw = g.w * g.sc, ah = g.h * g.sc;
       info.style.left = (g.px - g.R + g.sh - aw / 2) + 'px';
       info.style.top = (g.py + ah / 2 + g.gap) + 'px';
       if (intro) return;
       var i = ((Math.round(cur) % N) + N) % N;
       if (i !== active) setActive(i, active === -1);
+    }
+
+    // Mode masque : chaque vignette garde sa place ; entre deux projets, l'image suivante monte depuis le bas
+    function renderMask() {
+      var b = Math.floor(cur), f = cur - b, k = 1 + MASK_STAGGER * 6;
+      var near = Math.round(cur);
+      for (var j = 0; j < M; j++) {
+        var c = cards[j], d = Math.round(dist(j)), ad = Math.abs(d);
+        if (ad > 6.5) continue;
+        setImg(c._a, mod(b + d));
+        setImg(c._b, mod(b + d + 1));
+        var p = Math.min(1, Math.max(0, f * k - MASK_STAGGER * ad));
+        p = p * p * (3 - 2 * p);
+        c._b.style.clipPath = 'inset(' + ((1 - p) * 100).toFixed(2) + '% 0 0 0)';
+      }
+      // Liens des vignettes : le projet majoritairement visible
+      if (hrefsAt !== near) {
+        hrefsAt = near;
+        for (var q = 0; q < M; q++) {
+          var pr = projects[mod(near + Math.round(dist(q)))];
+          cards[q].setAttribute('href', pr.href);
+          cards[q].setAttribute('aria-label', pr.title);
+        }
+      }
     }
 
     /* ---- 3. Entrées : molette, tactile, clavier (la page ne défile jamais) ---- */
@@ -354,7 +420,7 @@
       if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); stepBy(1); }
       if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); stepBy(-1); }
     });
-    base.forEach(function (c, i) {
+    if (!MASK) base.forEach(function (c, i) {
       on(c, 'focus', function () {
         var diff = ((i - Math.round(target)) % N + N) % N;
         if (diff > N / 2) diff -= N;
@@ -556,6 +622,7 @@
         if (ad < bd) { bd = ad; best = c; }
       });
       if (!best) return Promise.resolve(null);
+      if (MASK) { cur = target = Math.round(cur); render(); }   // images posées, plus de masque en cours
       leaving = true;
       intro = false;
       clearTimeout(timer);
