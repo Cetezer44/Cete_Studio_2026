@@ -712,7 +712,7 @@
       media.style.width = r.width + 'px';
       media.style.height = r.height + 'px';
       media.style.margin = '0';
-      media.style.zIndex = '200';
+      media.style.zIndex = '25';   // sous la page projet entrante (z-index 30), qui prend le relais à l'identique
       media.style.aspectRatio = 'auto';
       return wait(350).then(function () {
         // Puis se place au centre de l'écran, à sa taille
