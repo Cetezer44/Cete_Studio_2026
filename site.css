@@ -61,7 +61,6 @@ html.is-menu .cm-bg { pointer-events: auto; }
 .cm-col { display: flex; flex-direction: column; align-items: flex-start; row-gap: 20px; }
 .cm-head { margin: 0; font-size: 11px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-decoration: underline; }
 .cm-link { font-size: 13px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-transform: uppercase; }
-.cm a:hover, .cm button:hover { text-decoration: line-through; }
 .cm-main { position: absolute; left: calc(var(--glass) + 30px); top: 50%; transform: translateY(-50%); display: flex; align-items: center; column-gap: 61px; }
 .cm-title { margin: 0; font-size: clamp(30px, 3.472vw, 50px); line-height: 1; font-weight: 400; letter-spacing: -.05em; white-space: nowrap; }
 .cm-coords { display: flex; flex-direction: column; align-items: flex-start; row-gap: 16px; }
@@ -133,7 +132,6 @@ html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45d
 .sr-mark img { display: block; width: 100%; height: auto; filter: invert(1); }
 .sr-nav { position: absolute; z-index: 2; left: 50%; top: 38px; transform: translateX(-50%); display: flex; column-gap: 30px; mix-blend-mode: difference; }
 .sr-link { font-size: 13px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-transform: uppercase; color: #fff; text-decoration: none; }
-.sr-link:hover { text-decoration: line-through; text-decoration-thickness: 1px; }
 /* Vidéo pleine largeur depuis le haut ; seule la bande du bas (91 px) reste noire pour la croix.
    Logo et navigation passent par-dessus en mode Différence. La vidéo est en cover (le 16/9 n'est pas conservé). */
 .sr-zone { position: absolute; top: 0; left: 0; right: 0; bottom: 91px; }
