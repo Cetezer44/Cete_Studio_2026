@@ -1164,10 +1164,26 @@
 
     // Apparitions
     if (!reduce && 'IntersectionObserver' in window) {
-      var texts = $$('.st-title, .st-intro, .st-label, .st-head-text, .st-big, .st-small, .st-cta-title, .st-cta-link', container);
+      // Titre : ligne par ligne, chacune dans son masque (comme l'accueil)
+      var titleEl = $('.st-title', container);
+      if (titleEl) {
+        var showTitle = function () {
+          if (titleEl._split) return;
+          titleEl._split = true;
+          splitLines(titleEl).forEach(function (l, i) {
+            setTimeout(function () {
+              l.style.transition = 'transform 1100ms ' + EASE;
+              l.style.transform = 'translateY(0)';
+            }, 150 + i * 90);
+          });
+        };
+        titleEl.style.visibility = 'hidden';
+        var go = function () { showTitle(); titleEl.style.visibility = ''; };
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(go);
+        setTimeout(go, 1200);   // filet de sécurité
+      }
+      var texts = $$('.st-intro, .st-label, .st-head-text, .st-big, .st-small, .st-cta-title, .st-cta-link', container);
       var masks = texts.map(function (el) { return maskText(el); });
-      var title = masks[0];
-      reveal([title], 150, 0, 1000);
       var blocks = $$('.st-discover, .st-service, .st-clients', container);
       blocks.forEach(function (b) { b.style.opacity = '0'; b.style.transform = 'translateY(40px)'; });
       var members = $$('.st-member', container).map(function (m) {
@@ -1202,9 +1218,9 @@
         });
         if (queue.length && !timer) timer = setTimeout(flush, 0);
       }, { threshold: 0.15 });
-      texts.forEach(function (el, i) { if (i > 0) { el._mask = masks[i]; } });
+      texts.forEach(function (el, i) { el._mask = masks[i]; });
       setTimeout(function () {
-        texts.forEach(function (el, i) { if (i > 0) io.observe(el); });
+        texts.forEach(function (el) { io.observe(el); });
         blocks.forEach(function (b) { io.observe(b); });
         members.forEach(function (m) { m.el._member = m; io.observe(m.el); });
       }, 300);
