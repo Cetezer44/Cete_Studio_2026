@@ -381,7 +381,14 @@
         target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
       }, 140);
     }
-    function stepBy(n) { target = Math.round(target) + n; }
+    // Changement de projet « d'un cran » (lecture auto, clavier) : en mode masque, courbe ease-in-out lente
+    // au lieu du suivi exponentiel utilisé pendant le scroll
+    var SLIDE_MS = 1600, tween = null;
+    function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }   // cubic.inOut
+    function stepBy(n) {
+      target = Math.round(target) + n;
+      tween = MASK && !reduce ? { a: cur, b: target, t0: performance.now(), d: SLIDE_MS } : null;
+    }
 
     // Mode masque : passage automatique au projet suivant toutes les 4 s.
     // Le compte à rebours repart à chaque scroll/geste/touche ; pause au survol d'une vignette,
@@ -410,6 +417,7 @@
       }
       dy = Math.max(-120, Math.min(120, dy));
       if (dy) dir = dy > 0 ? 1 : -1;
+      tween = null;
       autoNext();
       target += dy / 450;
       snapLater();
@@ -425,6 +433,7 @@
       if (ty !== y) dir = ty > y ? 1 : -1;
       target += (ty - y) / 220;
       ty = y;
+      tween = null;
       autoNext();
     }, { passive: false });
     on(window, 'touchend', function () {
@@ -463,6 +472,11 @@
         }
       } else if (reduce) {
         if (cur !== target) { cur = target; dirty = true; }
+      } else if (tween) {
+        var k = Math.min((now - tween.t0) / tween.d, 1);
+        cur = tween.a + (tween.b - tween.a) * easeInOut(k);
+        dirty = true;
+        if (k >= 1) { cur = target = tween.b; tween = null; }
       } else if (Math.abs(target - cur) > 0.0005) {
         cur += (target - cur) * 0.1;
         dirty = true;
