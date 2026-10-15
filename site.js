@@ -340,6 +340,27 @@
     on(wheel, 'mouseover', function (e) { hovering = !!(e.target.closest && e.target.closest('.wheel-card')); });
     on(wheel, 'mouseleave', function () { hovering = false; });
 
+    // Flèche sous le titre : au survol de la photo active ou du titre, elle sort à droite dans son masque
+    // et revient par la gauche (animation CSS « is-nudge » sur la propriété translate, indépendante du transform
+    // utilisé pour l'apparition des infos)
+    var nudgedCard = null;
+    function nudge() {
+      if (reduce || !arrowIn) return;
+      arrowIn.classList.remove('is-nudge');
+      void arrowIn.offsetWidth;
+      arrowIn.classList.add('is-nudge');
+    }
+    on(arrowIn, 'animationend', function () { arrowIn.classList.remove('is-nudge'); });
+    on(wheel, 'mouseover', function (e) {
+      var c = e.target.closest && e.target.closest('.wheel-card');
+      if (c === nudgedCard) return;
+      nudgedCard = c;
+      if (c && Math.abs(dist(cards.indexOf(c))) < 0.5) nudge();   // seulement la photo au premier plan
+    });
+    on(wheel, 'mouseleave', function () { nudgedCard = null; });
+    on(title, 'mouseenter', nudge);
+    on(arrow, 'mouseenter', nudge);
+
     on(window, 'wheel', function (e) {
       e.preventDefault();
       if (blocked()) return;
