@@ -636,6 +636,46 @@
     }
   }
 
+  /* Clic sur une tuile projet (page Works, pages légales) : tout disparaît sauf la photo,
+     qui se détache et se centre ; la page projet prend le relais */
+  function leaveFromCards(container, cards, fadeSel, path) {
+    var card = null;
+    cards.forEach(function (c) {
+      if ($$('a[href]', c).some(function (a) { return a.getAttribute('href') === path; })) card = c;
+    });
+    if (!card) return Promise.resolve(null);
+    var media = $('.works-media', card);
+    if (!media) return Promise.resolve(null);
+    root.classList.add('is-leaving');              // le zoom de survol se relâche
+    // Tout disparaît sauf la photo
+    var fade = $$(fadeSel, container)
+      .concat(cards.filter(function (c) { return c !== card; }))
+      .concat([$('.works-name', card), $('.works-tags', card)]);
+    fade.forEach(function (el) {
+      if (!el) return;
+      el.style.transition = 'opacity 500ms ease';
+      el.style.opacity = '0';
+    });
+    // La photo est détachée à sa place (position fixe) : le défilement de la page ne compte plus
+    var r = media.getBoundingClientRect();
+    card.style.height = card.getBoundingClientRect().height + 'px';   // la grille ne bouge pas
+    media.style.position = 'fixed';
+    media.style.left = r.left + 'px';
+    media.style.top = r.top + 'px';
+    media.style.width = r.width + 'px';
+    media.style.height = r.height + 'px';
+    media.style.margin = '0';
+    media.style.zIndex = '25';   // sous la page projet entrante (z-index 30), qui prend le relais à l'identique
+    media.style.aspectRatio = 'auto';
+    return wait(350).then(function () {
+      // Puis se place au centre de l'écran, à sa taille
+      var dx = (window.innerWidth - r.width) / 2 - r.left, dy = (window.innerHeight - r.height) / 2 - r.top;
+      media.style.transition = 'transform 1000ms ' + INOUT;
+      media.style.transform = 'translate3d(' + dx + 'px,' + dy + 'px,0)';
+      return wait(1050);
+    }).then(function () { return { card: media, radius: 0 }; });
+  }
+
   /* =====================================================================
      PAGE WORKS : grille des projets
      - entrée : titre en masque, tuiles qui montent en fondu
@@ -712,41 +752,7 @@
     }
 
     function leaveTo(path) {
-      var card = null;
-      cards.forEach(function (c) {
-        if ($$('a[href]', c).some(function (a) { return a.getAttribute('href') === path; })) card = c;
-      });
-      if (!card) return Promise.resolve(null);
-      var media = $('.works-media', card);
-      if (!media) return Promise.resolve(null);
-      root.classList.add('is-leaving');              // le zoom de survol se relâche
-      // Tout disparaît sauf la photo
-      var fade = $$('.home-logo, .home-nav, .home-socials, .works-head', container)
-        .concat(cards.filter(function (c) { return c !== card; }))
-        .concat([$('.works-name', card), $('.works-tags', card)]);
-      fade.forEach(function (el) {
-        if (!el) return;
-        el.style.transition = 'opacity 500ms ease';
-        el.style.opacity = '0';
-      });
-      // La photo est détachée à sa place (position fixe) : le défilement de la page ne compte plus
-      var r = media.getBoundingClientRect();
-      card.style.height = card.getBoundingClientRect().height + 'px';   // la grille ne bouge pas
-      media.style.position = 'fixed';
-      media.style.left = r.left + 'px';
-      media.style.top = r.top + 'px';
-      media.style.width = r.width + 'px';
-      media.style.height = r.height + 'px';
-      media.style.margin = '0';
-      media.style.zIndex = '25';   // sous la page projet entrante (z-index 30), qui prend le relais à l'identique
-      media.style.aspectRatio = 'auto';
-      return wait(350).then(function () {
-        // Puis se place au centre de l'écran, à sa taille
-        var dx = (window.innerWidth - r.width) / 2 - r.left, dy = (window.innerHeight - r.height) / 2 - r.top;
-        media.style.transition = 'transform 1000ms ' + INOUT;
-        media.style.transform = 'translate3d(' + dx + 'px,' + dy + 'px,0)';
-        return wait(1050);
-      }).then(function () { return { card: media, radius: 0 }; });
+      return leaveFromCards(container, cards, '.home-logo, .home-nav, .home-socials, .works-head', path);
     }
 
     return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
@@ -925,6 +931,26 @@
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
     root.classList.remove('is-wintro');
+    // Dernier projet : liens /works/<slug> (slug lié au CMS via data-slug)
+    $$('[data-slug]', container).forEach(function (a) {
+      var slug = a.getAttribute('data-slug');
+      if (slug) a.setAttribute('href', '/works/' + slug);
+    });
+    var cards = $$('.legal-latest .works-card', container);
+    cards.forEach(function (c) {
+      var icon = $('.works-arrow-icon', c);
+      if (!icon) return;
+      on(icon, 'animationend', function () { icon.classList.remove('is-nudge'); });
+      on(c, 'mouseenter', function () {
+        if (reduce) return;
+        icon.classList.remove('is-nudge');
+        void icon.offsetWidth;
+        icon.classList.add('is-nudge');
+      });
+    });
+    function leaveTo(path) {
+      return leaveFromCards(container, cards, '.home-logo, .home-nav, .home-socials, .legal-title, .legal-body, .legal-nav, .legal-tag', path);
+    }
     var links = $$('.legal-link', container);
     links.forEach(function (a) {
       var icon = $('.works-arrow-icon', a);
@@ -937,7 +963,7 @@
         icon.classList.add('is-nudge');
       });
     });
-    if (reduce) return { destroy: function () { ac.abort(); } };
+    if (reduce) return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
 
     var title = maskText($('.legal-title', container));
     var navTexts = [];
@@ -947,8 +973,33 @@
       var icon = $('.works-arrow-icon', a);
       if (icon) { icon.dataset.axis = 'y'; hide(icon); navTexts.push(icon); }
     });
+    // Dernier projet : pastille et nom en masque, photo dévoilée de bas en haut
+    var tag = $('.legal-tag', container);
+    if (tag) {
+      tag.style.clipPath = 'inset(0 100% 0 0 round 20px)';
+      setTimeout(function () {
+        tag.style.transition = 'clip-path 800ms ' + INOUT;
+        tag.style.clipPath = 'inset(0 0% 0 0 round 20px)';
+      }, 550);
+    }
+    var latest = [];
+    cards.forEach(function (c) {
+      var media = $('.works-media', c);
+      if (media) {
+        media.style.clipPath = 'inset(100% 0 0 0)';
+        setTimeout(function () {
+          media.style.transition = 'clip-path 1200ms ' + INOUT;
+          media.style.clipPath = 'inset(0% 0 0 0)';
+          setTimeout(function () { media.style.transition = ''; media.style.clipPath = ''; }, 1250);
+        }, 650);
+      }
+      latest.push(maskText($('.works-card-title', c)));
+      var icon = $('.works-arrow-icon', c);
+      if (icon) { icon.dataset.axis = 'y'; hide(icon); latest.push(icon); }
+    });
     reveal([title], 150, 0, 1000);
     reveal(navTexts, 450, 70, 900);
+    reveal(latest, 1200, 80, 900);
 
     // Blocs de texte : chapô, sections, date de mise à jour
     var blocks = $$('.legal-body > *', container);
@@ -981,7 +1032,7 @@
     } else {
       blocks.forEach(function (b, i) { show(b, 400 + i * 100); });
     }
-    return { destroy: function () { ac.abort(); } };
+    return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
   }
 
   /* =====================================================================
@@ -1382,7 +1433,7 @@
     transitions: [
       {
         name: 'accueil-vers-projet',       // aussi depuis la page Works : la photo cliquée sert de relais
-        from: { namespace: ['home', 'works'] },
+        from: { namespace: ['home', 'works', 'legal'] },
         to: { namespace: ['work'] },
         leave: function (data) {
           leaveData = null;
