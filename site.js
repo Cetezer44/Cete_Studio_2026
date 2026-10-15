@@ -816,7 +816,8 @@
     if (!reduce) {
       // Étapes 2-3 : le titre est centré dans la fenêtre ; à l'étape 4 il descend à sa place, centré sous la photo
       var hr = heading.getBoundingClientRect();
-      heading.style.transform = 'translate(' + (window.innerWidth / 2 - (hr.left + hr.width / 2)) + 'px,' +
+      // centré dans la zone de contenu (hors barre latérale), comme sa position finale : aucun glissement horizontal
+      heading.style.transform = 'translate(' + ((window.innerWidth - sideW()) / 2 - (hr.left + hr.width / 2)) + 'px,' +
         (window.innerHeight / 2 - (hr.top + hr.height / 2)) + 'px)';
       if (tagsBox) { tagsBox.style.overflow = 'hidden'; tagsBox.style.padding = '2px 0'; }
       tags.forEach(function (t) { t.dataset.axis = 'y'; hide(t); });
