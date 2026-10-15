@@ -916,6 +916,75 @@
   }
 
   /* =====================================================================
+     PAGES LÉGALES : mentions légales, protection des données, cookies
+     - entrée : titre et liens de la navigation de droite en masque, puis les blocs de texte
+       montent en fondu à leur arrivée à l'écran
+     - survol d'un lien de la navigation : la flèche sort à droite et revient par la gauche
+     ===================================================================== */
+  function Legal(container) {
+    var ac = new AbortController();
+    function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
+    root.classList.remove('is-wintro');
+    var links = $$('.legal-link', container);
+    links.forEach(function (a) {
+      var icon = $('.works-arrow-icon', a);
+      if (!icon) return;
+      on(icon, 'animationend', function () { icon.classList.remove('is-nudge'); });
+      on(a, 'mouseenter', function () {
+        if (reduce) return;
+        icon.classList.remove('is-nudge');
+        void icon.offsetWidth;
+        icon.classList.add('is-nudge');
+      });
+    });
+    if (reduce) return { destroy: function () { ac.abort(); } };
+
+    var title = maskText($('.legal-title', container));
+    var navTexts = [];
+    links.forEach(function (a) {
+      var label = a.firstElementChild;
+      if (label && !label.classList.contains('works-arrow')) navTexts.push(maskText(label));
+      var icon = $('.works-arrow-icon', a);
+      if (icon) { icon.dataset.axis = 'y'; hide(icon); navTexts.push(icon); }
+    });
+    reveal([title], 150, 0, 1000);
+    reveal(navTexts, 450, 70, 900);
+
+    // Blocs de texte : chapô, sections, date de mise à jour
+    var blocks = $$('.legal-body > *', container);
+    blocks.forEach(function (b) {
+      b.style.opacity = '0';
+      b.style.transform = 'translateY(40px)';
+    });
+    function show(b, delay) {
+      setTimeout(function () {
+        b.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
+        b.style.opacity = '';
+        b.style.transform = '';
+      }, delay);
+    }
+    if ('IntersectionObserver' in window) {
+      var queue = [], timer = null;
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          io.unobserve(e.target);
+          queue.push(e.target);
+        });
+        if (queue.length && !timer) timer = setTimeout(function () {
+          queue.forEach(function (b, i) { show(b, i * 100); });
+          queue = []; timer = null;
+        }, 0);
+      }, { threshold: 0.1 });
+      setTimeout(function () { blocks.forEach(function (b) { io.observe(b); }); }, 400);   // après le titre
+      ac.signal.addEventListener('abort', function () { io.disconnect(); });
+    } else {
+      blocks.forEach(function (b, i) { show(b, 400 + i * 100); });
+    }
+    return { destroy: function () { ac.abort(); } };
+  }
+
+  /* =====================================================================
      MODAL CONTACT : le fond noir s'étend depuis la barre latérale, le contenu apparaît en masque
      ===================================================================== */
   var CONTACT = {
@@ -924,7 +993,7 @@
     phoneLink: '+33658026687',
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
     menu: [['Works', '/works'], ['Studio', '#']],   // « Services » retiré en attendant la page
-    legal: [['Cookies', '#'], ['Données', '#'], ['Mentions légales', '#']]
+    legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
   var Menu = (function () {
     var isOpen = false, busy = false, lastFocus = null, timers = [];
@@ -1219,6 +1288,7 @@
     if (ns === 'home') page = Home(container, opts);
     else if (ns === 'work') page = Work(container, opts);
     else if (ns === 'works') page = Works(container, opts);
+    else if (ns === 'legal') page = Legal(container, opts);
     else page = null;
     return page;
   }
