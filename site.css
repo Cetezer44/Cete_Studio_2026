@@ -157,3 +157,25 @@ html:not(.has-cursor) .sr-frame.is-paused .sr-state { opacity: 1; }
 .sr-close:hover span { background: #fff; }
 .sr button:focus-visible, .sr a:focus-visible { outline: 1px solid #fff; outline-offset: 4px; }
 html.is-reel, html.is-reel body { overflow: hidden; }
+
+/* Grain : léger bruit qui grésille sur tout le site (essai) — calque fixe au-dessus de la page, sous le loader et le curseur */
+body::after {
+  content: ""; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; z-index: 9997; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 240px 240px; opacity: .07;
+  animation: cete-grain .8s steps(1) infinite;
+}
+@keyframes cete-grain {
+  0% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(7%, -25%); }
+  40% { transform: translate(-5%, 25%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%, 0); }
+  70% { transform: translate(0, 15%); }
+  80% { transform: translate(3%, 35%); }
+  90% { transform: translate(-10%, 10%); }
+  100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
