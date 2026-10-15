@@ -1025,7 +1025,7 @@
       '<div class="cm-main"><p class="cm-title">Discutons de votre projet</p><div class="cm-coords">' +
         '<div class="cm-mail">' +
           '<a class="cm-coord cm-mail-link" href="mailto:' + CONTACT.email + '" aria-label="Copier l’adresse ' + CONTACT.email + '">' + CONTACT.email +
-            '<svg class="cm-copy" viewBox="20 20 9.25 9.25" aria-hidden="true"><path d="M22.3613 21.75V22.25H20.5V28.75H27V26.8887H27.5V29.25H20V21.75H22.3613Z"/><path d="M29.25 20V26H23.25V20H29.25ZM23.75 25.5H28.75V20.5H23.75V25.5Z"/></svg></a>' +
+            '<svg class="cm-copy" viewBox="17 17 15.75 15.75" aria-hidden="true"><path d="M20.7654 20.7905V21.5878H17.7973V31.9527H28.1622V28.9846H28.9595V32.75H17V20.7905H20.7654Z"/><path d="M32.75 17V26.5676H23.1824V17H32.75ZM23.9797 25.7703H31.9527V17.7973H23.9797V25.7703Z"/></svg></a>' +
           '<span class="cm-tip" role="status" aria-live="polite"></span>' +
         '</div>' +
         '<a class="cm-coord" href="tel:' + CONTACT.phoneLink + '">' + CONTACT.phone + '</a></div></div>' +
