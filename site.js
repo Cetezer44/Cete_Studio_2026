@@ -637,6 +637,91 @@
   }
 
   /* =====================================================================
+     PAGE WORKS : grille des projets
+     - entrée : titre en masque, tuiles qui montent en fondu
+     - survol d'une tuile : zoom dans l'image (CSS) et flèche qui sort à droite / revient par la gauche
+     - clic sur un projet : tout disparaît sauf la photo, qui se centre ; la page projet prend le relais
+     ===================================================================== */
+  function Works(container, opts) {
+    var ac = new AbortController();
+    function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
+    root.classList.remove('is-wintro');            // posée par le script du head pour toute page ≠ accueil
+    var cards = $$('.works-card', container);
+    var title = $('.works-title', container);
+    var contact = $('.works-contact', container);
+
+    // Flèches : même animation que sous le nom du projet sur l'accueil
+    function nudge(icon) {
+      if (reduce || !icon) return;
+      icon.classList.remove('is-nudge');
+      void icon.offsetWidth;
+      icon.classList.add('is-nudge');
+    }
+    $$('.works-arrow-icon', container).forEach(function (i) {
+      on(i, 'animationend', function () { i.classList.remove('is-nudge'); });
+    });
+    cards.forEach(function (c) { on(c, 'mouseenter', function () { nudge($('.works-arrow-icon', c)); }); });
+    if (contact) on(contact, 'mouseenter', function () { nudge($('.works-arrow-icon', contact)); });
+
+    // Entrée
+    var titleIn = title ? maskText(title) : null;
+    if (reduce) { if (titleIn) titleIn.style.transform = 'none'; }
+    else {
+      reveal([titleIn], 150, 0, 1000);
+      cards.forEach(function (c, i) {
+        c.style.opacity = '0';
+        c.style.transform = 'translateY(60px)';
+        setTimeout(function () {
+          c.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
+          c.style.opacity = '1';
+          c.style.transform = 'none';
+          setTimeout(function () { c.style.transition = ''; c.style.transform = ''; }, 1150);
+        }, 300 + i * 90);
+      });
+    }
+
+    function leaveTo(path) {
+      var card = null;
+      cards.forEach(function (c) {
+        if ($$('a[href]', c).some(function (a) { return a.getAttribute('href') === path; })) card = c;
+      });
+      if (!card) return Promise.resolve(null);
+      var media = $('.works-media', card);
+      if (!media) return Promise.resolve(null);
+      root.classList.add('is-leaving');              // le zoom de survol se relâche
+      // Tout disparaît sauf la photo
+      var fade = $$('.home-logo, .home-nav, .home-socials, .works-head', container)
+        .concat(cards.filter(function (c) { return c !== card; }))
+        .concat([$('.works-name', card), $('.works-tags', card)]);
+      fade.forEach(function (el) {
+        if (!el) return;
+        el.style.transition = 'opacity 500ms ease';
+        el.style.opacity = '0';
+      });
+      // La photo est détachée à sa place (position fixe) : le défilement de la page ne compte plus
+      var r = media.getBoundingClientRect();
+      card.style.height = card.getBoundingClientRect().height + 'px';   // la grille ne bouge pas
+      media.style.position = 'fixed';
+      media.style.left = r.left + 'px';
+      media.style.top = r.top + 'px';
+      media.style.width = r.width + 'px';
+      media.style.height = r.height + 'px';
+      media.style.margin = '0';
+      media.style.zIndex = '200';
+      media.style.aspectRatio = 'auto';
+      return wait(350).then(function () {
+        // Puis se place au centre de l'écran, à sa taille
+        var dx = (window.innerWidth - r.width) / 2 - r.left, dy = (window.innerHeight - r.height) / 2 - r.top;
+        media.style.transition = 'transform 1000ms ' + INOUT;
+        media.style.transform = 'translate3d(' + dx + 'px,' + dy + 'px,0)';
+        return wait(1050);
+      }).then(function () { return { card: media, radius: 0 }; });
+    }
+
+    return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
+  }
+
+  /* =====================================================================
      PAGE PROJET : photo plein écran, titre en masque (mode différence), puis réduction à 50 %
      ===================================================================== */
   // Découpe un paragraphe en lignes, chacune dans son masque
@@ -807,7 +892,7 @@
     phone: '0658026687',
     phoneLink: '+33658026687',
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
-    menu: [['Works', '#'], ['Services', '#'], ['Studio', '#']],
+    menu: [['Works', '/works'], ['Services', '#'], ['Studio', '#']],
     legal: [['Cookies', '#'], ['Données', '#'], ['Mentions légales', '#']]
   };
   var Menu = (function () {
@@ -916,7 +1001,7 @@
     document.addEventListener('click', function (e) {
       // Logo de la modal sur l'accueil : on referme simplement la modal
       if (e.target.closest && e.target.closest('.cm-mark') && root.getAttribute('data-page') === 'home') { e.preventDefault(); e.stopPropagation(); shut(); return; }
-      var t = e.target.closest && e.target.closest('.side-contact, .side-burger, .cm-close');
+      var t = e.target.closest && e.target.closest('.side-contact, .side-burger, .cm-close, .works-contact');
       if (!t) return;
       e.preventDefault();
       e.stopPropagation();
@@ -1101,6 +1186,7 @@
     root.setAttribute('data-page', ns);
     if (ns === 'home') page = Home(container, opts);
     else if (ns === 'work') page = Work(container, opts);
+    else if (ns === 'works') page = Works(container, opts);
     else page = null;
     return page;
   }
@@ -1156,8 +1242,8 @@
     prevent: function (o) { return o.el && (o.el.closest('.w-editor') || o.el.getAttribute('href') === '#'); },
     transitions: [
       {
-        name: 'accueil-vers-projet',
-        from: { namespace: ['home'] },
+        name: 'accueil-vers-projet',       // aussi depuis la page Works : la photo cliquée sert de relais
+        from: { namespace: ['home', 'works'] },
         to: { namespace: ['work'] },
         leave: function (data) {
           leaveData = null;

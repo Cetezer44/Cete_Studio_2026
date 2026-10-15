@@ -18,8 +18,12 @@ html.is-loading body::before { content: ""; position: fixed; top: 0; left: 0; ri
 /* Zoom léger dans l'image au survol d'un projet (survol du parent : impossible dans le Designer) */
 .wheel-card:hover .wheel-img, .wheel-card:focus-visible .wheel-img { transform: scale(1.07); }
 html.is-leaving .wheel-card .wheel-img { transform: scale(1.001); }
+/* Page Works : zoom léger dans l'image au survol d'une tuile (survol du parent : impossible dans le Designer) */
+.works-card:hover .works-img, .works-card:focus-within .works-img { transform: scale(1.07); }
+html.is-leaving .works-img { transform: scale(1.001); }
+@media (prefers-reduced-motion: reduce) { .works-img { transition: none; } .works-card:hover .works-img { transform: none; } }
 /* Flèche du projet : sort à droite puis revient par la gauche, dans son masque (classe posée par site.js au survol) */
-.wheel-arrow-icon.is-nudge { animation: cete-arrow-nudge 900ms both; }
+.wheel-arrow-icon.is-nudge, .works-arrow-icon.is-nudge { animation: cete-arrow-nudge 900ms both; }
 @keyframes cete-arrow-nudge {
   0%      { translate: 0 0; animation-timing-function: cubic-bezier(.55,0,.75,.4); }
   40%     { translate: 120% 0; }
