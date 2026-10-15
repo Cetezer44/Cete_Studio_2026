@@ -646,6 +646,11 @@
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
     root.classList.remove('is-wintro');            // posée par le script du head pour toute page ≠ accueil
+    // Liens des tuiles : /works/<slug> (slug lié au CMS via l'attribut data-slug, comme la roulette de l'accueil)
+    $$('[data-slug]', container).forEach(function (a) {
+      var slug = a.getAttribute('data-slug');
+      if (slug) a.setAttribute('href', '/works/' + slug);
+    });
     var cards = $$('.works-card', container);
     var title = $('.works-title', container);
     var contact = $('.works-contact', container);
