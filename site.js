@@ -814,7 +814,7 @@
     heading.appendChild(hIn);
     hIn.style.transform = reduce ? 'none' : 'translateY(110%)';
     if (!reduce) {
-      // Étapes 2-3 : le titre est centré dans la fenêtre ; à l'étape 4 il rejoint sa place, sous la photo et aligné à gauche
+      // Étapes 2-3 : le titre est centré dans la fenêtre ; à l'étape 4 il descend à sa place, centré sous la photo
       var hr = heading.getBoundingClientRect();
       heading.style.transform = 'translate(' + (window.innerWidth / 2 - (hr.left + hr.width / 2)) + 'px,' +
         (window.innerHeight / 2 - (hr.top + hr.height / 2)) + 'px)';
@@ -830,7 +830,7 @@
       return s;
     });
 
-    // Étape 4 : le titre glisse sous la photo vers la gauche, les catégories puis l'introduction apparaissent en masque
+    // Étape 4 : le titre descend sous la photo, les catégories puis l'introduction (centrées) apparaissent en masque
     function settle(delay) {
       return wait(delay).then(function () {
         conceal(socials, 0, 50, 500);

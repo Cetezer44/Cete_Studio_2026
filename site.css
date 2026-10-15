@@ -179,3 +179,6 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 .studio-page .st-member .hero-tag { transition: background-color 800ms ease, color 800ms ease; }
 .studio-page[data-theme="dark"] .st-member .hero-tag { background-color: #f0f0f0; color: #000; }
 .studio-page[data-theme="dark"] .st-member-link { color: #f0f0f0; }
+
+/* Page projet : bloc titre / catégories / intro centré dans la zone de contenu (hors barre latérale) */
+.work-intro{left:calc(var(--side, 68px) / -2)}
