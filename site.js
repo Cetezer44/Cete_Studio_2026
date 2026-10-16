@@ -1151,16 +1151,122 @@
       track.style.transform = 'translate3d(' + (-p * dist).toFixed(1) + 'px,0,0)';
     }
 
+    // Fin de page : la phrase défile de gauche à droite avec le scroll (section fixée),
+    // puis la modal contact s'ouvre une fois la dernière lettre arrivée
+    var endPin = $('.st-end', container), endSticky = $('.st-end-sticky', container), outro = $('.st-outro', container);
+    var oDist = 0, armed = true, lastY = window.pageYOffset;
+    function layoutOutro() {
+      if (!endPin || !endSticky || !outro) return;
+      var w = endSticky.clientWidth;
+      var pad = parseFloat(getComputedStyle(outro).paddingLeft) || 0;
+      // dernière lettre alignée sur la marge de droite (hors barre latérale)
+      oDist = Math.max(0, Math.ceil(outro.offsetWidth + pad + sideW() - w));
+      endPin.style.height = (window.innerHeight + oDist) + 'px';
+      updateOutro(false);
+    }
+    function updateOutro(fromScroll) {
+      if (!endPin || !outro) return;
+      var r = endPin.getBoundingClientRect();
+      var p = oDist ? Math.min(1, Math.max(0, -r.top / oDist)) : 0;
+      outro.style.transform = 'translate3d(' + (-p * oDist).toFixed(1) + 'px,0,0)';
+      var y = window.pageYOffset, down = y > lastY;
+      lastY = y;
+      if (p < 0.85) armed = true;
+      if (fromScroll && down && armed && p >= 0.995 && r.bottom > 0) {
+        armed = false;
+        if (typeof Menu !== 'undefined' && Menu && !Menu.isOpen()) Menu.open();
+      }
+    }
+
+    // Services : l'image flotte et suit très légèrement le curseur
+    var svcList = $('.st-services-list', container);
+    if (svcList && !reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      var fx = 0, fy = 0, cx = 0, cy = 0, fRaf = null;
+      var fStep = function () {
+        fRaf = null;
+        cx += (fx - cx) * 0.08; cy += (fy - cy) * 0.08;
+        svcList.style.setProperty('--fx', cx.toFixed(2) + 'px');
+        svcList.style.setProperty('--fy', cy.toFixed(2) + 'px');
+        if (Math.abs(fx - cx) > 0.05 || Math.abs(fy - cy) > 0.05) fRaf = requestAnimationFrame(fStep);
+      };
+      var fKick = function () { if (!fRaf) fRaf = requestAnimationFrame(fStep); };
+      on(svcList, 'mousemove', function (e) {
+        var item = e.target.closest && e.target.closest('.st-service');
+        if (!item) return;
+        var lr = svcList.getBoundingClientRect(), ir = item.getBoundingClientRect();
+        fx = Math.max(-28, Math.min(28, (e.clientX - lr.left - lr.width / 2) * 0.05));
+        fy = Math.max(-12, Math.min(12, (e.clientY - ir.top - ir.height / 2) * 0.25));
+        fKick();
+      });
+      on(svcList, 'mouseleave', function () { fx = 0; fy = 0; fKick(); });
+      ac.signal.addEventListener('abort', function () { if (fRaf) cancelAnimationFrame(fRaf); });
+    }
+
+    // Clients : logo absent dans le CMS = pas d'image
+    $$('.st-client-logo', container).forEach(function (img) {
+      if (img.classList.contains('w-dyn-bind-empty') || !img.getAttribute('src')) img.remove();
+    });
+
+    // Hero : traînée d'images (collection « Images studio ») qui suit le curseur ; coupée dès que le fond passe au noir
+    var hero = $('.st-hero', container);
+    var trailSrcs = $$('.st-trail-src img', container).map(function (i) { return i.getAttribute('src'); }).filter(Boolean);
+    var trailLayer = null;
+    function clearTrail() {
+      if (!trailLayer) return;
+      $$('.st-trail-img', trailLayer).forEach(function (el) { el.classList.add('is-out'); setTimeout(function () { el.remove(); }, 700); });
+    }
+    if (hero && trailSrcs.length && !reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      trailLayer = document.createElement('div');
+      trailLayer.className = 'st-trail';
+      trailLayer.setAttribute('aria-hidden', 'true');
+      hero.insertBefore(trailLayer, hero.firstChild);
+      trailSrcs.forEach(function (s) { var im = new Image(); im.src = s; });   // préchargement
+      var tIdx = 0, tLast = null;
+      var spawn = function (x, y) {
+        var r = hero.getBoundingClientRect();
+        var el = document.createElement('img');
+        el.className = 'st-trail-img';
+        el.alt = '';
+        el.src = trailSrcs[tIdx++ % trailSrcs.length];
+        el.style.left = (x - r.left) + 'px';
+        el.style.top = (y - r.top) + 'px';
+        trailLayer.appendChild(el);
+        requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('is-in'); }); });
+        setTimeout(function () { el.classList.add('is-out'); setTimeout(function () { el.remove(); }, 700); }, 700);
+        var all = trailLayer.children;
+        if (all.length > 12) all[0].remove();
+      };
+      on(window, 'mousemove', function (e) {
+        if (theme !== 'light') { tLast = null; return; }
+        var r = hero.getBoundingClientRect();
+        if (e.clientY < r.top || e.clientY > r.bottom) { tLast = null; return; }
+        if (!tLast) { tLast = { x: e.clientX, y: e.clientY }; return; }
+        var dx = e.clientX - tLast.x, dy = e.clientY - tLast.y;
+        if (dx * dx + dy * dy < 8100) return;   // une image tous les 90 px parcourus
+        tLast = { x: e.clientX, y: e.clientY };
+        spawn(e.clientX, e.clientY);
+      }, { passive: true });
+    }
+
     var ticking = false;
     function onScroll() {
       if (ticking) return;
       ticking = true;
-      requestAnimationFrame(function () { ticking = false; pickTheme(false); update(); });
+      requestAnimationFrame(function () {
+        ticking = false;
+        var before = theme;
+        pickTheme(false);
+        if (theme !== 'light' && before === 'light') clearTrail();
+        update();
+        updateOutro(true);
+      });
     }
     on(window, 'scroll', onScroll, { passive: true });
-    on(window, 'resize', function () { layout(); pickTheme(false); });
+    on(window, 'resize', function () { layout(); layoutOutro(); pickTheme(false); });
     $$('img', container).forEach(function (img) { if (!img.complete) on(img, 'load', layout); });
     layout();
+    layoutOutro();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutOutro);
     pickTheme(true);
 
     // Apparitions

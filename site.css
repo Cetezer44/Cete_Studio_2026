@@ -182,3 +182,29 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 
 /* Page projet : bloc titre / catégories / intro centré dans la zone de contenu (hors barre latérale) */
 .work-intro{left:calc(var(--side, 68px) / -2)}
+
+/* Studio — hero : traînée d'images qui suit le curseur (images de la collection « Images studio ») */
+.st-hero { position: relative; }
+.st-hero > :not(.st-trail) { position: relative; z-index: 1; }
+.st-trail { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.st-trail-img {
+  position: absolute; width: clamp(110px, 10.417vw, 180px); aspect-ratio: 1; height: auto; max-width: none; object-fit: cover;
+  transform: translate(-50%, -50%) scale(.75); clip-path: inset(100% 0 0 0);
+  transition: transform 700ms cubic-bezier(.16,1,.3,1), clip-path 600ms cubic-bezier(.65,0,.35,1);
+}
+.st-trail-img.is-in { transform: translate(-50%, -50%) scale(1); clip-path: inset(0 0 0 0); }
+.st-trail-img.is-out { transform: translate(-50%, -50%) scale(.9); clip-path: inset(0 0 100% 0); transition-duration: 700ms, 650ms; }
+
+/* Studio — services : l'image flotte avec le curseur (décalage piloté en JS) */
+.st-service-media { translate: var(--fx, 0px) var(--fy, 0px); }
+
+/* Studio — clients : au survol, les autres passent à 15 % et le logo apparaît à gauche du nom */
+.st-client-logo { opacity: 0; clip-path: inset(100% 0 0 0); transition: clip-path 500ms cubic-bezier(.65,0,.35,1), opacity 0s linear 500ms; }
+.st-client-logo.w-dyn-bind-empty { display: none; }
+@media (hover: hover) {
+  .st-clients-list:has(.st-client-item:hover) .st-client-item:not(:hover) .st-client { opacity: .15; }
+  .st-client-item:hover .st-client-logo { opacity: 1; clip-path: inset(0 0 0 0); transition: clip-path 700ms cubic-bezier(.16,1,.3,1), opacity 0s; }
+}
+
+/* Studio — fin de page : la phrase défile horizontalement (transform piloté en JS) */
+.st-outro { will-change: transform; }
