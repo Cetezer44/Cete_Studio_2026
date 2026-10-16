@@ -185,10 +185,10 @@
     var N = base.length;
     if (!N) return null;
 
-    // Chaque carte vient de la collection CMS « Works » : lien vers la page du projet (/works/slug)
+    // Chaque carte vient de la collection CMS « Works » : lien vers la page du projet (/projets/slug)
     base.forEach(function (c) {
       var slug = c.getAttribute('data-slug');
-      if (slug) c.setAttribute('href', '/works/' + slug);
+      if (slug) c.setAttribute('href', '/projets/' + slug);
     });
     // On triple la série pour que la boucle se fasse hors écran
     for (var r = 0; r < 2; r++) {
@@ -690,10 +690,10 @@
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
     root.classList.remove('is-wintro');            // posée par le script du head pour toute page ≠ accueil
-    // Liens des tuiles : /works/<slug> (slug lié au CMS via l'attribut data-slug, comme la roulette de l'accueil)
+    // Liens des tuiles : /projets/<slug> (slug lié au CMS via l'attribut data-slug, comme la roulette de l'accueil)
     $$('[data-slug]', container).forEach(function (a) {
       var slug = a.getAttribute('data-slug');
-      if (slug) a.setAttribute('href', '/works/' + slug);
+      if (slug) a.setAttribute('href', '/projets/' + slug);
     });
     var cards = $$('.works-card', container);
     var title = $('.works-title', container);
@@ -936,10 +936,10 @@
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
     root.classList.remove('is-wintro');
-    // Dernier projet : liens /works/<slug> (slug lié au CMS via data-slug)
+    // Dernier projet : liens /projets/<slug> (slug lié au CMS via data-slug)
     $$('[data-slug]', container).forEach(function (a) {
       var slug = a.getAttribute('data-slug');
-      if (slug) a.setAttribute('href', '/works/' + slug);
+      if (slug) a.setAttribute('href', '/projets/' + slug);
     });
     var cards = $$('.legal-latest .works-card', container);
     cards.forEach(function (c) {
@@ -1351,7 +1351,7 @@
     phone: '0658026687',
     phoneLink: '+33658026687',
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
-    menu: [['Works', '/works'], ['Studio', '/studio']],   // « Services » retiré en attendant la page
+    menu: [['Projets', '/projets'], ['Studio', '/studio']],   // « Services » retiré en attendant la page
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
   var Menu = (function () {
