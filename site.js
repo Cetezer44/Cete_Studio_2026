@@ -1151,33 +1151,6 @@
       track.style.transform = 'translate3d(' + (-p * dist).toFixed(1) + 'px,0,0)';
     }
 
-    // Fin de page : la phrase défile de gauche à droite avec le scroll (section fixée),
-    // puis la modal contact s'ouvre une fois la dernière lettre arrivée
-    var endPin = $('.st-end', container), endSticky = $('.st-end-sticky', container), outro = $('.st-outro', container);
-    var oDist = 0, armed = true, lastY = window.pageYOffset;
-    function layoutOutro() {
-      if (!endPin || !endSticky || !outro) return;
-      var w = endSticky.clientWidth;
-      var pad = parseFloat(getComputedStyle(outro).paddingLeft) || 0;
-      // dernière lettre alignée sur la marge de droite (hors barre latérale)
-      oDist = Math.max(0, Math.ceil(outro.offsetWidth + pad + sideW() - w));
-      endPin.style.height = (window.innerHeight + oDist) + 'px';
-      updateOutro(false);
-    }
-    function updateOutro(fromScroll) {
-      if (!endPin || !outro) return;
-      var r = endPin.getBoundingClientRect();
-      var p = oDist ? Math.min(1, Math.max(0, -r.top / oDist)) : 0;
-      outro.style.transform = 'translate3d(' + (-p * oDist).toFixed(1) + 'px,0,0)';
-      var y = window.pageYOffset, down = y > lastY;
-      lastY = y;
-      if (p < 0.85) armed = true;
-      if (fromScroll && down && armed && p >= 0.995 && r.bottom > 0) {
-        armed = false;
-        if (typeof Menu !== 'undefined' && Menu && !Menu.isOpen()) Menu.open();
-      }
-    }
-
     // Services : l'image flotte et suit très légèrement le curseur
     var svcList = $('.st-services-list', container);
     if (svcList && !reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
@@ -1213,7 +1186,7 @@
     var trailLayer = null;
     function clearTrail() {
       if (!trailLayer) return;
-      $$('.st-trail-img', trailLayer).forEach(function (el) { el.classList.add('is-out'); setTimeout(function () { el.remove(); }, 700); });
+      $$('.st-trail-img', trailLayer).forEach(function (el) { if (el._fade) el._fade(); });
     }
     if (hero && trailSrcs.length && !reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
       trailLayer = document.createElement('div');
@@ -1232,9 +1205,18 @@
         el.style.top = (y - r.top) + 'px';
         trailLayer.appendChild(el);
         requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('is-in'); }); });
-        setTimeout(function () { el.classList.add('is-out'); setTimeout(function () { el.remove(); }, 700); }, 700);
-        var all = trailLayer.children;
-        if (all.length > 12) all[0].remove();
+        var out = function () {
+          if (el._out) return;
+          el._out = true;
+          clearTimeout(el._t);
+          el.classList.add('is-out');
+          setTimeout(function () { el.remove(); }, 450);
+        };
+        el._fade = out;
+        el._t = setTimeout(out, 800);
+        // 3 photos visibles au maximum : la plus ancienne s'efface
+        var live = $$('.st-trail-img', trailLayer).filter(function (i) { return !i._out; });
+        while (live.length > 3) live.shift()._fade();
       };
       on(window, 'mousemove', function (e) {
         if (theme !== 'light') { tLast = null; return; }
@@ -1258,15 +1240,12 @@
         pickTheme(false);
         if (theme !== 'light' && before === 'light') clearTrail();
         update();
-        updateOutro(true);
       });
     }
     on(window, 'scroll', onScroll, { passive: true });
-    on(window, 'resize', function () { layout(); layoutOutro(); pickTheme(false); });
+    on(window, 'resize', function () { layout(); pickTheme(false); });
     $$('img', container).forEach(function (img) { if (!img.complete) on(img, 'load', layout); });
     layout();
-    layoutOutro();
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutOutro);
     pickTheme(true);
 
     // Apparitions
