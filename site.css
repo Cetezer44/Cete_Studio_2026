@@ -210,3 +210,7 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 /* Logo client : clair sur fond noir, foncé sur fond clair (le mix-blend ne fonctionne pas dans le bloc animé) */
 .st-client-logo { mix-blend-mode: normal !important; }
 .studio-page[data-theme="light"] .st-client-logo { filter: invert(1); }
+
+/* Pages légales (gabarit 2026) : fond noir, flèches claires */
+html[data-page="legal"], html[data-page="legal"] body { background-color: #000; }
+.legal-link .works-arrow-icon { filter: invert(1); }
