@@ -825,28 +825,36 @@
     // Contenu (rich text) : photos dévoilées de bas en haut, textes en fondu, à leur arrivée à l'écran
     var figs = $$('.work-rt figure', container);
     if (!reduce && 'IntersectionObserver' in window) {
-      var revealEls = [];
-      if (details && details.style.display !== 'none') { details.style.opacity = '0'; details.style.transform = 'translateY(30px)'; revealEls.push(details); }
+      // on observe le bloc parent : un élément masqué par clip-path n'est jamais « visible » pour l'observer
+      var targets = [];
+      if (details && details.style.display !== 'none') { details.style.opacity = '0'; details.style.transform = 'translateY(30px)'; targets.push(details); }
       figs.forEach(function (f) {
         var box = f.firstElementChild, cap = $('figcaption', f);
-        if (box) { box.style.clipPath = 'inset(100% 0 0 0)'; revealEls.push(box); }
-        if (cap) { cap.style.opacity = '0'; cap.style.transform = 'translateY(30px)'; revealEls.push(cap); }
+        if (box) box.style.clipPath = 'inset(100% 0 0 0)';
+        if (cap) { cap.style.opacity = '0'; cap.style.transform = 'translateY(30px)'; }
+        f._box = box; f._cap = cap;
+        targets.push(f);
       });
+      var fade = function (el, delay) {
+        setTimeout(function () {
+          el.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
+          el.style.opacity = ''; el.style.transform = '';
+        }, delay || 0);
+      };
       var wio = new IntersectionObserver(function (entries) {
         entries.forEach(function (e) {
           if (!e.isIntersecting) return;
           wio.unobserve(e.target);
           var el = e.target;
-          if (el.style.clipPath) {
-            el.style.transition = 'clip-path 1300ms ' + INOUT;
-            el.style.clipPath = 'inset(0% 0 0 0)';
-          } else {
-            el.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
-            el.style.opacity = ''; el.style.transform = '';
+          if (el === details) { fade(el); return; }
+          if (el._box) {
+            el._box.style.transition = 'clip-path 1300ms ' + INOUT;
+            el._box.style.clipPath = 'inset(0% 0 0 0)';
           }
+          if (el._cap) fade(el._cap, 500);
         });
-      }, { threshold: 0.12 });
-      setTimeout(function () { revealEls.forEach(function (el) { wio.observe(el); }); }, 400);
+      }, { threshold: 0.1 });
+      setTimeout(function () { targets.forEach(function (el) { wio.observe(el); }); }, 400);
       wac.signal.addEventListener('abort', function () { wio.disconnect(); });
     }
 
