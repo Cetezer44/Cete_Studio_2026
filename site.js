@@ -1424,6 +1424,57 @@
     var coords = $$('.cm-coord', box).map(function (el) { return maskText(el); });
     var close = maskText($('.cm-close', box));
     var logo = $('.cm-logo', box);
+    // Grand logo « cete » en SVG inline : chaque lettre se trace au trait, puis se remplit (construction)
+    var logoPaths = [];
+    fetch(LOADER_LOGO).then(function (res) { return res.text(); }).then(function (txt) {
+      var tmp = document.createElement('div');
+      tmp.innerHTML = txt;
+      var svg = tmp.querySelector('svg'), img = $('img', logo);
+      if (!svg || !img) return;
+      svg.setAttribute('aria-hidden', 'true');
+      svg.removeAttribute('width'); svg.removeAttribute('height');
+      logo.replaceChild(svg, img);
+      logoPaths = $$('path', svg).map(function (p) {
+        p.setAttribute('stroke', '#fff');
+        p.style.vectorEffect = 'non-scaling-stroke';
+        p.style.strokeWidth = '1.5px';
+        return { el: p, len: Math.ceil(p.getTotalLength()) + 2 };
+      });
+      if (!isOpen) prepLogo();
+    }).catch(function () {});
+    function prepLogo() {
+      logoPaths.forEach(function (o) {
+        var p = o.el;
+        p.style.transition = 'none';
+        p.style.strokeDasharray = o.len + ' ' + o.len;
+        p.style.strokeDashoffset = o.len;
+        p.style.fillOpacity = '0';
+        p.style.strokeOpacity = '1';
+      });
+    }
+    function buildLogo(delay) {
+      if (!logoPaths.length) {   // SVG pas encore chargé : simple dévoilement
+        later(delay, function () { logo.style.transition = 'clip-path 1400ms ' + EASE; logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; });
+        return;
+      }
+      logo.style.transition = 'none';
+      logo.style.clipPath = 'inset(-2% -2% -2% -2%)';
+      prepLogo();
+      void logo.offsetWidth;
+      // ordre de lecture (le SVG est vertical, tourné de 90°) : de gauche à droite à l'écran
+      var order = logoPaths.slice().sort(function (a, b) {
+        return a.el.getBoundingClientRect().left - b.el.getBoundingClientRect().left;
+      });
+      order.forEach(function (o, i) {
+        later(delay + i * 160, function () {
+          var p = o.el;
+          p.style.transition = 'stroke-dashoffset 1300ms ' + INOUT + ', fill-opacity 700ms ease 950ms, stroke-opacity 500ms ease 1300ms';
+          p.style.strokeDashoffset = '0';
+          p.style.fillOpacity = '1';
+          p.style.strokeOpacity = '0';
+        });
+      });
+    }
     var cols = [];   // ordre d'apparition : colonne par colonne
     $$('.cm-col', box).forEach(function (c) { cols = cols.concat($$('span[data-axis]', c)); });
     var all = cols.concat([title], coords, [close]);
@@ -1441,9 +1492,10 @@
       all.forEach(hide);
       logo.style.transition = 'none';
       logo.style.clipPath = 'inset(-2% 102% -2% -2%)';
+      prepLogo();
       box.style.visibility = 'visible';
       box.offsetHeight;
-      if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; busy = false; $('.cm-close', box).focus(); return; }
+      if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.strokeDashoffset = '0'; o.el.style.fillOpacity = '1'; o.el.style.strokeOpacity = '0'; }); busy = false; $('.cm-close', box).focus(); return; }
       // 1. Le fond noir de la barre latérale s'étend vers la gauche, jusqu'à la bande en verre
       bg.style.transition = 'width 1000ms ' + INOUT;
       bg.style.width = panelW() + 'px';
@@ -1452,8 +1504,8 @@
       reveal([title], 800, 0, 1100);
       reveal(coords, 900, 80, 1000);
       reveal([close], 950, 0, 900);
-      // 3. Le grand logo se révèle de gauche à droite
-      later(900, function () { logo.style.transition = 'clip-path 1400ms ' + EASE; logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; });
+      // 3. Le grand logo se construit lettre par lettre
+      buildLogo(850);
       later(1000, function () { busy = false; $('.cm-close', box).focus({ preventScroll: true }); });
     }
     function shut(fast) {

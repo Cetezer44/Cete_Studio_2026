@@ -79,7 +79,7 @@ html.is-menu .cm-bg { pointer-events: auto; }
 .cm-tip.is-on { opacity: 1; transform: translate(0, -50%); }
 .cm-close { position: absolute; right: 54px; top: 50%; transform: translateY(-50%); padding: 0; border: 0; background: none; font: inherit; font-size: 13px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-transform: uppercase; }
 .cm-logo { position: absolute; left: calc(var(--glass) + 30px); bottom: 30px; width: 37.78vw; height: 11.74vw; }
-.cm-logo img { position: absolute; left: 50%; top: 50%; width: 11.74vw; height: 37.78vw; max-width: none; transform: translate(-50%, -50%) rotate(90deg); }
+.cm-logo img, .cm-logo svg { overflow: visible; position: absolute; left: 50%; top: 50%; width: 11.74vw; height: 37.78vw; max-width: none; transform: translate(-50%, -50%) rotate(90deg); }
 html.is-menu, html.is-menu body { overflow: hidden; }
 html.is-menu .side-contact { text-decoration: line-through; }
 html.is-menu .burger-line:nth-child(1) { transform: translateY(6px) rotate(45deg); }
