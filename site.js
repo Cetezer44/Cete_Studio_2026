@@ -1424,7 +1424,7 @@
     var coords = $$('.cm-coord', box).map(function (el) { return maskText(el); });
     var close = maskText($('.cm-close', box));
     var logo = $('.cm-logo', box);
-    // Grand logo « cete » en SVG inline : chaque lettre se trace au trait, puis se remplit (construction)
+    // Grand logo « cete » en SVG inline : chaque lettre (pleine) monte depuis le bas du logo, l'une après l'autre
     var logoPaths = [];
     fetch(LOADER_LOGO).then(function (res) { return res.text(); }).then(function (txt) {
       var tmp = document.createElement('div');
@@ -1434,21 +1434,14 @@
       svg.setAttribute('aria-hidden', 'true');
       svg.removeAttribute('width'); svg.removeAttribute('height');
       logo.replaceChild(svg, img);
-      logoPaths = $$('path', svg).map(function (p) {
-        p.setAttribute('stroke', '#fff');
-        p.style.strokeWidth = '0.14';   // unités du SVG (≈ 1,5 px à l'écran) : le tracé pointillé suit la longueur réelle
-        return { el: p, len: Math.ceil(p.getTotalLength()) + 2 };
-      });
+      logoPaths = $$('path', svg).map(function (p) { return { el: p }; });
       if (!isOpen) prepLogo();
     }).catch(function () {});
+    // SVG vertical tourné de 90° : +x dans le SVG = vers le bas à l'écran ; 18 unités = toute la hauteur du logo
     function prepLogo() {
       logoPaths.forEach(function (o) {
-        var p = o.el;
-        p.style.transition = 'none';
-        p.style.strokeDasharray = o.len + ' ' + o.len;
-        p.style.strokeDashoffset = o.len;
-        p.style.fillOpacity = '0';
-        p.style.strokeOpacity = '1';
+        o.el.style.transition = 'none';
+        o.el.style.transform = 'translate(18px, 0)';
       });
     }
     function buildLogo(delay) {
@@ -1457,20 +1450,17 @@
         return;
       }
       logo.style.transition = 'none';
-      logo.style.clipPath = 'inset(-2% -2% -2% -2%)';
+      logo.style.clipPath = 'inset(-2% -2% -1% -2%)';   // le bas du logo sert de masque
       prepLogo();
       void logo.offsetWidth;
-      // ordre de lecture (le SVG est vertical, tourné de 90°) : de gauche à droite à l'écran
+      // ordre de lecture : de gauche à droite à l'écran
       var order = logoPaths.slice().sort(function (a, b) {
         return a.el.getBoundingClientRect().left - b.el.getBoundingClientRect().left;
       });
       order.forEach(function (o, i) {
-        later(delay + i * 160, function () {
-          var p = o.el;
-          p.style.transition = 'stroke-dashoffset 1300ms ' + INOUT + ', fill-opacity 700ms ease 950ms, stroke-opacity 500ms ease 1300ms';
-          p.style.strokeDashoffset = '0';
-          p.style.fillOpacity = '1';
-          p.style.strokeOpacity = '0';
+        later(delay + i * 110, function () {
+          o.el.style.transition = 'transform 1300ms ' + EASE;
+          o.el.style.transform = 'translate(0, 0)';
         });
       });
     }
@@ -1494,7 +1484,7 @@
       prepLogo();
       box.style.visibility = 'visible';
       box.offsetHeight;
-      if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.strokeDashoffset = '0'; o.el.style.fillOpacity = '1'; o.el.style.strokeOpacity = '0'; }); busy = false; $('.cm-close', box).focus(); return; }
+      if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.transform = 'none'; }); busy = false; $('.cm-close', box).focus(); return; }
       // 1. Le fond noir de la barre latérale s'étend vers la gauche, jusqu'à la bande en verre
       bg.style.transition = 'width 1000ms ' + INOUT;
       bg.style.width = panelW() + 'px';
