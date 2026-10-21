@@ -1654,6 +1654,35 @@
   })();
 
   /* =====================================================================
+     RIDEAU NOIR des pages légales : monte par le bas à l'entrée, part par le haut à la sortie
+     ===================================================================== */
+  var Curtain = (function () {
+    var el = document.createElement('div');
+    el.className = 'page-curtain';
+    el.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(el);
+    function set(y, ms) {
+      el.style.transition = ms ? 'transform ' + ms + 'ms ' + INOUT : 'none';
+      el.style.transform = 'translate3d(0,' + y + ',0)';
+    }
+    return {
+      cover: function () {      // du bas vers le haut, jusqu'à couvrir l'écran
+        el.style.visibility = 'visible';
+        set('100%', 0); void el.offsetWidth;
+        set('0%', 900);
+        return wait(920);
+      },
+      show: function () { el.style.visibility = 'visible'; set('0%', 0); },
+      uncover: function () {    // continue sa course vers le haut
+        void el.offsetWidth;
+        set('-100%', 1000);
+        return wait(1020).then(function () { el.style.visibility = 'hidden'; set('100%', 0); });
+      },
+      reset: function () { el.style.visibility = 'hidden'; set('100%', 0); }
+    };
+  })();
+
+  /* =====================================================================
      NAVIGATION : Barba.js
      ===================================================================== */
   var page = null, prev = null;
@@ -1721,7 +1750,7 @@
     transitions: [
       {
         name: 'accueil-vers-projet',       // aussi depuis la page Works : la photo cliquée sert de relais
-        from: { namespace: ['home', 'works', 'legal'] },
+        from: { namespace: ['home', 'works'] },
         to: { namespace: ['work'] },
         leave: function (data) {
           leaveData = null;
@@ -1747,6 +1776,43 @@
           fixed(data.next.container, false);
           root.setAttribute('data-page', 'work');
           window.scrollTo(0, 0);
+        }
+      },
+      {
+        name: 'vers-legal',                // le fond noir monte depuis le bas, puis la page légale apparaît
+        from: { namespace: ['home', 'works', 'work', 'studio'] },
+        to: { namespace: ['legal'] },
+        leave: function (data) {
+          var c = data.current.container;
+          if (reduce) { c.style.display = 'none'; return; }
+          return Curtain.cover().then(function () { c.style.display = 'none'; });
+        },
+        beforeEnter: function (data) {
+          window.scrollTo(0, 0);
+          runScripts(data.next.container);
+          initPage(data.next.container, { first: false });
+        },
+        after: function () { Curtain.reset(); }   // la page légale est noire : le relais est invisible
+      },
+      {
+        name: 'depuis-legal',              // le fond noir part par le haut et dévoile la page suivante
+        from: { namespace: ['legal'] },
+        to: { namespace: ['home', 'works', 'work', 'studio'] },
+        leave: function (data) {
+          var c = data.current.container;
+          if (!reduce) Curtain.show();       // même noir que la page : rien ne bouge à l'écran
+          c.style.display = 'none';
+        },
+        beforeEnter: function (data) {
+          window.scrollTo(0, 0);
+          var ns = data.next.container.getAttribute('data-barba-namespace');
+          if (ns === 'home' && !reduce) root.classList.add('is-intro');
+          runScripts(data.next.container);
+          initPage(data.next.container, { first: false });
+        },
+        enter: function () {
+          if (reduce) return;
+          return Curtain.uncover();
         }
       },
       {

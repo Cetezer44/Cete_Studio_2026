@@ -214,3 +214,6 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 /* Pages légales (gabarit 2026) : fond noir, flèches claires */
 html[data-page="legal"], html[data-page="legal"] body { background-color: #000; }
 .legal-link .works-arrow-icon { filter: invert(1); }
+
+/* Rideau noir des pages légales (transitions Barba) */
+.page-curtain { position: fixed; inset: 0; z-index: 50; background-color: #000; pointer-events: none; visibility: hidden; transform: translate3d(0, 100%, 0); will-change: transform; }
