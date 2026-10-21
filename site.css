@@ -230,10 +230,10 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
    Flottant gauche : image à gauche, texte à droite · Flottant droite : image à droite, texte à gauche (légende = texte, facultative) */
 .work-rt > :empty { display: none; }
 .work-rt p { margin: 0; max-width: 644px; font-size: 20px; line-height: 1.1; font-weight: 300; letter-spacing: -.05em; }
-.work-rt figure { display: flex; flex-direction: column; align-items: flex-start; row-gap: 60px; width: 100% !important; max-width: none !important; margin: 0 !important; float: none !important; clear: both; }
+.work-rt figure { display: flex !important; flex-direction: column; align-items: flex-start; row-gap: 60px; width: 100% !important; max-width: none !important; margin: 0 !important; float: none !important; clear: both; }
 .work-rt figure > div { display: block !important; width: 100%; padding: 0 !important; aspect-ratio: 1312 / 580; overflow: hidden; background: #d9d9d9; }
 .work-rt figure img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; }
-.work-rt figcaption { margin: 0 !important; max-width: 315px; font-size: 20px; line-height: 1.1; font-weight: 300; letter-spacing: -.05em; text-align: left; color: inherit; }
+.work-rt figcaption { display: block !important; margin: 0 !important; max-width: 315px; font-size: 20px; line-height: 1.1; font-weight: 300; letter-spacing: -.05em; text-align: left; color: inherit; }
 .work-rt figure.w-richtext-align-center { align-items: flex-end; }
 .work-rt figure.w-richtext-align-center figcaption { text-align: right; }
 @media (min-width: 768px) {
