@@ -1486,7 +1486,33 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen) shut(); });
     window.addEventListener('resize', function () { if (isOpen) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; } });
     $$('.side-burger').forEach(function (b) { b.setAttribute('aria-controls', 'contact-modal'); b.setAttribute('aria-expanded', 'false'); });
-    return { open: open, close: shut, isOpen: function () { return isOpen; } };
+    // Vers une page légale : les éléments sortent, puis le fond noir s'étend à tout l'écran (la page légale, noire, prend le relais)
+    function expand() {
+      if (!isOpen) return Promise.resolve();
+      clearLater();
+      busy = true;
+      tip.classList.remove('is-on');
+      if (reduce) { bg.style.transition = 'none'; bg.style.width = window.innerWidth + 'px'; return Promise.resolve(); }
+      conceal(all, 0, 15, 450);
+      logo.style.transition = 'clip-path 550ms ' + INOUT;
+      logo.style.clipPath = 'inset(-2% -2% -2% 102%)';
+      return wait(480).then(function () {
+        bg.style.transition = 'width 900ms ' + INOUT;
+        bg.style.width = window.innerWidth + 'px';
+        return wait(920);
+      });
+    }
+    // Après le changement de page : la modal est remise à zéro sans animation (cachée par la page noire)
+    function reset() {
+      clearLater();
+      isOpen = false; busy = false;
+      box.style.visibility = 'hidden';
+      bg.style.transition = 'none';
+      bg.style.width = '';
+      root.classList.remove('is-menu');
+      burger(false);
+    }
+    return { open: open, close: shut, expand: expand, reset: reset, isOpen: function () { return isOpen; } };
   })();
 
   /* =====================================================================
@@ -1732,9 +1758,11 @@
   }
 
   var leaveData = null;
-  barba.hooks.before(function () {   // un lien d'une modal la ferme avant la transition
+  var LEGAL_PATH = /^\/(mentions-legales|protection-des-donnees|cookies)\/?$/;
+  barba.hooks.before(function (data) {   // un lien d'une modal la ferme avant la transition
     if (Reel.isOpen()) return Reel.close(true);
-    if (Menu.isOpen()) return Menu.close(true);
+    // vers une page légale, la modal contact reste ouverte : son fond noir sert de transition
+    if (Menu.isOpen() && !LEGAL_PATH.test(data.next.url.path || '')) return Menu.close(true);
   });   // un lien du menu ferme la modal
   barba.hooks.beforeLeave(function () { prev = page; });
   barba.hooks.afterLeave(function () { if (prev && prev.destroy) prev.destroy(); });
@@ -1779,20 +1807,26 @@
         }
       },
       {
-        name: 'vers-legal',                // le fond noir monte depuis le bas, puis la page légale apparaît
-        from: { namespace: ['home', 'works', 'work', 'studio'] },
+        name: 'vers-legal',                // depuis la modal contact : ses éléments sortent, son fond noir s'étend à tout l'écran
+        from: { namespace: ['home', 'works', 'work', 'studio', 'legal'] },
         to: { namespace: ['legal'] },
         leave: function (data) {
           var c = data.current.container;
+          if (Menu.isOpen()) return Menu.expand().then(function () { c.style.display = 'none'; });
           if (reduce) { c.style.display = 'none'; return; }
-          return Curtain.cover().then(function () { c.style.display = 'none'; });
+          if (data.current.namespace === 'legal') {   // d'une page légale à l'autre : simple fondu sur le noir
+            c.style.transition = 'opacity 450ms ease';
+            c.style.opacity = '0';
+            return wait(460).then(function () { c.style.display = 'none'; });
+          }
+          return Curtain.cover().then(function () { c.style.display = 'none'; });   // lien direct (hors modal)
         },
         beforeEnter: function (data) {
           window.scrollTo(0, 0);
           runScripts(data.next.container);
-          initPage(data.next.container, { first: false });
+          initPage(data.next.container, { first: false });   // les éléments de la page apparaissent
         },
-        after: function () { Curtain.reset(); }   // la page légale est noire : le relais est invisible
+        after: function () { Menu.reset(); Curtain.reset(); }   // la page légale est noire : le relais est invisible
       },
       {
         name: 'depuis-legal',              // le fond noir part par le haut et dévoile la page suivante
