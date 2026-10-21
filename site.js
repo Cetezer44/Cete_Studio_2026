@@ -808,6 +808,95 @@
     if (img) { img.loading = 'eager'; img.decoding = 'async'; }
     if (text && !text.textContent.trim()) text.style.display = 'none';
 
+    var wac = new AbortController();
+    function won(t, type, fn, o) { o = o || {}; o.signal = wac.signal; t.addEventListener(type, fn, o); }
+    var projectName = heading.textContent.trim().toLowerCase();
+
+    // Bandeau (Client, Design, Dev…) : un détail sans valeur dans le CMS est masqué, le bandeau aussi s'il est vide
+    var details = $('.work-details', container);
+    if (details) {
+      $$('.work-detail', details).forEach(function (d) {
+        var v = $('.work-detail-value', d);
+        if (!v || !v.textContent.trim()) d.style.display = 'none';
+      });
+      if (!$$('.work-detail', details).some(function (d) { return d.style.display !== 'none'; })) details.style.display = 'none';
+    }
+
+    // Contenu (rich text) : photos dévoilées de bas en haut, textes en fondu, à leur arrivée à l'écran
+    var figs = $$('.work-rt figure', container);
+    if (!reduce && 'IntersectionObserver' in window) {
+      var revealEls = [];
+      if (details && details.style.display !== 'none') { details.style.opacity = '0'; details.style.transform = 'translateY(30px)'; revealEls.push(details); }
+      figs.forEach(function (f) {
+        var box = f.firstElementChild, cap = $('figcaption', f);
+        if (box) { box.style.clipPath = 'inset(100% 0 0 0)'; revealEls.push(box); }
+        if (cap) { cap.style.opacity = '0'; cap.style.transform = 'translateY(30px)'; revealEls.push(cap); }
+      });
+      var wio = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          wio.unobserve(e.target);
+          var el = e.target;
+          if (el.style.clipPath) {
+            el.style.transition = 'clip-path 1300ms ' + INOUT;
+            el.style.clipPath = 'inset(0% 0 0 0)';
+          } else {
+            el.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
+            el.style.opacity = ''; el.style.transform = '';
+          }
+        });
+      }, { threshold: 0.12 });
+      setTimeout(function () { revealEls.forEach(function (el) { wio.observe(el); }); }, 400);
+      wac.signal.addEventListener('abort', function () { wio.disconnect(); });
+    }
+
+    // Projet suivant (ordre du CMS, en boucle) : son nom en fin de page ; arrivé en bas, sa photo monte depuis le bas
+    // et l'adresse passe au projet suivant sans clic — un défilement infini entre les projets
+    var items = $$('.work-list-item', container);
+    var nextTitle = $('.work-next-title', container), nextSection = $('.work-next', container);
+    var next = null, cover = null, going = false;
+    if (items.length > 1 && nextTitle) {
+      var idx = -1;
+      items.forEach(function (it, i) { if ((it.getAttribute('data-name') || '').trim().toLowerCase() === projectName) idx = i; });
+      if (idx < 0) {
+        var cur = location.pathname.replace(/\/+$/, '').split('/').pop();
+        items.forEach(function (it, i) { if (it.getAttribute('data-slug') === cur) idx = i; });
+      }
+      var n = items[(idx + 1) % items.length];
+      var nImg = $('img', n);
+      next = { name: n.getAttribute('data-name'), href: '/projets/' + n.getAttribute('data-slug'), img: nImg ? (nImg.currentSrc || nImg.src) : '' };
+      nextTitle.textContent = next.name;
+      nextTitle.setAttribute('role', 'link');
+      nextTitle.setAttribute('tabindex', '0');
+      if (next.img) { var pre = new Image(); pre.src = next.img; }
+    } else if (nextSection) nextSection.style.display = 'none';
+
+    function goNext() {
+      if (!next || going) return;
+      going = true;
+      if (reduce || !window.barba) { location.href = next.href; return; }
+      cover = document.createElement('div');
+      cover.className = 'work-next-cover';
+      cover.setAttribute('aria-hidden', 'true');
+      cover.innerHTML = '<img alt="" src="' + next.img + '">';
+      document.body.appendChild(cover);
+      void cover.offsetWidth;
+      cover.style.transform = 'translate3d(0,0,0)';
+      wait(1150).then(function () { barba.go(next.href); });
+    }
+    if (next) {
+      won(nextTitle, 'click', goNext);
+      won(nextTitle, 'keydown', function (e) { if (e.key === 'Enter') goNext(); });
+      var bornAt = Date.now(), lastY = window.pageYOffset, prefetched = false;
+      won(window, 'scroll', function () {
+        var y = window.pageYOffset, down = y > lastY;
+        lastY = y;
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        if (!prefetched && y > max - window.innerHeight * 1.5 && window.barba && barba.prefetch) { prefetched = true; try { barba.prefetch(next.href); } catch (e) {} }
+        if (down && y >= max - 2 && Date.now() - bornAt > 1500) goNext();
+      }, { passive: true });
+    }
+
     // Titre dans un masque : le texte monte depuis le bas
     var hIn = document.createElement('span');
     while (heading.firstChild) hIn.appendChild(heading.firstChild);
@@ -915,6 +1004,14 @@
       }
     };
 
+    // Vers le projet suivant : la photo qui vient de monter sert de relais à la page suivante
+    api.leaveTo = function (path) {
+      if (cover && next && path && path.replace(/\/+$/, '') === next.href) {
+        return Promise.resolve({ card: cover, radius: 0, cleanup: function () { if (cover) cover.remove(); cover = null; } });
+      }
+      return Promise.resolve(null);
+    };
+    api.destroy = function () { wac.abort(); };
     if (opts.transition) return api;
     if (reduce) { media.style.clipPath = ''; return api; }
     // Arrivée directe sur la page (ou retour) : photo plein écran, titre en masque, réduction, puis étape 4
@@ -1834,7 +1931,7 @@
     transitions: [
       {
         name: 'accueil-vers-projet',       // aussi depuis la page Works : la photo cliquée sert de relais
-        from: { namespace: ['home', 'works'] },
+        from: { namespace: ['home', 'works', 'work'] },   // work → work : projet suivant (défilement infini)
         to: { namespace: ['work'] },
         leave: function (data) {
           leaveData = null;
@@ -1853,6 +1950,7 @@
           if (!leaveData || !w) { c.style.visibility = ''; return; }
           return w.fromCard(leaveData.card, leaveData.radius).then(function () {
             c.style.visibility = '';                   // relais invisible : même photo, même position
+            if (leaveData.cleanup) leaveData.cleanup();
             return w.play();
           });
         },

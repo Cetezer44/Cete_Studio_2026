@@ -221,3 +221,29 @@ html[data-page="legal"], html[data-page="legal"] body { background-color: #000; 
 /* Modal contact → page légale : le petit logo sort avec les éléments ; remise à zéro sans transition */
 html.is-expanding .cm-mark { opacity: 0 !important; transition: opacity 350ms ease !important; }
 html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .home-logo { transition: none !important; }
+
+/* Page projet — bandeau des détails (Client, Design, Dev…) */
+@media (max-width: 767px) { .work-details-row { column-gap: 40px; } }
+
+/* Page projet — contenu (rich text du CMS) : l'alignement choisi pour chaque image donne la mise en page
+   Pleine largeur : image pleine largeur, texte en bas à gauche · Centré : pleine largeur, texte en bas à droite
+   Flottant gauche : image à gauche, texte à droite · Flottant droite : image à droite, texte à gauche (légende = texte, facultative) */
+.work-rt > :empty { display: none; }
+.work-rt p { margin: 0; max-width: 644px; font-size: 20px; line-height: 1.1; font-weight: 300; letter-spacing: -.05em; }
+.work-rt figure { display: flex; flex-direction: column; align-items: flex-start; row-gap: 60px; width: 100% !important; max-width: none !important; margin: 0 !important; float: none !important; clear: both; }
+.work-rt figure > div { display: block !important; width: 100%; padding: 0 !important; aspect-ratio: 1312 / 580; overflow: hidden; background: #d9d9d9; }
+.work-rt figure img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; }
+.work-rt figcaption { margin: 0 !important; max-width: 315px; font-size: 20px; line-height: 1.1; font-weight: 300; letter-spacing: -.05em; text-align: left; color: inherit; }
+.work-rt figure.w-richtext-align-center { align-items: flex-end; }
+.work-rt figure.w-richtext-align-center figcaption { text-align: right; }
+@media (min-width: 768px) {
+  .work-rt figure.w-richtext-align-floatleft, .work-rt figure.w-richtext-align-floatright { flex-direction: row; align-items: flex-end; justify-content: space-between; column-gap: 40px; }
+  .work-rt figure.w-richtext-align-floatright { flex-direction: row-reverse; }
+  .work-rt figure.w-richtext-align-floatleft > div, .work-rt figure.w-richtext-align-floatright > div { flex: none; width: 61.43%; aspect-ratio: 806 / 580; }
+  .work-rt figure.w-richtext-align-floatleft figcaption { text-align: right; }
+}
+@media (max-width: 767px) { .work-rt figure { row-gap: 24px; } .work-rt figcaption { font-size: 16px; } }
+
+/* Projet suivant : la photo monte depuis le bas, puis la page suivante prend le relais */
+.work-next-cover { position: fixed; left: 0; top: 0; z-index: 15; width: calc(100% - var(--side, 68px)); height: 100vh; overflow: hidden; background: #d9d9d9; transform: translate3d(0, 100%, 0); transition: transform 1100ms cubic-bezier(.65,0,.35,1); pointer-events: none; }
+.work-next-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
