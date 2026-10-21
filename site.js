@@ -1436,8 +1436,7 @@
       logo.replaceChild(svg, img);
       logoPaths = $$('path', svg).map(function (p) {
         p.setAttribute('stroke', '#fff');
-        p.style.vectorEffect = 'non-scaling-stroke';
-        p.style.strokeWidth = '1.5px';
+        p.style.strokeWidth = '0.14';   // unités du SVG (≈ 1,5 px à l'écran) : le tracé pointillé suit la longueur réelle
         return { el: p, len: Math.ceil(p.getTotalLength()) + 2 };
       });
       if (!isOpen) prepLogo();
