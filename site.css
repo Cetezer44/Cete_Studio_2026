@@ -217,3 +217,7 @@ html[data-page="legal"], html[data-page="legal"] body { background-color: #000; 
 
 /* Rideau noir des pages légales (transitions Barba) */
 .page-curtain { position: fixed; inset: 0; z-index: 50; background-color: #000; pointer-events: none; visibility: hidden; transform: translate3d(0, 100%, 0); will-change: transform; }
+
+/* Modal contact → page légale : le petit logo sort avec les éléments ; remise à zéro sans transition */
+html.is-expanding .cm-mark { opacity: 0 !important; transition: opacity 350ms ease !important; }
+html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .home-logo { transition: none !important; }

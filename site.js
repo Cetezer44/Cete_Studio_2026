@@ -971,6 +971,10 @@
     if (reduce) return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
 
     var title = maskText($('.legal-title', container));
+    // En-tête (navigation, réseaux) : en masque comme le reste, pour une entrée sans à-coup
+    var head = $$('.home-nav .nav-link, .home-socials .nav-link', container).map(function (a) { return maskText(a); });
+    var logoEl = $('.home-logo', container);
+    if (logoEl) { logoEl.style.clipPath = 'inset(0 0 100% 0)'; }
     var navTexts = [];
     links.forEach(function (a) {
       var label = a.firstElementChild;
@@ -1003,6 +1007,12 @@
       if (icon) { icon.dataset.axis = 'y'; hide(icon); latest.push(icon); }
     });
     reveal([title], 150, 0, 1000);
+    reveal(head, 250, 40, 900);
+    if (logoEl) setTimeout(function () {
+      logoEl.style.transition = 'clip-path 900ms ' + INOUT;
+      logoEl.style.clipPath = 'inset(0 0 0% 0)';
+      setTimeout(function () { logoEl.style.transition = ''; logoEl.style.clipPath = ''; }, 950);
+    }, 250);
     reveal(navTexts, 450, 70, 900);
     reveal(latest, 1200, 80, 900);
 
@@ -1492,6 +1502,8 @@
       clearLater();
       busy = true;
       tip.classList.remove('is-on');
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // pas de contour de focus qui reste à l'écran
+      root.classList.add('is-expanding');   // petit logo de la modal : sort avec le reste
       if (reduce) { bg.style.transition = 'none'; bg.style.width = window.innerWidth + 'px'; return Promise.resolve(); }
       conceal(all, 0, 15, 450);
       logo.style.transition = 'clip-path 550ms ' + INOUT;
@@ -1509,8 +1521,11 @@
       box.style.visibility = 'hidden';
       bg.style.transition = 'none';
       bg.style.width = '';
-      root.classList.remove('is-menu');
+      root.classList.add('is-menu-reset');   // logos, burger, verre : bascule sans animation (pas de saut visible)
+      root.classList.remove('is-menu', 'is-expanding');
       burger(false);
+      void root.offsetWidth;
+      requestAnimationFrame(function () { root.classList.remove('is-menu-reset'); });
     }
     return { open: open, close: shut, expand: expand, reset: reset, isOpen: function () { return isOpen; } };
   })();
