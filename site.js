@@ -895,28 +895,52 @@
       nextCard.setAttribute('aria-label', next.name || '');
     } else if (nextSection) nextSection.style.display = 'none';
 
-    // « Projet suivant » (trait + libellé) affiché seul ; la photo reste masquée jusqu'au départ
+    // Étape 4 : « Projet suivant » seul au centre de l'écran — le trait se construit, le libellé monte en masque
+    // Étape 5 : il sort, la photo du projet suivant apparaît en masque à la même place, puis l'ouverture se lance
     var nextLabel = $('.work-next-label', container);
     var nextLine = nextLabel && $('.work-next-line', nextLabel);
     var nextText = nextLabel && $('.work-next-text', nextLabel);
-    var nextTextIn = nextText ? maskText(nextText) : null;
-    if (nextTextIn) nextTextIn.style.transform = 'none';   // visible d'emblée (maskText le cache par défaut)
-    if (next && !reduce) nextCard.style.clipPath = 'inset(100% 0 0 0)';
+    var nextTextIn = nextText ? maskText(nextText) : null;   // caché par défaut (sous son masque)
+    var labelShownAt = 0;
+    function showLabel() {
+      if (labelShownAt) return;
+      labelShownAt = Date.now();
+      if (nextLine) {
+        nextLine.style.transition = 'transform 700ms ' + EASE;
+        nextLine.style.transform = 'scaleY(1)';
+      }
+      if (nextTextIn) reveal([nextTextIn], 250, 0, 1000);
+    }
+    if (next && !reduce) {
+      nextCard.style.clipPath = 'inset(100% 0 0 0)';
+      if (nextLine) { nextLine.style.transformOrigin = '50% 0'; nextLine.style.transform = 'scaleY(0)'; }
+      if (nextLabel && 'IntersectionObserver' in window) {
+        var lio = new IntersectionObserver(function (en) {
+          if (en[0].isIntersecting) { lio.disconnect(); showLabel(); }
+        }, { threshold: 1, rootMargin: '0px 0px -25% 0px' });
+        lio.observe(nextLabel);
+        wac.signal.addEventListener('abort', function () { lio.disconnect(); });
+      } else showLabel();
+    } else if (nextTextIn) nextTextIn.style.transform = 'none';
     if (nextLabel && next) nextLabel.style.cursor = 'pointer';
 
     function goNext() {
       if (!next || going) return;
       going = true;
       if (reduce || !window.barba) { location.href = next.href; return; }
-      // 1. le libellé sort en masque et le trait se rétracte vers le haut
-      if (nextTextIn) conceal([nextTextIn], 0, 0, 600);
-      if (nextLine) {
-        nextLine.style.transformOrigin = '50% 0';
-        nextLine.style.transition = 'transform 500ms ' + INOUT + ' 100ms';
-        nextLine.style.transform = 'scaleY(0)';
-      }
-      // 2. la photo apparaît en masque, du bas vers le haut
-      wait(450).then(function () {
+      showLabel();
+      // le libellé reste lisible au moins 1,3 s avant de sortir
+      wait(Math.max(0, labelShownAt + 1300 - Date.now())).then(function () {
+        // 1. le libellé sort en masque vers le haut, le trait se rétracte
+        if (nextTextIn) conceal([nextTextIn], 0, 0, 600);
+        if (nextLine) {
+          nextLine.style.transformOrigin = '50% 0';
+          nextLine.style.transition = 'transform 500ms ' + INOUT + ' 150ms';
+          nextLine.style.transform = 'scaleY(0)';
+        }
+        return wait(600);
+      }).then(function () {
+        // 2. la photo apparaît en masque, du bas vers le haut, à la place du libellé
         nextCard.style.transition = 'clip-path 1100ms ' + INOUT;
         nextCard.style.clipPath = 'inset(0% 0 0 0)';
         return wait(1150);
