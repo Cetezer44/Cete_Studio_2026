@@ -827,7 +827,7 @@
       var im = $('img', b), tx = $('p', b);
       if (tx && (!tx.textContent.trim() || tx.classList.contains('w-dyn-bind-empty'))) { tx.style.display = 'none'; tx = null; }
       if (!im || im.classList.contains('w-dyn-bind-empty') || !im.getAttribute('src')) { b.style.display = 'none'; return false; }
-      b._media = im.parentElement; b._text = tx;
+      b._media = im.parentElement; b._text = tx; b._img = im;
       return true;
     });
     if (!reduce && 'IntersectionObserver' in window) {
@@ -858,6 +858,8 @@
             if (r.bottom < -100 || r.top > vh + 100) return;
             var p = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / vh));
             if (b._media) b._media.style.transform = 'translate3d(0,' + (-p * 10 * k).toFixed(2) + 'px,0)';
+            // dans le cadre : la photo, légèrement agrandie, glisse plus lentement que la page
+            if (b._img) b._img.style.transform = 'translate3d(0,' + (-p * 6).toFixed(2) + '%,0) scale(1.15)';
             if (b._text) b._text.style.transform = 'translate3d(0,' + (p * 40 * k).toFixed(2) + 'px,0)';
           });
         };
