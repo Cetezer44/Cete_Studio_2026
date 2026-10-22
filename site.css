@@ -199,11 +199,11 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 /* Studio — services : l'image flotte avec le curseur (décalage piloté en JS) */
 .st-service-media { translate: var(--fx, 0px) var(--fy, 0px); }
 
-/* Studio — clients : au survol, les autres passent à 15 % et le logo apparaît à gauche du nom */
+/* Studio — clients : au survol, les autres passent à 10 % et le logo apparaît à gauche du nom */
 .st-client-logo { opacity: 0; clip-path: inset(100% 0 0 0); transition: clip-path 500ms cubic-bezier(.65,0,.35,1), opacity 0s linear 500ms; }
 .st-client-logo.w-dyn-bind-empty { display: none; }
 @media (hover: hover) {
-  .st-clients-list:has(.st-client-item:hover) .st-client-item:not(:hover) .st-client { opacity: .15; }
+  .st-clients-list:has(.st-client-item:hover) .st-client-item:not(:hover) .st-client { opacity: .1; }
   .st-client-item:hover .st-client-logo { opacity: 1; clip-path: inset(0 0 0 0); transition: clip-path 700ms cubic-bezier(.16,1,.3,1), opacity 0s; }
 }
 
