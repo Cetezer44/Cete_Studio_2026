@@ -1027,20 +1027,20 @@
     // Étape 4 : le titre descend sous la photo, les catégories puis l'introduction (centrées) apparaissent en masque
     function settle(delay) {
       return wait(delay).then(function () {
-        conceal(socials, 0, 50, 500);
-        heading.style.transition = 'transform 1100ms ' + INOUT;
+        conceal(socials, 0, 40, 400);
+        heading.style.transition = 'transform 900ms ' + INOUT;
         heading.style.transform = 'translate(0,0)';
-        reveal(tags, 550, 70, 900);
+        reveal(tags, 440, 55, 750);
         if (text && text.style.display !== 'none') {
           var lines = splitLines(text);
           text.style.visibility = '';
           text.offsetHeight;   // les lignes partent bien de leur masque (sinon elles s'affichent d'un coup)
           lines.forEach(function (s, i) {
-            s.style.transition = 'transform 1100ms ' + EASE + ' ' + (750 + i * 80) + 'ms';
+            s.style.transition = 'transform 900ms ' + EASE + ' ' + (600 + i * 65) + 'ms';
             s.style.transform = 'translateY(0)';
           });
         }
-        return wait(1150);
+        return wait(950);
       }).then(function () {
         heading.style.transition = '';
         heading.style.transform = '';
@@ -1056,15 +1056,15 @@
     }
     function showTitle(delay) {
       setTimeout(function () {
-        hIn.style.transition = 'transform 1200ms ' + EASE;
+        hIn.style.transition = 'transform 1000ms ' + EASE;
         hIn.style.transform = 'translateY(0)';
       }, delay);
     }
     function shrink(delay) {   // étape 4 : la photo se réduit à 50 % de la hauteur
       return wait(delay).then(function () {
-        media.style.transition = 'clip-path 1100ms ' + INOUT;
+        media.style.transition = 'clip-path 900ms ' + INOUT;
         media.style.clipPath = 'inset(0 0 50% 0)';
-        return wait(1150);
+        return wait(950);
       }).then(function () {
         media.style.transition = '';
         media.style.clipPath = '';
@@ -1099,12 +1099,12 @@
       // Étapes 2 à 4
       play: function () {
         media.offsetWidth;
-        media.style.transition = PROPS.map(function (p) { return p + ' 1100ms ' + INOUT; }).join(',');
+        media.style.transition = PROPS.map(function (p) { return p + ' 900ms ' + INOUT; }).join(',');
         place(full(), 0);
-        showTitle(700);
+        showTitle(550);
         // Étapes 3 et 4 en même temps : la photo se réduit pendant que le titre descend
-        settle(1900);
-        return shrink(1900);
+        settle(1500);
+        return shrink(1500);
       }
     };
 
@@ -1126,9 +1126,9 @@
     // Arrivée directe sur la page (ou retour) : photo plein écran, titre en masque, réduction, puis étape 4
     media.style.transition = 'none';
     media.style.clipPath = 'inset(0 0 0% 0)';
-    showTitle(250);
-    shrink(1400);
-    settle(1400);
+    showTitle(200);
+    shrink(1100);
+    settle(1100);
     return api;
   }
 
