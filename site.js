@@ -895,14 +895,38 @@
       nextCard.setAttribute('aria-label', next.name || '');
     } else if (nextSection) nextSection.style.display = 'none';
 
+    // « Projet suivant » (trait + libellé) affiché seul ; la photo reste masquée jusqu'au départ
+    var nextLabel = $('.work-next-label', container);
+    var nextLine = nextLabel && $('.work-next-line', nextLabel);
+    var nextText = nextLabel && $('.work-next-text', nextLabel);
+    var nextTextIn = nextText ? maskText(nextText) : null;
+    if (next && !reduce) nextCard.style.clipPath = 'inset(100% 0 0 0)';
+    if (nextLabel && next) nextLabel.style.cursor = 'pointer';
+
     function goNext() {
       if (!next || going) return;
       going = true;
       if (reduce || !window.barba) { location.href = next.href; return; }
-      barba.go(next.href);
+      // 1. le libellé sort en masque et le trait se rétracte vers le haut
+      if (nextTextIn) conceal([nextTextIn], 0, 0, 600);
+      if (nextLine) {
+        nextLine.style.transformOrigin = '50% 0';
+        nextLine.style.transition = 'transform 500ms ' + INOUT + ' 100ms';
+        nextLine.style.transform = 'scaleY(0)';
+      }
+      // 2. la photo apparaît en masque, du bas vers le haut
+      wait(450).then(function () {
+        nextCard.style.transition = 'clip-path 1100ms ' + INOUT;
+        nextCard.style.clipPath = 'inset(0% 0 0 0)';
+        return wait(1150);
+      }).then(function () {
+        // 3. l'animation d'ouverture du projet prend le relais (photo plein écran, titre…)
+        barba.go(next.href);
+      });
     }
     if (next) {
       won(nextCard, 'click', goNext);
+      if (nextLabel) won(nextLabel, 'click', goNext);
       won(nextCard, 'keydown', function (e) { if (e.key === 'Enter') goNext(); });
       var bornAt = Date.now(), lastY = window.pageYOffset, prefetched = false, atEnd = null;
       won(window, 'scroll', function () {
@@ -915,7 +939,7 @@
             var m2 = document.documentElement.scrollHeight - window.innerHeight;
             if (window.pageYOffset >= m2 - 2) goNext();
             atEnd = null;
-          }, 350);
+          }, 250);
         }
       }, { passive: true });
       wac.signal.addEventListener('abort', function () { if (atEnd) clearTimeout(atEnd); });
