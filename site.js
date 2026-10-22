@@ -822,48 +822,58 @@
       if (!$$('.work-detail', details).some(function (d) { return d.style.display !== 'none'; })) details.style.display = 'none';
     }
 
-    // Contenu (rich text) : photos dévoilées de bas en haut, textes en fondu, à leur arrivée à l'écran
-    var figs = $$('.work-rt figure', container);
+    // Blocs photo/texte (composants) : un bloc sans photo est masqué, un texte vide aussi
+    var blocks = $$('[data-work-block]', container).filter(function (b) {
+      var im = $('img', b), tx = $('p', b);
+      if (tx && (!tx.textContent.trim() || tx.classList.contains('w-dyn-bind-empty'))) { tx.style.display = 'none'; tx = null; }
+      if (!im || im.classList.contains('w-dyn-bind-empty') || !im.getAttribute('src')) { b.style.display = 'none'; return false; }
+      b._media = im.parentElement; b._text = tx;
+      return true;
+    });
     if (!reduce && 'IntersectionObserver' in window) {
-      // on observe le bloc parent : un élément masqué par clip-path n'est jamais « visible » pour l'observer
+      // Apparition : un très léger fondu, sans masque
       var targets = [];
-      if (details && details.style.display !== 'none') { details.style.opacity = '0'; details.style.transform = 'translateY(30px)'; targets.push(details); }
-      figs.forEach(function (f) {
-        var box = f.firstElementChild, cap = $('figcaption', f);
-        if (box) box.style.clipPath = 'inset(100% 0 0 0)';
-        if (cap) { cap.style.opacity = '0'; cap.style.transform = 'translateY(30px)'; }
-        f._box = box; f._cap = cap;
-        targets.push(f);
-      });
-      var fade = function (el, delay) {
-        setTimeout(function () {
-          el.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE;
-          el.style.opacity = ''; el.style.transform = '';
-        }, delay || 0);
-      };
+      if (details && details.style.display !== 'none') targets.push(details);
+      blocks.forEach(function (b) { targets.push(b); });
+      targets.forEach(function (el) { el.style.opacity = '0'; });
       var wio = new IntersectionObserver(function (entries) {
         entries.forEach(function (e) {
           if (!e.isIntersecting) return;
           wio.unobserve(e.target);
-          var el = e.target;
-          if (el === details) { fade(el); return; }
-          if (el._box) {
-            el._box.style.transition = 'clip-path 1300ms ' + INOUT;
-            el._box.style.clipPath = 'inset(0% 0 0 0)';
-          }
-          if (el._cap) fade(el._cap, 500);
+          e.target.style.transition = 'opacity 1400ms ease';
+          e.target.style.opacity = '';
         });
-      }, { threshold: 0.1 });
+      }, { threshold: 0.15 });
       setTimeout(function () { targets.forEach(function (el) { wio.observe(el); }); }, 400);
       wac.signal.addEventListener('abort', function () { wio.disconnect(); });
+
+      // Parallaxe : le texte glisse plus vite que la photo, en sens inverse
+      if (blocks.length) {
+        var ticking = false;
+        var para = function () {
+          ticking = false;
+          var vh = window.innerHeight, k = window.innerWidth < 768 ? 0.4 : 1;
+          blocks.forEach(function (b) {
+            var r = b.getBoundingClientRect();
+            if (r.bottom < -100 || r.top > vh + 100) return;
+            var p = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / vh));
+            if (b._media) b._media.style.transform = 'translate3d(0,' + (-p * 10 * k).toFixed(2) + 'px,0)';
+            if (b._text) b._text.style.transform = 'translate3d(0,' + (p * 40 * k).toFixed(2) + 'px,0)';
+          });
+        };
+        var onPara = function () { if (!ticking) { ticking = true; requestAnimationFrame(para); } };
+        won(window, 'scroll', onPara, { passive: true });
+        won(window, 'resize', onPara);
+        para();
+      }
     }
 
-    // Projet suivant (ordre du CMS, en boucle) : son nom en fin de page ; arrivé en bas, sa photo monte depuis le bas
-    // et l'adresse passe au projet suivant sans clic — un défilement infini entre les projets
+    // Projet suivant (ordre du CMS, en boucle) : sa photo centrée en fin de page ; arrivé en bas (ou au clic),
+    // la page suivante s'ouvre depuis cette photo, comme depuis l'accueil — un défilement infini entre les projets
     var items = $$('.work-list-item', container);
-    var nextTitle = $('.work-next-title', container), nextSection = $('.work-next', container);
-    var next = null, cover = null, going = false;
-    if (items.length > 1 && nextTitle) {
+    var nextCard = $('.work-next-card', container), nextSection = $('.work-next', container);
+    var next = null, going = false;
+    if (items.length > 1 && nextCard) {
       var idx = -1;
       items.forEach(function (it, i) { if ((it.getAttribute('data-name') || '').trim().toLowerCase() === projectName) idx = i; });
       if (idx < 0) {
@@ -873,28 +883,27 @@
       var n = items[(idx + 1) % items.length];
       var nImg = $('img', n);
       next = { name: n.getAttribute('data-name'), href: '/projets/' + n.getAttribute('data-slug'), img: nImg ? (nImg.currentSrc || nImg.src) : '' };
-      nextTitle.textContent = next.name;
-      nextTitle.setAttribute('role', 'link');
-      nextTitle.setAttribute('tabindex', '0');
-      if (next.img) { var pre = new Image(); pre.src = next.img; }
+      var cImg = $('img', nextCard);
+      if (cImg && next.img) {
+        cImg.removeAttribute('srcset'); cImg.removeAttribute('sizes');
+        cImg.loading = 'eager';
+        cImg.src = next.img;
+        cImg.alt = next.name || '';
+      }
+      nextCard.setAttribute('role', 'link');
+      nextCard.setAttribute('tabindex', '0');
+      nextCard.setAttribute('aria-label', next.name || '');
     } else if (nextSection) nextSection.style.display = 'none';
 
     function goNext() {
       if (!next || going) return;
       going = true;
       if (reduce || !window.barba) { location.href = next.href; return; }
-      cover = document.createElement('div');
-      cover.className = 'work-next-cover';
-      cover.setAttribute('aria-hidden', 'true');
-      cover.innerHTML = '<img alt="" src="' + next.img + '">';
-      document.body.appendChild(cover);
-      void cover.offsetWidth;
-      cover.style.transform = 'translate3d(0,0,0)';
-      wait(1150).then(function () { barba.go(next.href); });
+      barba.go(next.href);
     }
     if (next) {
-      won(nextTitle, 'click', goNext);
-      won(nextTitle, 'keydown', function (e) { if (e.key === 'Enter') goNext(); });
+      won(nextCard, 'click', goNext);
+      won(nextCard, 'keydown', function (e) { if (e.key === 'Enter') goNext(); });
       var bornAt = Date.now(), lastY = window.pageYOffset, prefetched = false;
       won(window, 'scroll', function () {
         var y = window.pageYOffset, down = y > lastY;
@@ -1012,10 +1021,10 @@
       }
     };
 
-    // Vers le projet suivant : la photo qui vient de monter sert de relais à la page suivante
+    // Vers le projet suivant : la photo centrée sert de relais, comme une carte de l'accueil
     api.leaveTo = function (path) {
-      if (cover && next && path && path.replace(/\/+$/, '') === next.href) {
-        return Promise.resolve({ card: cover, radius: 0, cleanup: function () { if (cover) cover.remove(); cover = null; } });
+      if (nextCard && next && path && path.replace(/\/+$/, '') === next.href) {
+        return Promise.resolve({ card: nextCard, radius: 0 });
       }
       return Promise.resolve(null);
     };
