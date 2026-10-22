@@ -916,13 +916,44 @@
       if (nextLine) { nextLine.style.transformOrigin = '50% 0'; nextLine.style.transform = 'scaleY(0)'; }
       if (nextLabel && 'IntersectionObserver' in window) {
         var lio = new IntersectionObserver(function (en) {
-          if (en[0].isIntersecting) { lio.disconnect(); showLabel(); }
-        }, { threshold: 1, rootMargin: '0px 0px -25% 0px' });
+          if (en[0].isIntersecting) { lio.disconnect(); showLabel(); autoScroll(); }
+        }, { threshold: 1, rootMargin: '0px 0px -10% 0px' });
         lio.observe(nextLabel);
         wac.signal.addEventListener('abort', function () { lio.disconnect(); });
       } else showLabel();
     } else if (nextTextIn) nextTextIn.style.transform = 'none';
     if (nextLabel && next) nextLabel.style.cursor = 'pointer';
+
+    // Dès que « Projet suivant » apparaît : la page défile seule jusqu'en bas, puis la photo apparaît
+    // (annulé si l'internaute remonte pendant le défilement)
+    var autoRaf = null;
+    function autoScroll() {
+      if (!next || reduce || going) return;
+      var from = window.pageYOffset, t0 = null, dur = 1100;
+      var to = document.documentElement.scrollHeight - window.innerHeight;
+      if (to - from < 2) { goNext(); return; }
+      var stop = function () { if (autoRaf) cancelAnimationFrame(autoRaf); autoRaf = null; detach(); };
+      var onWheel = function (e) { if (e.deltaY < 0) stop(); };
+      var onTouch = function () { stop(); };
+      var detach = function () {
+        window.removeEventListener('wheel', onWheel);
+        window.removeEventListener('touchstart', onTouch);
+      };
+      window.addEventListener('wheel', onWheel, { passive: true });
+      window.addEventListener('touchstart', onTouch, { passive: true });
+      var ease = function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+      var step = function (ts) {
+        if (t0 === null) t0 = ts;
+        var p = Math.min(1, (ts - t0) / dur);
+        to = document.documentElement.scrollHeight - window.innerHeight;
+        window.scrollTo(0, from + (to - from) * ease(p));
+        if (p < 1) { autoRaf = requestAnimationFrame(step); return; }
+        autoRaf = null; detach();
+        goNext();
+      };
+      autoRaf = requestAnimationFrame(step);
+      wac.signal.addEventListener('abort', stop);
+    }
 
     function goNext() {
       if (!next || going) return;
