@@ -1360,11 +1360,6 @@
       ac.signal.addEventListener('abort', function () { if (fRaf) cancelAnimationFrame(fRaf); });
     }
 
-    // Clients : logo absent dans le CMS = pas d'image
-    $$('.st-client-logo', container).forEach(function (img) {
-      if (img.classList.contains('w-dyn-bind-empty') || !img.getAttribute('src')) img.remove();
-    });
-
     // Hero : traînée d'images (collection « Images studio ») qui suit le curseur ; coupée dès que le fond passe au noir
     var hero = $('.st-hero', container);
     var trailSrcs = $$('.st-trail-src img', container).map(function (i) { return i.getAttribute('src'); }).filter(Boolean);
