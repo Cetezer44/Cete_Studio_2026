@@ -900,6 +900,7 @@
     var nextLine = nextLabel && $('.work-next-line', nextLabel);
     var nextText = nextLabel && $('.work-next-text', nextLabel);
     var nextTextIn = nextText ? maskText(nextText) : null;
+    if (nextTextIn) nextTextIn.style.transform = 'none';   // visible d'emblée (maskText le cache par défaut)
     if (next && !reduce) nextCard.style.clipPath = 'inset(100% 0 0 0)';
     if (nextLabel && next) nextLabel.style.cursor = 'pointer';
 
