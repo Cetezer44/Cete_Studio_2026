@@ -904,14 +904,21 @@
     if (next) {
       won(nextCard, 'click', goNext);
       won(nextCard, 'keydown', function (e) { if (e.key === 'Enter') goNext(); });
-      var bornAt = Date.now(), lastY = window.pageYOffset, prefetched = false;
+      var bornAt = Date.now(), lastY = window.pageYOffset, prefetched = false, atEnd = null;
       won(window, 'scroll', function () {
         var y = window.pageYOffset, down = y > lastY;
         lastY = y;
         var max = document.documentElement.scrollHeight - window.innerHeight;
         if (!prefetched && y > max - window.innerHeight * 1.5 && window.barba && barba.prefetch) { prefetched = true; try { barba.prefetch(next.href); } catch (e) {} }
-        if (down && y >= max - 2 && Date.now() - bornAt > 1500) goNext();
+        if (down && y >= max - 2 && Date.now() - bornAt > 1500 && !atEnd) {
+          atEnd = setTimeout(function () {   // la photo est posée à l'écran un court instant, puis s'agrandit
+            var m2 = document.documentElement.scrollHeight - window.innerHeight;
+            if (window.pageYOffset >= m2 - 2) goNext();
+            atEnd = null;
+          }, 350);
+        }
       }, { passive: true });
+      wac.signal.addEventListener('abort', function () { if (atEnd) clearTimeout(atEnd); });
     }
 
     // Titre dans un masque : le texte monte depuis le bas
@@ -1024,6 +1031,11 @@
     // Vers le projet suivant : la photo centrée sert de relais, comme une carte de l'accueil
     api.leaveTo = function (path) {
       if (nextCard && next && path && path.replace(/\/+$/, '') === next.href) {
+        // le verrouillage du défilement pendant la transition renverrait la page en haut :
+        // on la fige à l'écran (même rendu) pour que la photo grandisse depuis sa place réelle
+        var y = window.pageYOffset;
+        container.style.marginTop = (-y) + 'px';
+        window.scrollTo(0, 0);
         return Promise.resolve({ card: nextCard, radius: 0 });
       }
       return Promise.resolve(null);
