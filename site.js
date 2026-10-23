@@ -871,27 +871,6 @@
       setTimeout(function () { targets.forEach(function (el) { wio.observe(el); }); }, 400);
       wac.signal.addEventListener('abort', function () { wio.disconnect(); });
 
-      // Parallaxe : le texte glisse plus vite que la photo, en sens inverse
-      if (blocks.length) {
-        var ticking = false;
-        var para = function () {
-          ticking = false;
-          var vh = window.innerHeight, k = window.innerWidth < 768 ? 0.4 : 1;
-          blocks.forEach(function (b) {
-            var r = b.getBoundingClientRect();
-            if (r.bottom < -100 || r.top > vh + 100) return;
-            var p = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / vh));
-            if (b._media) b._media.style.transform = 'translate3d(0,' + (-p * 10 * k).toFixed(2) + 'px,0)';
-            // dans le cadre : la photo, légèrement agrandie, glisse plus lentement que la page
-            if (b._img) b._img.style.transform = 'translate3d(0,' + (-p * 6).toFixed(2) + '%,0) scale(1.15)';
-            if (b._text) b._text.style.transform = 'translate3d(0,' + (p * 40 * k).toFixed(2) + 'px,0)';
-          });
-        };
-        var onPara = function () { if (!ticking) { ticking = true; requestAnimationFrame(para); } };
-        won(window, 'scroll', onPara, { passive: true });
-        won(window, 'resize', onPara);
-        para();
-      }
     }
 
     // Projet suivant (ordre du CMS, en boucle) : sa photo centrée en fin de page ; arrivé en bas (ou au clic),

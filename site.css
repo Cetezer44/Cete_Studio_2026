@@ -223,8 +223,6 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 .work-content.w-richtext > [data-work-block] { margin-top: 0; margin-bottom: 0; }
 
 /* Page projet — blocs photo/texte (composants) : hauteur des photos selon l'image, parallaxe en JS */
-[data-work-block] .work-block-media, [data-work-block] .work-block-media-s, [data-work-block] p, [data-work-block] img { will-change: transform; }
-[data-work-block] img { transform: scale(1.15); }   /* marge pour la parallaxe dans le cadre (overflow hidden) */
 .work-block-media, .work-block-media-s { background: #d9d9d9; }
 
 /* Projet suivant : photo centrée, relais de l'animation d'ouverture d'un projet */
