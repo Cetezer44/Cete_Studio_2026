@@ -220,7 +220,7 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 
 /* Page projet — le rich text (composants insérés depuis le CMS) : pas de pseudo-éléments clearfix dans le flex */
 .work-content.w-richtext::before, .work-content.w-richtext::after { content: none; display: none; }
-.work-content.w-richtext > [data-work-block] { margin: 0; }
+.work-content.w-richtext > [data-work-block] { margin-top: 0; margin-bottom: 0; }
 
 /* Page projet — blocs photo/texte (composants) : hauteur des photos selon l'image, parallaxe en JS */
 [data-work-block] .work-block-media, [data-work-block] .work-block-media-s, [data-work-block] p, [data-work-block] img { will-change: transform; }
