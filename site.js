@@ -834,6 +834,20 @@
       if (!rt.children.length) rt.style.display = 'none';
     }
     var blocks = $$('[data-work-block]', container).filter(function (b) {
+      var kind = b.getAttribute('data-work-block');
+      // Composant « Texte centré » : masqué s'il est vide, simple fondu
+      if (kind === 'text') {
+        if (!b.textContent.replace(/[\s\u200b-\u200d\ufeff]/g, '') || b.classList.contains('w-dyn-bind-empty')) { b.style.display = 'none'; return false; }
+        return true;
+      }
+      // Composant « Image » : masqué sans photo ; parallaxe de la photo dans son cadre
+      if (kind === 'image') {
+        var pic = $('img', b);
+        if (!pic || pic.classList.contains('w-dyn-bind-empty') || !pic.getAttribute('src')) { b.style.display = 'none'; return false; }
+        b._img = pic;
+        return true;
+      }
+      // Anciens composants photo + texte
       var im = $('img', b), tx = $('p', b);
       if (tx && (!tx.textContent.trim() || tx.classList.contains('w-dyn-bind-empty'))) { tx.style.display = 'none'; tx = null; }
       if (!im || im.classList.contains('w-dyn-bind-empty') || !im.getAttribute('src')) { b.style.display = 'none'; return false; }
