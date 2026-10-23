@@ -218,6 +218,10 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 /* Page projet — bandeau des détails (Client, Design, Dev…) */
 @media (max-width: 767px) { .work-details-row { column-gap: 40px; } }
 
+/* Page projet — le rich text (composants insérés depuis le CMS) : pas de pseudo-éléments clearfix dans le flex */
+.work-content.w-richtext::before, .work-content.w-richtext::after { content: none; display: none; }
+.work-content.w-richtext > [data-work-block] { margin: 0; }
+
 /* Page projet — blocs photo/texte (composants) : hauteur des photos selon l'image, parallaxe en JS */
 [data-work-block] .work-block-media, [data-work-block] .work-block-media-s, [data-work-block] p, [data-work-block] img { will-change: transform; }
 [data-work-block] img { transform: scale(1.15); }   /* marge pour la parallaxe dans le cadre (overflow hidden) */

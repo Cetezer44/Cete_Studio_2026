@@ -823,6 +823,16 @@
     }
 
     // Blocs photo/texte (composants) : un bloc sans photo est masqué, un texte vide aussi
+    // Contenu en rich text (composants insérés depuis le CMS) : on retire les paragraphes vides
+    // que l'éditeur ajoute entre les composants, sinon ils créent des écarts dans la mise en page
+    var rt = $('.work-content', container);
+    if (rt) {
+      Array.prototype.slice.call(rt.children).forEach(function (ch) {
+        if (ch.matches('[data-work-block]') || ch.querySelector('[data-work-block], img, video, iframe')) return;
+        if (!ch.textContent.replace(/[\s\u200b-\u200d\ufeff]/g, '')) ch.remove();
+      });
+      if (!rt.children.length) rt.style.display = 'none';
+    }
     var blocks = $$('[data-work-block]', container).filter(function (b) {
       var im = $('img', b), tx = $('p', b);
       if (tx && (!tx.textContent.trim() || tx.classList.contains('w-dyn-bind-empty'))) { tx.style.display = 'none'; tx = null; }
