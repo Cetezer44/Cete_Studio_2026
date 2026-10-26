@@ -233,3 +233,5 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 html[data-page="works"] .works-page, html[data-page="legal"] .legal-page,
 html[data-page="home"] .home-track, html[data-page="home"] .home-sticky { background-color: transparent; }   /* même couleur que le fond du site */
 .c-noise { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; mix-blend-mode: difference; }
+/* Modal contact ouverte : le bruit passe entre son fond noir (z 49) et son contenu (z 51) */
+html.is-menu .c-noise { z-index: 50; }
