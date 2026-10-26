@@ -205,7 +205,8 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 }
 
 /* Pages légales (gabarit 2026) : fond noir, flèches claires */
-html[data-page="legal"], html[data-page="legal"] body { background-color: #000; }
+html[data-page="legal"] { background-color: #000; }
+html[data-page="legal"] body { background-color: transparent; }   /* fond porté par html : le bruit digital (z-index -1) reste visible */
 .legal-link .works-arrow-icon { filter: invert(1); }
 
 /* Rideau noir des pages légales (transitions Barba) */
@@ -226,3 +227,6 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 
 /* Projet suivant : photo centrée, relais de l'animation d'ouverture d'un projet */
 .work-next-card:focus-visible { outline: 1px solid currentColor; outline-offset: 6px; }
+
+/* Bruit digital qui suit le curseur : derrière le contenu, sur le fond du site */
+.c-noise { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; mix-blend-mode: difference; image-rendering: pixelated; image-rendering: crisp-edges; }
