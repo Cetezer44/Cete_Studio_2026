@@ -114,20 +114,29 @@
     side();
     if (!pts.length && !inside) { cancelAnimationFrame(raf); raf = null; ctx.clearRect(0, 0, W, H); dirty = false; side(); }
   }
-  // Bande noire de droite (.side-bar, au-dessus du canevas principal) : copie de la zone correspondante,
-  // placée dans la bande, entre son fond noir et son contenu (burger, « Contact »…)
-  var sv = document.createElement('canvas'), sctx = sv.getContext('2d');
-  sv.className = 'c-noise c-noise--side';
-  sv.setAttribute('aria-hidden', 'true');
+  // Zones au-dessus du canevas principal : bande noire de droite (entre son fond et son contenu)
+  // et photo du hero des pages projet (par-dessus l'image). Chacune reçoit une copie de la zone correspondante.
+  var overlays = [
+    { sel: '.side-bar', cls: 'c-noise--side' },
+    { sel: '.work-media', cls: 'c-noise--hero' }
+  ].map(function (o) {
+    o.cv = document.createElement('canvas');
+    o.cv.className = 'c-noise ' + o.cls;
+    o.cv.setAttribute('aria-hidden', 'true');
+    o.ctx = o.cv.getContext('2d');
+    return o;
+  });
   function side() {
-    var bars = document.querySelectorAll('.side-bar'), bar = bars[bars.length - 1];
-    if (!bar) return;
-    if (sv.parentNode !== bar) bar.insertBefore(sv, bar.firstChild);
-    var r = bar.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height);
-    if (!w || !h) return;
-    if (sv.width !== w || sv.height !== h) { sv.width = w; sv.height = h; }
-    sctx.clearRect(0, 0, w, h);
-    sctx.drawImage(cv, Math.round(r.left), Math.round(r.top), w, h, 0, 0, w, h);
+    overlays.forEach(function (o) {
+      var all = document.querySelectorAll(o.sel), el = all[all.length - 1];   // la page la plus récente
+      if (!el) return;
+      if (o.cv.parentNode !== el) el.insertBefore(o.cv, el.firstChild);
+      var r = el.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height);
+      if (!w || !h || r.bottom < 0 || r.top > H) return;
+      if (o.cv.width !== w || o.cv.height !== h) { o.cv.width = w; o.cv.height = h; }
+      o.ctx.clearRect(0, 0, w, h);
+      o.ctx.drawImage(cv, Math.round(r.left), Math.round(r.top), w, h, 0, 0, w, h);
+    });
   }
   function start() { if (!raf) raf = requestAnimationFrame(frame); }
   document.addEventListener('visibilitychange', function () {
