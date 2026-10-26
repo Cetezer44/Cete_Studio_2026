@@ -111,7 +111,26 @@
     if (inside) burst(mx, my, IDLE);       // grain discret autour du curseur immobile
     ctx.putImageData(img, 0, 0);
     dirty = true;
-    if (!pts.length && !inside) { cancelAnimationFrame(raf); raf = null; ctx.clearRect(0, 0, W, H); dirty = false; }
+    side();
+    if (!pts.length && !inside) { cancelAnimationFrame(raf); raf = null; ctx.clearRect(0, 0, W, H); dirty = false; side(); }
+  }
+  // Bande noire de droite (au-dessus du canevas principal) : copie de la zone correspondante,
+  // posée juste au-dessus de son fond noir et sous son contenu (burger, « Contact »…)
+  var sv = null, sctx = null;
+  function side() {
+    if (!sv) {
+      var band = document.querySelector('.cm-bg');
+      if (!band) return;
+      sv = document.createElement('canvas');
+      sv.className = 'c-noise c-noise--side';
+      sv.setAttribute('aria-hidden', 'true');
+      band.parentNode.insertBefore(sv, band.nextSibling);
+      sctx = sv.getContext('2d');
+    }
+    var w = Math.round(document.querySelector('.cm-bg').getBoundingClientRect().width) || 68;
+    if (sv.width !== w || sv.height !== H) { sv.width = w; sv.height = H; sv.style.width = w + 'px'; }
+    sctx.clearRect(0, 0, w, H);
+    sctx.drawImage(cv, W - w, 0, w, H, 0, 0, w, H);
   }
   function start() { if (!raf) raf = requestAnimationFrame(frame); }
   document.addEventListener('visibilitychange', function () {

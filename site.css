@@ -235,3 +235,6 @@ html[data-page="home"] .home-track, html[data-page="home"] .home-sticky { backgr
 .c-noise { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; mix-blend-mode: difference; }
 /* Modal contact ouverte : le bruit passe entre son fond noir (z 49) et son contenu (z 51) */
 html.is-menu .c-noise { z-index: 50; }
+/* Bande noire de droite : copie du bruit au-dessus de son fond (même z-index, placée après lui) */
+.c-noise--side { left: auto; right: 0; width: var(--side, 68px); z-index: 49; }
+html.is-menu .c-noise--side { display: none; }
