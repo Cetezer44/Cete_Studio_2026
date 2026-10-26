@@ -2065,8 +2065,12 @@
     } catch (e) {}
   }
   function fixed(c, on) {
-    if (on) c.style.cssText += ';position:fixed;top:0;left:0;width:100%;height:100vh;z-index:30;overflow:hidden';
-    else ['position', 'top', 'left', 'width', 'height', 'z-index', 'overflow', 'visibility'].forEach(function (p) { c.style.removeProperty(p); });
+    if (on) {
+      c.style.cssText += ';position:fixed;top:0;left:0;width:100%;height:100vh;z-index:30;overflow:hidden';
+      // la page projet est transparente (bruit digital visible) : un fond opaque le temps de recouvrir la page précédente
+      if (c.classList.contains('work')) c.style.backgroundColor = '#f0f0f0';
+    }
+    else ['position', 'top', 'left', 'width', 'height', 'z-index', 'overflow', 'visibility', 'background-color'].forEach(function (p) { c.style.removeProperty(p); });
   }
 
   if (!window.barba) {   // Barba indisponible : la page fonctionne seule
