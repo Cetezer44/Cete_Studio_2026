@@ -17,6 +17,13 @@
       '<g class="c-cursor__pause"><path d="M27.5 25v10M32.5 25v10"/></g>' +
       '<g class="c-cursor__play"><path d="M27.5 24.9v10.4l8.4-5.2z" stroke-linejoin="round"/></g></svg></div>';
   document.body.appendChild(c);
+  // « Voir » au survol d'une photo projet (page Projets) : pastille en verre dépoli, hors du mode différence
+  // (un parent en mix-blend empêcherait le flou d'arrière-plan)
+  var view = document.createElement('div');
+  view.className = 'c-view';
+  view.setAttribute('aria-hidden', 'true');
+  view.innerHTML = '<div class="c-view__in"><span>Voir</span></div>';
+  document.body.appendChild(view);
   document.documentElement.classList.add('has-cursor');
   var ring = c.querySelector('.c-cursor__ring'), dot = c.querySelector('.c-cursor__dot'), label = c.querySelector('.c-cursor__label');
   var media = c.querySelector('.c-cursor__media'), over = null;   // vidéo survolée
@@ -27,13 +34,18 @@
     mx = e.clientX; my = e.clientY;
     if (!c.classList.contains('is-visible')) { rx = mx; ry = my; c.classList.add('is-visible'); }
   });
-  document.addEventListener('mouseleave', function () { c.classList.remove('is-visible'); });
+  document.addEventListener('mouseleave', function () { c.classList.remove('is-visible'); view.classList.remove('is-on'); });
+  // clic sur un projet : la pastille disparaît pendant la transition
+  document.addEventListener('click', function () { view.classList.remove('is-on'); c.classList.remove('is-view'); }, true);
   document.addEventListener('mouseover', function (e) {
     var t = e.target.closest ? e.target : null;
     var video = !!(t && t.closest('.showreel'));
     over = t && t.closest('.sr-video');
+    var see = !!(t && t.closest('.works-page .works-media'));
     c.classList.toggle('is-video', video);
-    c.classList.toggle('is-hover', !video && !over && !!(t && t.closest(LINKS)));
+    c.classList.toggle('is-view', see);
+    view.classList.toggle('is-on', see);
+    c.classList.toggle('is-hover', !video && !over && !see && !!(t && t.closest(LINKS)));
     mediaState();
   });
   function mediaState() {
@@ -52,6 +64,7 @@
     ring.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     label.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     media.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
+    view.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     requestAnimationFrame(loop);
   })();
 })();
