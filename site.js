@@ -56,55 +56,65 @@
   })();
 })();
 
-/* ---------- Bruit digital : grain de pixels qui suit le curseur, sur le fond du site ----------
-   Canevas fixe derrière le contenu (z-index -1), en basse résolution agrandie sans lissage (pixels nets).
+/* ---------- Bruit digital : grain de pixels fins qui suit le curseur, sur le fond du site ----------
+   Canevas fixe derrière le contenu (z-index -1), à la résolution de l'écran (pixels de 1 px CSS),
+   dessiné directement dans un tampon de pixels pour rester léger malgré la densité.
    Pixels blancs en mode « différence » : sombres sur fond clair, clairs sur fond noir. */
 (function () {
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var CELL = 3, RADIUS = 90, LIFE = 550, FPS = 30;
+  var RADIUS = 90, LIFE = 550, FPS = 30, DENSITY = 2600, IDLE = 0.35;
   var cv = document.createElement('canvas');
   cv.className = 'c-noise';
   cv.setAttribute('aria-hidden', 'true');
   document.body.insertBefore(cv, document.body.firstChild);
   var ctx = cv.getContext('2d');
-  var pts = [], mx = -999, my = -999, inside = false, raf = null, last = 0;
+  var W = 0, H = 0, img = null, buf = null;
+  var pts = [], mx = -999, my = -999, inside = false, raf = null, last = 0, dirty = false;
   function size() {
-    cv.width = Math.ceil(window.innerWidth / CELL);
-    cv.height = Math.ceil(window.innerHeight / CELL);
+    W = cv.width = window.innerWidth;
+    H = cv.height = window.innerHeight;
+    img = ctx.createImageData(W, H);
+    buf = new Uint32Array(img.data.buffer);
   }
   size();
   window.addEventListener('resize', size);
   window.addEventListener('mousemove', function (e) {
     var p = pts[pts.length - 1];
     mx = e.clientX; my = e.clientY; inside = true;
-    if (!p || Math.abs(p.x - mx) + Math.abs(p.y - my) > 8) pts.push({ x: mx, y: my, t: performance.now() });
+    if (!p || Math.abs(p.x - mx) + Math.abs(p.y - my) > 12) pts.push({ x: mx, y: my, t: performance.now() });
     start();
   }, { passive: true });
   document.addEventListener('mouseleave', function () { inside = false; });
+  function px(x, y, a) {
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    var i = y * W + x, cur = buf[i] >>> 24;
+    if (a > cur) buf[i] = ((a << 24) | 0xffffff) >>> 0;   // blanc, opacité a (little-endian ABGR)
+  }
   function burst(x, y, life) {
-    var r = RADIUS * (0.55 + 0.45 * life) / CELL, n = Math.round(70 * life);
-    var cx = x / CELL, cy = y / CELL;
+    var r = RADIUS * (0.6 + 0.4 * life), n = DENSITY * life | 0;
     for (var i = 0; i < n; i++) {
-      var d = r * Math.sqrt(Math.random()), a = Math.random() * 6.2832;
-      var px = Math.round(cx + Math.cos(a) * d), py = Math.round(cy + Math.sin(a) * d);
+      var d = r * Math.sqrt(Math.random()), ang = Math.random() * 6.2832;
       var fall = 1 - d / r;
-      ctx.globalAlpha = (0.12 + Math.random() * 0.5) * life * fall;
-      // de temps en temps une petite barre horizontale, comme un parasite numérique
-      ctx.fillRect(px, py, Math.random() < 0.08 ? 2 + (Math.random() * 6 | 0) : 1, 1);
+      if (Math.random() > fall + 0.15) continue;           // plus dense au centre
+      var xx = x + Math.cos(ang) * d | 0, yy = y + Math.sin(ang) * d | 0;
+      var a = (40 + Math.random() * 150) * life * fall | 0;
+      if (Math.random() < 0.015) {                          // petit parasite horizontal
+        for (var k = 2 + (Math.random() * 10 | 0); k--;) px(xx + k, yy, a);
+      } else px(xx, yy, a);
     }
   }
   function frame(now) {
     raf = requestAnimationFrame(frame);
     if (now - last < 1000 / FPS) return;   // cadence volontairement saccadée
     last = now;
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    ctx.fillStyle = '#fff';
+    buf.fill(0);
     while (pts.length && now - pts[0].t > LIFE) pts.shift();
     pts.forEach(function (p) { burst(p.x, p.y, 1 - (now - p.t) / LIFE); });
-    if (inside) burst(mx, my, 0.35);           // grain discret autour du curseur immobile
-    ctx.globalAlpha = 1;
-    if (!pts.length && !inside) { cancelAnimationFrame(raf); raf = null; ctx.clearRect(0, 0, cv.width, cv.height); }
+    if (inside) burst(mx, my, IDLE);       // grain discret autour du curseur immobile
+    ctx.putImageData(img, 0, 0);
+    dirty = true;
+    if (!pts.length && !inside) { cancelAnimationFrame(raf); raf = null; ctx.clearRect(0, 0, W, H); dirty = false; }
   }
   function start() { if (!raf) raf = requestAnimationFrame(frame); }
   document.addEventListener('visibilitychange', function () {

@@ -231,4 +231,4 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 /* Bruit digital qui suit le curseur : derrière le contenu, sur le fond du site (la page projet laisse voir le fond) */
 .work { background-color: transparent; }
 html[data-page="works"] .works-page, html[data-page="legal"] .legal-page { background-color: transparent; }   /* même couleur que le fond du site */
-.c-noise { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; mix-blend-mode: difference; image-rendering: pixelated; }
+.c-noise { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; mix-blend-mode: difference; }
