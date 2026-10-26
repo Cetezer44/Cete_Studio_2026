@@ -63,7 +63,7 @@
 (function () {
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var RADIUS = 90, LIFE = 550, FPS = 30, DENSITY = 2600, IDLE = 0.35;
+  var RADIUS = 130, LIFE = 650, FPS = 30, DENSITY = 1100, IDLE = 0.35;
   var cv = document.createElement('canvas');
   cv.className = 'c-noise';
   cv.setAttribute('aria-hidden', 'true');
@@ -95,13 +95,10 @@
     var r = RADIUS * (0.6 + 0.4 * life), n = DENSITY * life | 0;
     for (var i = 0; i < n; i++) {
       var d = r * Math.sqrt(Math.random()), ang = Math.random() * 6.2832;
-      var fall = 1 - d / r;
-      if (Math.random() > fall + 0.15) continue;           // plus dense au centre
+      var fall = Math.sqrt(1 - d / r);                      // décroissance douce : grain diffus
+      if (Math.random() > fall + 0.3) continue;
       var xx = x + Math.cos(ang) * d | 0, yy = y + Math.sin(ang) * d | 0;
-      var a = (40 + Math.random() * 150) * life * fall | 0;
-      if (Math.random() < 0.015) {                          // petit parasite horizontal
-        for (var k = 2 + (Math.random() * 10 | 0); k--;) px(xx + k, yy, a);
-      } else px(xx, yy, a);
+      px(xx, yy, (25 + Math.random() * 120) * life * fall | 0);   // uniquement des pixels carrés
     }
   }
   function frame(now) {
