@@ -1388,7 +1388,9 @@
       };
       on(window, 'mousemove', function (e) {
         px = e.clientX; py = e.clientY;
-        var inside = inHero() && !(e.target.closest && e.target.closest('a, button, .home-nav, .home-logo, .side-bar'));
+        // pas de pastille par-dessus la modale contact / le showreel, ni hors du hero lui-même
+        var inside = inHero() && heroDisc.contains(e.target) && !root.classList.contains('is-menu') && !root.classList.contains('is-reel') &&
+          !(e.target.closest && e.target.closest('a, button, .home-nav, .home-logo, .side-bar'));
         if (!inside && !inHero()) discOff = false;
         discSet(inside && !discOff);
       }, { passive: true });
@@ -1709,7 +1711,7 @@
       if (isOpen || busy) return;
       isOpen = true; busy = true; clearLater();
       lastFocus = document.activeElement;
-      root.classList.add('is-menu');
+      root.classList.add('is-menu'); root.classList.remove('is-discover');
       burger(true);
       all.forEach(hide);
       logo.style.transition = 'none';
