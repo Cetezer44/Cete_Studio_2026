@@ -11,6 +11,7 @@
   c.setAttribute('aria-hidden', 'true');
   c.innerHTML = '<div class="c-cursor__ring"></div><div class="c-cursor__dot"></div>' +
     '<div class="c-cursor__label"><div class="c-cursor__label-in"><img src="' + PLAY + '" alt=""><span>Lire le showreel</span></div></div>' +
+    '<div class="c-cursor__disc"><span class="c-cursor__disc-in">Découvrir</span></div>' +
     // Lecture / pause au survol de la vidéo du showreel (maquette Figma « Play/Pause »)
     '<div class="c-cursor__media"><svg class="c-cursor__icon" viewBox="0 0 60 60" fill="none" stroke="#fff" stroke-width="1">' +
       '<circle cx="30" cy="30" r="29.5"/>' +
@@ -27,6 +28,7 @@
   document.documentElement.classList.add('has-cursor');
   var ring = c.querySelector('.c-cursor__ring'), dot = c.querySelector('.c-cursor__dot'), label = c.querySelector('.c-cursor__label');
   var media = c.querySelector('.c-cursor__media'), over = null;   // vidéo survolée
+  var disc = c.querySelector('.c-cursor__disc');
   var mx = -100, my = -100, rx = mx, ry = my;
   var LINKS = 'a, button, [role="button"], input[type="submit"], label, select';
 
@@ -65,6 +67,7 @@
     label.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     media.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     view.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
+    disc.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     requestAnimationFrame(loop);
   })();
 })();
@@ -78,8 +81,20 @@
   var $ = function (s, c) { return (c || document).querySelector(s); };
   var $$ = function (s, c) { return [].slice.call((c || document).querySelectorAll(s)); };
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-  function sideW() { var s = $('.side-bar'); return s ? s.offsetWidth : 68; }
+  // Barre noire de droite : uniquement sur l'accueil (sur les autres pages elle sort par la droite,
+  // sauf sur mobile où elle porte le menu). --side = largeur réellement occupée (0 quand elle est masquée).
+  function barOff() { return root.classList.contains('no-bar') && window.innerWidth >= 768; }
+  function sideW() { var s = $('.side-bar'); if (!s) return 0; return barOff() ? 0 : s.offsetWidth; }
   function setSide() { root.style.setProperty('--side', sideW() + 'px'); }
+  var barT = null;
+  function setBar(on) {
+    clearTimeout(barT);
+    var was = !root.classList.contains('no-bar');
+    root.classList.toggle('no-bar', !on);
+    // retour de la barre : l'espace (fond de la modal) n'est réservé qu'une fois la barre revenue, sans saut
+    if (on && !was) barT = setTimeout(setSide, 750); else setSide();
+  }
+  root.classList.toggle('no-bar', location.pathname.replace(/\/+$/, '') !== '');
   setSide();
   window.addEventListener('resize', setSide);
 
@@ -1328,13 +1343,39 @@
     });
 
     // « Découvrir » : défilement doux jusqu'aux services
-    var discover = $('.st-discover', container);
-    if (discover) on(discover, 'click', function (e) {
+    function toServices(e) {
       var target = $('#services', container);
       if (!target) return;
-      e.preventDefault();
+      if (e) e.preventDefault();
       window.scrollTo({ top: target.getBoundingClientRect().top + window.pageYOffset, behavior: reduce ? 'auto' : 'smooth' });
-    });
+    }
+    var discover = $('.st-discover', container);
+    if (discover) on(discover, 'click', toServices);
+    // Hero : le curseur devient une pastille « Découvrir » ; au clic, défilement vers les services
+    // et le curseur redevient normal (jusqu'à ce que la souris ressorte puis revienne sur le hero)
+    var heroDisc = $('.st-hero', container);
+    if (heroDisc && root.classList.contains('has-cursor')) {
+      var discOff = false, py = -1, px = -1;
+      var discSet = function (on) { root.classList.toggle('is-discover', on); };
+      var inHero = function () {
+        var r = heroDisc.getBoundingClientRect();
+        return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom;
+      };
+      on(window, 'mousemove', function (e) {
+        px = e.clientX; py = e.clientY;
+        var inside = inHero() && !(e.target.closest && e.target.closest('a, button, .home-nav, .home-logo, .side-bar'));
+        if (!inside && !inHero()) discOff = false;
+        discSet(inside && !discOff);
+      }, { passive: true });
+      on(window, 'scroll', function () { if (!inHero()) { discOff = false; discSet(false); } }, { passive: true });
+      on(heroDisc, 'click', function (e) {
+        if (e.target.closest && e.target.closest('a, button')) return;
+        discOff = true;
+        discSet(false);
+        toServices(e);
+      });
+      ac.signal.addEventListener('abort', function () { discSet(false); });
+    }
 
     // Services : clic = la description s'ouvre (l'image disparaît), nouveau clic = fermeture
     var services = $$('.st-service', container);
@@ -2035,9 +2076,12 @@
   var leaveData = null;
   var LEGAL_PATH = /^\/(mentions-legales|protection-des-donnees|cookies)\/?$/;
   barba.hooks.before(function (data) {   // un lien d'une modal la ferme avant la transition
-    if (Reel.isOpen()) return Reel.close(true);
+    var toHome = (data.next.url.path || '').replace(/\/+$/, '') === '';
+    var done = function () { setBar(toHome); };   // la barre noire sort (ou revient sur l'accueil) dès le départ
+    if (Reel.isOpen()) return Promise.resolve(Reel.close(true)).then(done);
     // vers une page légale, la modal contact reste ouverte : son fond noir sert de transition
-    if (Menu.isOpen() && !LEGAL_PATH.test(data.next.url.path || '')) return Menu.close(true);
+    if (Menu.isOpen() && !LEGAL_PATH.test(data.next.url.path || '')) return Promise.resolve(Menu.close(true)).then(done);
+    done();
   });   // un lien du menu ferme la modal
   barba.hooks.beforeLeave(function () { prev = page; });
   barba.hooks.afterLeave(function () { if (prev && prev.destroy) prev.destroy(); });

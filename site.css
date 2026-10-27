@@ -139,6 +139,15 @@ html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45d
   color: #fff; font-family: 'Be Vietnam Pro', Arial, sans-serif; font-size: 12px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-transform: uppercase;
   opacity: 0; transform: scale(.3); transition: transform 500ms cubic-bezier(.16,1,.3,1), opacity 300ms ease; }
 .c-view.is-on .c-view__in { opacity: 1; transform: scale(1); }
+/* Hero du Studio : pastille « Découvrir » de 100 px (cercle 1 px, texte 12 px), en mode différence comme le curseur */
+.c-cursor__disc { position: fixed; top: 0; left: 0; will-change: transform; }
+.c-cursor__disc-in { display: block; transform: translate(-50%, -50%) scale(.6); opacity: 0; white-space: nowrap; color: #fff;
+  font-family: 'Be Vietnam Pro', Arial, sans-serif; font-size: 12px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-transform: uppercase;
+  transition: transform 500ms cubic-bezier(.16,1,.3,1), opacity 300ms ease; }
+html.is-discover .c-cursor__ring { width: 100px; height: 100px; margin: -50px 0 0 -50px; }
+html.is-discover .c-cursor__dot { opacity: 0; }
+html.is-discover .c-cursor__disc-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+@media (hover: hover) and (pointer: fine) { .st-hero .st-discover { display: none; } .st-hero { cursor: pointer; } }
 
 /* ---------- Modal showreel ---------- */
 .sr { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 60; visibility: hidden; color: #fff; }
@@ -234,3 +243,11 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 
 /* Projet suivant : photo centrée, relais de l'animation d'ouverture d'un projet */
 .work-next-card:focus-visible { outline: 1px solid currentColor; outline-offset: 6px; }
+
+/* Barre noire de droite : uniquement sur l'accueil ; ailleurs elle sort par la droite (elle revient avec la modal contact).
+   Sur mobile elle reste partout (elle porte le menu). */
+.side-bar { transition: transform 700ms cubic-bezier(.65,0,.35,1); }
+@media (min-width: 768px) {
+  html.no-bar:not(.is-menu) .side-bar { transform: translate3d(100%, 0, 0); pointer-events: none; }
+}
+html.is-menu-reset .side-bar { transition: none !important; }
