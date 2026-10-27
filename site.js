@@ -354,7 +354,7 @@
     function easeInOut(t) { return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; }   // quart.inOut
     // La roulette fait un seul tour (START → START + N) ; une fois ce tour fait, le scroll suivant fait
     // défiler la page vers la section du dessous. En revenant en haut, le scroll vers le haut refait tourner la roue.
-    var END = START + N, free = false;
+    var END = START + N - 1, free = false, anchoring = false;   // fin = 5e projet (dernier de la série)
     function clampT() { target = Math.max(START, Math.min(END, target)); }
     function atEnd() { return target >= END - 0.001 && Math.abs(cur - END) < 0.02; }
     function setFree(v) {
@@ -362,6 +362,24 @@
       root.classList.toggle('home-free', v);
     }
     ac.signal.addEventListener('abort', function () { root.classList.remove('home-free'); });
+    // Après le dernier projet : le moindre scroll vers le bas fait une ancre vers la section du dessous
+    var aRaf = null;
+    function goAbout() {
+      var sec = $('.home-about', container);
+      if (!sec || anchoring) return;
+      setFree(true);
+      anchoring = true;
+      var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : 1300;
+      var stepA = function (now) {
+        if (t0a === null) t0a = now;
+        var k = D ? Math.min(1, (now - t0a) / D) : 1;
+        window.scrollTo(0, y0 + (y1 - y0) * easeInOut(k));
+        if (k < 1 && alive) aRaf = requestAnimationFrame(stepA);
+        else { anchoring = false; aRaf = null; }
+      };
+      aRaf = requestAnimationFrame(stepA);
+    }
+    ac.signal.addEventListener('abort', function () { if (aRaf) cancelAnimationFrame(aRaf); });
     function stepBy(n) {
       target = Math.round(target) + n;
       clampT();
@@ -408,6 +426,7 @@
 
     on(window, 'wheel', function (e) {
       var dy0 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if (anchoring) { e.preventDefault(); return; }   // l'ancre vers la section du dessous est en cours
       if (free) {
         // page libre : défilement natif, sauf tout en haut vers le haut → la roue reprend la main
         if (window.scrollY > 0 || dy0 >= 0 || blocked()) return;
@@ -415,7 +434,7 @@
       }
       e.preventDefault();
       if (blocked()) return;
-      if (dy0 > 0 && atEnd()) { setFree(true); window.scrollBy(0, Math.min(120, dy0)); return; }
+      if (dy0 > 0 && atEnd()) { goAbout(); return; }
       var dy = dy0;
       if (reduce) {
         var now = Date.now();
@@ -436,13 +455,14 @@
     on(window, 'touchmove', function (e) {
       if (ty === null) return;
       var y = e.touches[0].clientY;
+      if (anchoring) { e.preventDefault(); ty = y; return; }
       if (free) {
         if (window.scrollY > 0 || y <= ty || blocked()) { ty = y; return; }
         setFree(false);
       }
       e.preventDefault();
       if (blocked()) return;
-      if (ty - y > 0 && atEnd()) { setFree(true); ty = y; return; }
+      if (ty - y > 0 && atEnd()) { goAbout(); ty = y; return; }
       if (ty !== y) dir = ty > y ? 1 : -1;
       target += (ty - y) / 220;
       clampT();
@@ -464,7 +484,7 @@
         if (up && window.scrollY <= 0) { setFree(false); e.preventDefault(); stepBy(-1); }
         return;   // défilement natif de la page
       }
-      if (down && atEnd()) { setFree(true); return; }
+      if (down && atEnd()) { e.preventDefault(); goAbout(); return; }
       if (down) { e.preventDefault(); stepBy(1); autoNext(); }
       if (up) { e.preventDefault(); stepBy(-1); autoNext(); }
     });
