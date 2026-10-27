@@ -345,14 +345,26 @@
       clearTimeout(snapTimer);
       snapTimer = setTimeout(function () {
         target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
+        clampT();
       }, 140);
     }
     // Changement de projet « d'un cran » (lecture auto, clavier) : courbe ease-in-out lente
     // au lieu du suivi exponentiel utilisé pendant le scroll
     var SLIDE_MS = 1800, tween = null;
     function easeInOut(t) { return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; }   // quart.inOut
+    // La roulette fait un seul tour (START → START + N) ; une fois ce tour fait, le scroll suivant fait
+    // défiler la page vers la section du dessous. En revenant en haut, le scroll vers le haut refait tourner la roue.
+    var END = START + N, free = false;
+    function clampT() { target = Math.max(START, Math.min(END, target)); }
+    function atEnd() { return target >= END - 0.001 && Math.abs(cur - END) < 0.02; }
+    function setFree(v) {
+      free = v;
+      root.classList.toggle('home-free', v);
+    }
+    ac.signal.addEventListener('abort', function () { root.classList.remove('home-free'); });
     function stepBy(n) {
       target = Math.round(target) + n;
+      clampT();
       tween = !reduce ? { a: cur, b: target, t0: performance.now(), d: SLIDE_MS } : null;
     }
 
@@ -362,6 +374,7 @@
     var AUTO_MS = 5000, autoTimer = null, hovering = false;
     function autoNext() {
       clearTimeout(autoTimer);
+      return;   // lecture automatique désactivée : la roulette ne tourne qu'au scroll / geste / clavier
       if (reduce || !alive) return;
       autoTimer = setTimeout(function () {
         if (!alive || leaving) return;
@@ -394,9 +407,16 @@
     on(arrow, 'mouseenter', nudge);
 
     on(window, 'wheel', function (e) {
+      var dy0 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if (free) {
+        // page libre : défilement natif, sauf tout en haut vers le haut → la roue reprend la main
+        if (window.scrollY > 0 || dy0 >= 0 || blocked()) return;
+        setFree(false);
+      }
       e.preventDefault();
       if (blocked()) return;
-      var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if (dy0 > 0 && atEnd()) { setFree(true); window.scrollBy(0, Math.min(120, dy0)); return; }
+      var dy = dy0;
       if (reduce) {
         var now = Date.now();
         if (Math.abs(dy) > 4 && now - lock > 450) { lock = now; stepBy(dy > 0 ? 1 : -1); }
@@ -407,6 +427,7 @@
       tween = null;
       autoNext();
       target += dy / 450;
+      clampT();
       snapLater();
     }, { passive: false });
 
@@ -414,31 +435,45 @@
     on(window, 'touchstart', function (e) { ty = e.touches[0].clientY; }, { passive: true });
     on(window, 'touchmove', function (e) {
       if (ty === null) return;
+      var y = e.touches[0].clientY;
+      if (free) {
+        if (window.scrollY > 0 || y <= ty || blocked()) { ty = y; return; }
+        setFree(false);
+      }
       e.preventDefault();
       if (blocked()) return;
-      var y = e.touches[0].clientY;
+      if (ty - y > 0 && atEnd()) { setFree(true); ty = y; return; }
       if (ty !== y) dir = ty > y ? 1 : -1;
       target += (ty - y) / 220;
+      clampT();
       ty = y;
       tween = null;
       autoNext();
     }, { passive: false });
     on(window, 'touchend', function () {
       ty = null;
-      if (blocked()) return;
+      if (blocked() || free) return;
       target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
+      clampT();
     });
     on(window, 'keydown', function (e) {
       var t = e.target.tagName;
       if (t === 'INPUT' || t === 'TEXTAREA' || blocked()) return;
-      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); stepBy(1); autoNext(); }
-      if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); stepBy(-1); autoNext(); }
+      var down = e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ', up = e.key === 'ArrowUp' || e.key === 'PageUp';
+      if (free) {
+        if (up && window.scrollY <= 0) { setFree(false); e.preventDefault(); stepBy(-1); }
+        return;   // défilement natif de la page
+      }
+      if (down && atEnd()) { setFree(true); return; }
+      if (down) { e.preventDefault(); stepBy(1); autoNext(); }
+      if (up) { e.preventDefault(); stepBy(-1); autoNext(); }
     });
     base.forEach(function (c, i) {
       on(c, 'focus', function () {
         var diff = ((i - Math.round(target)) % N + N) % N;
         if (diff > N / 2) diff -= N;
         target = Math.round(target) + diff;
+        clampT();
       });
     });
 
@@ -472,6 +507,35 @@
       }
       if (dirty) { render(); dirty = false; }
       requestAnimationFrame(tick);
+    }
+
+    // Section sous la roulette : les mots s'allument au fil du défilement (15 % → 100 %)
+    var aboutText = $('.home-about-text', container), aboutWords = [];
+    if (aboutText) {
+      var wds = aboutText.textContent.trim().split(/\s+/);
+      aboutText.setAttribute('aria-label', wds.join(' '));
+      aboutText.textContent = '';
+      wds.forEach(function (w, i) {
+        var sp = document.createElement('span');
+        sp.className = 'home-about-word';
+        sp.setAttribute('aria-hidden', 'true');
+        sp.textContent = w;
+        aboutText.appendChild(sp);
+        if (i < wds.length - 1) aboutText.appendChild(document.createTextNode(' '));
+        aboutWords.push(sp);
+      });
+      var litN = -1;
+      var aboutUpdate = function () {
+        var r = aboutText.getBoundingClientRect(), vh = window.innerHeight;
+        var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
+        var n = Math.round(p * aboutWords.length);
+        if (n === litN) return;
+        litN = n;
+        aboutWords.forEach(function (sp, i) { sp.classList.toggle('is-lit', i < n); });
+      };
+      on(window, 'scroll', aboutUpdate, { passive: true });
+      on(window, 'resize', aboutUpdate);
+      aboutUpdate();
     }
 
     window.scrollTo(0, 0);

@@ -10,7 +10,12 @@ a:focus-visible{outline:1px solid currentColor;outline-offset:4px}
 /* ---------- Accueil ---------- */
 /* Vignette du showreel : le voile noir (.showreel-shade, opacité 0 dans le Designer) n'apparaît qu'au survol */
 .showreel:hover .showreel-shade, .showreel:focus-visible .showreel-shade { opacity: 1; }
-html[data-page="home"], html[data-page="home"] body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+html[data-page="home"]:not(.home-free), html[data-page="home"]:not(.home-free) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* Accueil : une fois le tour de roulette fait, la page défile vers la section du dessous (barre de défilement masquée : pas de saut de mise en page) */
+html[data-page="home"] { scrollbar-width: none; }
+html[data-page="home"]::-webkit-scrollbar { display: none; }
+.home-about-word { color: rgba(255,255,255,.15); transition: color 400ms ease; }
+.home-about-word.is-lit { color: #fff; }
 .is-intro .hero-title { opacity: 0; }
 /* Cache plein écran le temps que le loader se mette en place (disparaît seul après 8 s si le script échoue) */
 html.is-loading body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #f0f0f0; z-index: 9998; animation: ldSafe 0s linear 8s forwards; }
