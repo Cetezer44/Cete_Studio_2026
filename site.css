@@ -147,6 +147,11 @@ html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45d
 html.is-discover .c-cursor__ring { width: 100px; height: 100px; margin: -50px 0 0 -50px; }
 html.is-discover .c-cursor__dot { opacity: 0; }
 html.is-discover .c-cursor__disc-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+/* ouverture / fermeture lentes et douces de la pastille « Découvrir » */
+html.disc-anim .c-cursor__ring { transition: width 1000ms cubic-bezier(.65,0,.35,1), height 1000ms cubic-bezier(.65,0,.35,1), margin 1000ms cubic-bezier(.65,0,.35,1), opacity 600ms ease; }
+html.disc-anim .c-cursor__dot { transition: opacity 600ms ease; }
+.c-cursor__disc-in { transition: transform 900ms cubic-bezier(.65,0,.35,1), opacity 500ms ease; }
+html.is-discover .c-cursor__disc-in { transition: transform 1000ms cubic-bezier(.65,0,.35,1) 150ms, opacity 700ms ease 250ms; }
 @media (hover: hover) and (pointer: fine) { .st-hero .st-discover { display: none; } .st-hero { cursor: pointer; } }
 
 /* ---------- Modal showreel ---------- */

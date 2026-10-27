@@ -1343,11 +1343,27 @@
     });
 
     // « Découvrir » : défilement doux jusqu'aux services
+    var scrollRaf = null;
     function toServices(e) {
       var target = $('#services', container);
       if (!target) return;
       if (e) e.preventDefault();
-      window.scrollTo({ top: target.getBoundingClientRect().top + window.pageYOffset, behavior: reduce ? 'auto' : 'smooth' });
+      var from = window.pageYOffset, to = target.getBoundingClientRect().top + from;
+      if (reduce) { window.scrollTo(0, to); return; }
+      // défilement lent et doux (≈ 1,6 s, accélération puis ralentissement progressifs)
+      var dur = 1600, t0 = null;
+      var ease = function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+      var stop = function () { if (scrollRaf) cancelAnimationFrame(scrollRaf); scrollRaf = null; };
+      stop();
+      var step = function (ts) {
+        if (t0 === null) t0 = ts;
+        var p = Math.min(1, (ts - t0) / dur);
+        window.scrollTo(0, from + (to - from) * ease(p));
+        scrollRaf = p < 1 ? requestAnimationFrame(step) : null;
+      };
+      scrollRaf = requestAnimationFrame(step);
+      on(window, 'wheel', stop, { passive: true, once: true });
+      on(window, 'touchstart', stop, { passive: true, once: true });
     }
     var discover = $('.st-discover', container);
     if (discover) on(discover, 'click', toServices);
@@ -1356,7 +1372,16 @@
     var heroDisc = $('.st-hero', container);
     if (heroDisc && root.classList.contains('has-cursor')) {
       var discOff = false, py = -1, px = -1;
-      var discSet = function (on) { root.classList.toggle('is-discover', on); };
+      // la pastille s'ouvre et se referme lentement (classe « disc-anim » le temps de la transition de retour)
+      var discT = null;
+      var discSet = function (on) {
+        var was = root.classList.contains('is-discover');
+        if (was === on) return;
+        root.classList.toggle('is-discover', on);
+        root.classList.add('disc-anim');
+        clearTimeout(discT);
+        discT = setTimeout(function () { if (!root.classList.contains('is-discover')) root.classList.remove('disc-anim'); }, 1100);
+      };
       var inHero = function () {
         var r = heroDisc.getBoundingClientRect();
         return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom;
@@ -1374,7 +1399,7 @@
         discSet(false);
         toServices(e);
       });
-      ac.signal.addEventListener('abort', function () { discSet(false); });
+      ac.signal.addEventListener('abort', function () { root.classList.remove('is-discover', 'disc-anim'); if (scrollRaf) cancelAnimationFrame(scrollRaf); });
     }
 
     // Services : clic = la description s'ouvre (l'image disparaît), nouveau clic = fermeture
