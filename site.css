@@ -341,3 +341,18 @@ html.is-menu-reset .side-bar { transition: none !important; }
 
 /* Projets (grille) : parallaxe dans les photos — l'image dépasse de 12 % en haut et en bas, --py piloté par site.js */
 .works-page .works-img.works-plx { top: -12%; height: 124%; translate: 0 var(--py, 0px); will-change: transform, translate; }
+
+/* Accueil : le fond passe au noir en fondu quand la section du dessous arrive (classe is-dark posée par site.js) ;
+   la roulette n'est plus rognée en bas et passe par-dessus la section noire */
+html[data-page="home"] [data-barba-namespace="home"] { background-color: #f0f0f0; transition: background-color 900ms ease; }
+html[data-page="home"] [data-barba-namespace="home"].is-dark { background-color: #000; }
+html[data-page="home"] .home-track, html[data-page="home"] .home-sticky { background-color: transparent; overflow-x: clip; overflow-y: visible; }
+html[data-page="home"] .home-track { position: relative; z-index: 2; }
+html[data-page="home"] .home-about { position: relative; z-index: 1; background-color: transparent; }
+[data-barba-namespace="home"] .hero-title, [data-barba-namespace="home"] .wheel-info,
+[data-barba-namespace="home"] .home-socials .nav-link { transition: color 900ms ease; }
+[data-barba-namespace="home"].is-dark .hero-title, [data-barba-namespace="home"].is-dark .wheel-info,
+[data-barba-namespace="home"].is-dark .wheel-info a, [data-barba-namespace="home"].is-dark .home-socials .nav-link { color: #f0f0f0; }
+[data-barba-namespace="home"].is-dark .wheel-arrow-icon { filter: invert(1); }
+[data-barba-namespace="home"] .hero-tag { transition: background-color 900ms ease, color 900ms ease; }
+[data-barba-namespace="home"].is-dark .hero-tag { background-color: #f0f0f0; color: #000; }

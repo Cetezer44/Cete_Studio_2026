@@ -525,8 +525,11 @@
         aboutWords.push(sp);
       });
       var litN = -1;
+      var aboutSec = aboutText.closest('.home-about') || aboutText;
       var aboutUpdate = function () {
         var r = aboutText.getBoundingClientRect(), vh = window.innerHeight;
+        // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran
+        container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5);
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
         var n = Math.round(p * aboutWords.length);
         if (n === litN) return;
