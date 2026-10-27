@@ -1441,8 +1441,8 @@
       var w = sticky.clientWidth;
       dist = Math.max(0, track.scrollWidth - w);
       var h = sticky.offsetHeight;
-      // cartes décalées en hauteur (maquette : de -180 à +281 px) ; on réduit l'écart si l'écran est trop bas
-      var up = 180, down = 281;
+      // cartes décalées en hauteur (maquette : de -180 à +288 px) ; on réduit l'écart si l'écran est trop bas
+      var up = 180, down = 288;
       var k = Math.max(0, Math.min(1, (window.innerHeight - 40 - h) / (up + down)));
       track.style.setProperty('--k', k.toFixed(3));
       stickyTop = Math.max(20, Math.round((window.innerHeight - h - (up + down) * k) / 2 + up * k));
