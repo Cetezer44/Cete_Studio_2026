@@ -349,6 +349,7 @@
       snapTimer = setTimeout(function () {
         target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
         clampT();
+        if (target >= END && !free) goAbout();
       }, 140);
     }
     // Changement de projet « d'un cran » (lecture auto, clavier) : courbe ease-in-out lente
@@ -360,7 +361,7 @@
     var END = START + N, free = false, anchoring = false;   // fin = retour sur le 01 après le dernier projet
     // dès que la roue quitte le dernier projet vers le 01, elle termine son tour et l'ancre part vers la section du dessous
     function passLast() {
-      if (target > END - 1 + 0.3) { target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: SLIDE_MS }; goAbout(); return true; }
+      if (target > END - 1 + 0.05) { target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: SLIDE_MS }; goAbout(); return true; }
       return false;
     }
     function clampT() { target = Math.max(START, Math.min(END, target)); }
