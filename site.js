@@ -1463,18 +1463,93 @@
       track.style.transform = 'translate3d(' + (x0 - p * dist).toFixed(1) + 'px,0,0)';
       parallax();
     }
-    // Parallaxe horizontale dans les photos : l'image (agrandie de 20 %) glisse à contre-sens du défilement
+    // Parallaxe horizontale dans les photos : l'image (agrandie de 40 %) glisse à contre-sens du défilement
     var pImgs = reduce ? [] : $$('.st-member-media img', container);
     pImgs.forEach(function (img) { img.classList.add('st-plx'); });
+
+    // Effet lentille / verre sur le bord droit de l'écran : chaque carte qui traverse la zone est
+    // déformée par un filtre SVG (feDisplacementMap) dont la carte de déplacement suit la zone
+    var lens = null;
+    if (!reduce && track && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      var NS = 'http://www.w3.org/2000/svg';
+      var lSvg = document.createElementNS(NS, 'svg');
+      lSvg.setAttribute('aria-hidden', 'true');
+      lSvg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
+      container.appendChild(lSvg);
+      lens = { svg: lSvg, items: [], Z: 0, H: 0, url: '', scale: 0 };
+      Array.prototype.forEach.call(track.children, function (item, i) {
+        var id = 'st-lens-' + i;
+        var f = document.createElementNS(NS, 'filter');
+        f.setAttribute('id', id);
+        f.setAttribute('filterUnits', 'userSpaceOnUse');
+        f.setAttribute('primitiveUnits', 'userSpaceOnUse');
+        f.setAttribute('color-interpolation-filters', 'sRGB');
+        f.innerHTML = '<feFlood flood-color="rgb(128,128,128)" result="n"/>' +
+          '<feImage preserveAspectRatio="none" result="m"/>' +
+          '<feMerge result="map"><feMergeNode in="n"/><feMergeNode in="m"/></feMerge>' +
+          '<feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G"/>';
+        lSvg.appendChild(f);
+        lens.items.push({ el: item, f: f, img: f.querySelector('feImage'), dm: f.querySelector('feDisplacementMap'), id: id, on: false });
+      });
+    }
+    // carte de déplacement : lentille cylindrique (grossit au centre de la zone, comprime sur ses bords)
+    function lensMap() {
+      if (!lens || !lens.items.length) return;
+      var vw = root.clientWidth, H = lens.items[0].el.offsetHeight;
+      var Z = Math.round(Math.min(560, Math.max(260, vw * 0.26)));
+      if (Z === lens.Z && H === lens.H) return;
+      lens.Z = Z; lens.H = H;
+      var m = 0.75, kY = 0.16;
+      var maxX = Z * m / (2 * Math.PI), maxY = H * kY / 2, maxD = Math.max(maxX, maxY);
+      var cv = document.createElement('canvas'); cv.width = Z; cv.height = H;
+      var cx = cv.getContext('2d'), im = cx.createImageData(Z, H), d = im.data;
+      for (var y = 0; y < H; y++) {
+        for (var x = 0; x < Z; x++) {
+          var t = x / Z;
+          var dx = maxX * Math.sin(2 * Math.PI * t);
+          var dy = -(y - H / 2) * kY * Math.sin(Math.PI * t);
+          var o = (y * Z + x) * 4;
+          d[o] = Math.round(128 + 127 * dx / maxD);
+          d[o + 1] = Math.round(128 + 127 * dy / maxD);
+          d[o + 2] = 128; d[o + 3] = 255;
+        }
+      }
+      cx.putImageData(im, 0, 0);
+      lens.url = cv.toDataURL('image/png');
+      lens.scale = 2 * maxD;
+      lens.items.forEach(function (it) {
+        it.img.setAttribute('href', lens.url);
+        it.img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', lens.url);
+        it.img.setAttribute('width', Z); it.img.setAttribute('height', H); it.img.setAttribute('y', 0);
+        it.dm.setAttribute('scale', lens.scale.toFixed(1));
+      });
+    }
+    function lensUpdate() {
+      if (!lens) return;
+      var vw = root.clientWidth, zl = vw - lens.Z;
+      lens.items.forEach(function (it) {
+        var r = it.el.getBoundingClientRect();
+        var inZone = horizontal && r.right > zl && r.left < vw;
+        if (!inZone) { if (it.on) { it.el.style.filter = ''; it.on = false; } return; }
+        var w = it.el.offsetWidth, h = it.el.offsetHeight;
+        it.f.setAttribute('x', 0); it.f.setAttribute('y', 0);
+        it.f.setAttribute('width', w); it.f.setAttribute('height', h);
+        it.img.setAttribute('x', (zl - r.left).toFixed(1));
+        if (!it.on) { it.el.style.filter = 'url(#' + it.id + ')'; it.on = true; }
+      });
+    }
+
     function parallax() {
+      if (lens) { lensMap(); lensUpdate(); }
       if (!pImgs.length) return;
       var vw = root.clientWidth;
       pImgs.forEach(function (img) {
         if (!horizontal) { img.style.transform = ''; return; }
         var r = img.parentNode.getBoundingClientRect();
         if (r.right < -200 || r.left > vw + 200) return;
-        var d = Math.max(-1, Math.min(1, (r.left + r.width / 2 - vw / 2) / vw));
-        img.style.transform = 'translate3d(' + (-d * 8).toFixed(2) + '%,0,0) scale(1.2)';
+        var d = (r.left + r.width / 2 - vw / 2) / vw;
+        var sx = Math.max(-17, Math.min(17, -d * 30));
+        img.style.transform = 'translate3d(' + sx.toFixed(2) + '%,0,0) scale(1.4)';
       });
     }
 
