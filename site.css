@@ -352,10 +352,19 @@ html[data-page="home"] [data-barba-namespace="home"].is-dark { background-color:
 html[data-page="home"] .home-track, html[data-page="home"] .home-sticky { background-color: transparent; overflow-x: clip; overflow-y: visible; }
 html[data-page="home"] .home-track { position: relative; z-index: 2; }
 html[data-page="home"] .home-about { position: relative; z-index: 1; background-color: transparent; }
-[data-barba-namespace="home"] .hero-title, [data-barba-namespace="home"] .wheel-info,
+[data-barba-namespace="home"] .hero-title,
 [data-barba-namespace="home"] .home-socials .nav-link { transition: color 900ms ease; }
-[data-barba-namespace="home"].is-dark .hero-title, [data-barba-namespace="home"].is-dark .wheel-info,
-[data-barba-namespace="home"].is-dark .wheel-info a, [data-barba-namespace="home"].is-dark .home-socials .nav-link { color: #f0f0f0; }
-[data-barba-namespace="home"].is-dark .wheel-arrow-icon { filter: invert(1); }
+[data-barba-namespace="home"].is-dark .hero-title, [data-barba-namespace="home"].is-dark .home-socials .nav-link { color: #f0f0f0; }
 [data-barba-namespace="home"] .hero-tag { transition: background-color 900ms ease, color 900ms ease; }
 [data-barba-namespace="home"].is-dark .hero-tag { background-color: #f0f0f0; color: #000; }
+
+/* Roulette : numéro + titre en blanc sur la photo au premier plan, avec un léger dégradé noir en bas */
+.wheel-info { pointer-events: none; }
+.wheel-info-inner { flex-direction: row !important; align-items: center !important; column-gap: 20px; row-gap: 0 !important; }
+.wheel-num, .wheel-title { color: #fff !important; }
+.wheel-title { font-size: 16px !important; font-weight: 400; letter-spacing: -0.05em; }
+.wheel-arrow { display: none !important; }
+.wheel-card::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 73.6%, rgba(0,0,0,.7) 100%); mix-blend-mode: darken;
+  opacity: 0; transition: opacity 700ms ease; }
+.wheel-card.is-front::after { opacity: 1; }

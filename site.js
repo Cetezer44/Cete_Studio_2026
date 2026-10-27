@@ -43,7 +43,7 @@
     var t = e.target.closest ? e.target : null;
     var video = !!(t && t.closest('.showreel'));
     over = t && t.closest('.sr-video');
-    var see = !!(t && t.closest('.works-page .works-media, .works-page .wl-media'));
+    var see = !!(t && t.closest('.works-page .works-media, .works-page .wl-media, .wheel-card.is-front'));
     c.classList.toggle('is-video', video);
     c.classList.toggle('is-view', see);
     view.classList.toggle('is-on', see);
@@ -256,6 +256,7 @@
         fall: m ? 0.12 : 0.157,           // réduction de taille par cran supplémentaire
         sh:   m ? 0 : -179 * k,           // décalage vers la gauche de la photo active
         gap:  m ? 20 : 40 * k,
+        k:    m ? Math.max(0.6, k * 0.6) : k,
         w: cards[0].offsetWidth,
         h: cards[0].offsetHeight
       };
@@ -329,10 +330,12 @@
         c.style.zIndex = String(100 - Math.round(ad * 10));
         c.style.filter = 'grayscale(' + (1 - f).toFixed(3) + ')';   // noir et blanc derrière, couleur devant
         c.style.visibility = ad > 6.5 ? 'hidden' : 'visible';
+        c.classList.toggle('is-front', ad < 0.5);   // dégradé + curseur « Voir » sur la photo au premier plan
       }
-      var aw = g.w * g.sc, ah = g.h * g.sc;
-      info.style.left = (g.px - g.R + g.sh - aw / 2) + 'px';
-      info.style.top = (g.py + ah / 2 + g.gap) + 'px';
+      // numéro + titre en blanc, posés en bas à gauche de la photo au premier plan (40 px de marge sur la maquette)
+      var aw = g.w * g.sc, ah = g.h * g.sc, pad = g.k * 40;
+      info.style.left = (g.px - g.R + g.sh - aw / 2 + pad) + 'px';
+      info.style.top = (g.py + ah / 2 - pad - info.offsetHeight) + 'px';
       if (intro) return;
       var i = ((Math.round(cur) % N) + N) % N;
       if (i !== active) setActive(i, active === -1);
@@ -354,7 +357,12 @@
     function easeInOut(t) { return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; }   // quart.inOut
     // La roulette fait un seul tour (START → START + N) ; une fois ce tour fait, le scroll suivant fait
     // défiler la page vers la section du dessous. En revenant en haut, le scroll vers le haut refait tourner la roue.
-    var END = START + N - 1, free = false, anchoring = false;   // fin = 5e projet (dernier de la série)
+    var END = START + N, free = false, anchoring = false;   // fin = retour sur le 01 après le dernier projet
+    // dès que la roue quitte le dernier projet vers le 01, elle termine son tour et l'ancre part vers la section du dessous
+    function passLast() {
+      if (target > END - 1 + 0.3) { target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: SLIDE_MS }; goAbout(); return true; }
+      return false;
+    }
     function clampT() { target = Math.max(START, Math.min(END, target)); }
     function atEnd() { return target >= END - 0.001 && Math.abs(cur - END) < 0.02; }
     function setFree(v) {
@@ -384,6 +392,7 @@
       target = Math.round(target) + n;
       clampT();
       tween = !reduce ? { a: cur, b: target, t0: performance.now(), d: SLIDE_MS } : null;
+      if (n > 0 && target >= END) goAbout();
     }
 
     // Passage automatique au projet suivant toutes les 5 s.
@@ -447,6 +456,7 @@
       autoNext();
       target += dy / 450;
       clampT();
+      if (dy > 0 && passLast()) return;
       snapLater();
     }, { passive: false });
 
@@ -466,6 +476,7 @@
       if (ty !== y) dir = ty > y ? 1 : -1;
       target += (ty - y) / 220;
       clampT();
+      if (ty - y > 0 && passLast()) { ty = y; return; }
       ty = y;
       tween = null;
       autoNext();
