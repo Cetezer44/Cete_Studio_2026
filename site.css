@@ -213,8 +213,7 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 }
 
 /* Pages légales (gabarit 2026) : fond noir, flèches claires */
-html[data-page="legal"] { background-color: #000; }
-html[data-page="legal"] body { background-color: transparent; }   /* fond porté par html : le bruit digital (z-index -1) reste visible */
+html[data-page="legal"], html[data-page="legal"] body { background-color: #000; }
 .legal-link .works-arrow-icon { filter: invert(1); }
 
 /* Rideau noir des pages légales (transitions Barba) */
@@ -235,15 +234,3 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
 
 /* Projet suivant : photo centrée, relais de l'animation d'ouverture d'un projet */
 .work-next-card:focus-visible { outline: 1px solid currentColor; outline-offset: 6px; }
-
-/* Bruit digital qui suit le curseur : derrière le contenu, sur le fond du site (la page projet laisse voir le fond) */
-.work { background-color: transparent; }
-html[data-page="works"] .works-page, html[data-page="legal"] .legal-page,
-html[data-page="home"] .home-track, html[data-page="home"] .home-sticky { background-color: transparent; }   /* même couleur que le fond du site */
-.c-noise { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; mix-blend-mode: difference; }
-/* Modal contact ouverte : le bruit passe entre son fond noir (z 49) et son contenu (z 51) */
-html.is-menu .c-noise:not(.c-noise--side):not(.c-noise--hero) { z-index: 50; }
-/* Bande noire de droite : copie du bruit dans la bande */
-.c-noise--side { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }   /* dans .side-bar (contexte z 50) : au-dessus de son fond, sous son contenu */
-/* Hero des pages projet : le bruit passe par-dessus la photo */
-.c-noise--hero { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }

@@ -69,94 +69,6 @@
   })();
 })();
 
-/* ---------- Bruit digital : grain de pixels fins qui suit le curseur, sur le fond du site ----------
-   Canevas fixe derrière le contenu (z-index -1), à la résolution de l'écran (pixels de 1 px CSS),
-   dessiné directement dans un tampon de pixels pour rester léger malgré la densité.
-   Pixels blancs en mode « différence » : sombres sur fond clair, clairs sur fond noir. */
-(function () {
-  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var RADIUS = 130, LIFE = 650, FPS = 30, DENSITY = 1100, IDLE = 0.35;
-  var cv = document.createElement('canvas');
-  cv.className = 'c-noise';
-  cv.setAttribute('aria-hidden', 'true');
-  document.body.insertBefore(cv, document.body.firstChild);
-  var ctx = cv.getContext('2d');
-  var W = 0, H = 0, img = null, buf = null;
-  var pts = [], mx = -999, my = -999, inside = false, raf = null, last = 0, dirty = false;
-  function size() {
-    W = cv.width = window.innerWidth;
-    H = cv.height = window.innerHeight;
-    img = ctx.createImageData(W, H);
-    buf = new Uint32Array(img.data.buffer);
-  }
-  size();
-  window.addEventListener('resize', size);
-  window.addEventListener('mousemove', function (e) {
-    var p = pts[pts.length - 1];
-    mx = e.clientX; my = e.clientY; inside = true;
-    if (!p || Math.abs(p.x - mx) + Math.abs(p.y - my) > 12) pts.push({ x: mx, y: my, t: performance.now() });
-    start();
-  }, { passive: true });
-  document.addEventListener('mouseleave', function () { inside = false; });
-  function px(x, y, a) {
-    if (x < 0 || y < 0 || x >= W || y >= H) return;
-    var i = y * W + x, cur = buf[i] >>> 24;
-    if (a > cur) buf[i] = ((a << 24) | 0xffffff) >>> 0;   // blanc, opacité a (little-endian ABGR)
-  }
-  function burst(x, y, life) {
-    var r = RADIUS * (0.6 + 0.4 * life), n = DENSITY * life | 0;
-    for (var i = 0; i < n; i++) {
-      var d = r * Math.sqrt(Math.random()), ang = Math.random() * 6.2832;
-      var fall = Math.sqrt(1 - d / r);                      // décroissance douce : grain diffus
-      if (Math.random() > fall + 0.3) continue;
-      var xx = x + Math.cos(ang) * d | 0, yy = y + Math.sin(ang) * d | 0;
-      px(xx, yy, (25 + Math.random() * 120) * life * fall | 0);   // uniquement des pixels carrés
-    }
-  }
-  function frame(now) {
-    raf = requestAnimationFrame(frame);
-    if (now - last < 1000 / FPS) return;   // cadence volontairement saccadée
-    last = now;
-    buf.fill(0);
-    while (pts.length && now - pts[0].t > LIFE) pts.shift();
-    pts.forEach(function (p) { burst(p.x, p.y, 1 - (now - p.t) / LIFE); });
-    if (inside) burst(mx, my, IDLE);       // grain discret autour du curseur immobile
-    ctx.putImageData(img, 0, 0);
-    dirty = true;
-    side();
-    if (!pts.length && !inside) { cancelAnimationFrame(raf); raf = null; ctx.clearRect(0, 0, W, H); dirty = false; side(); }
-  }
-  // Zones au-dessus du canevas principal : bande noire de droite (entre son fond et son contenu)
-  // et photo du hero des pages projet (par-dessus l'image). Chacune reçoit une copie de la zone correspondante.
-  var overlays = [
-    { sel: '.side-bar', cls: 'c-noise--side' },
-    { sel: '.work-media', cls: 'c-noise--hero' }
-  ].map(function (o) {
-    o.cv = document.createElement('canvas');
-    o.cv.className = 'c-noise ' + o.cls;
-    o.cv.setAttribute('aria-hidden', 'true');
-    o.ctx = o.cv.getContext('2d');
-    return o;
-  });
-  function side() {
-    overlays.forEach(function (o) {
-      var all = document.querySelectorAll(o.sel), el = all[all.length - 1];   // la page la plus récente
-      if (!el) return;
-      if (o.cv.parentNode !== el) el.insertBefore(o.cv, el.firstChild);
-      var r = el.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height);
-      if (!w || !h || r.bottom < 0 || r.top > H) return;
-      if (o.cv.width !== w || o.cv.height !== h) { o.cv.width = w; o.cv.height = h; }
-      o.ctx.clearRect(0, 0, w, h);
-      o.ctx.drawImage(cv, Math.round(r.left), Math.round(r.top), w, h, 0, 0, w, h);
-    });
-  }
-  function start() { if (!raf) raf = requestAnimationFrame(frame); }
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden && raf) { cancelAnimationFrame(raf); raf = null; } else if (!document.hidden) start();
-  });
-})();
-
 (function () {
   var root = document.documentElement;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2110,12 +2022,8 @@
     } catch (e) {}
   }
   function fixed(c, on) {
-    if (on) {
-      c.style.cssText += ';position:fixed;top:0;left:0;width:100%;height:100vh;z-index:30;overflow:hidden';
-      // la page projet est transparente (bruit digital visible) : un fond opaque le temps de recouvrir la page précédente
-      if (c.classList.contains('work')) c.style.backgroundColor = '#f0f0f0';
-    }
-    else ['position', 'top', 'left', 'width', 'height', 'z-index', 'overflow', 'visibility', 'background-color'].forEach(function (p) { c.style.removeProperty(p); });
+    if (on) c.style.cssText += ';position:fixed;top:0;left:0;width:100%;height:100vh;z-index:30;overflow:hidden';
+    else ['position', 'top', 'left', 'width', 'height', 'z-index', 'overflow', 'visibility'].forEach(function (p) { c.style.removeProperty(p); });
   }
 
   if (!window.barba) {   // Barba indisponible : la page fonctionne seule
