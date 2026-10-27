@@ -1520,7 +1520,7 @@
       lens.items.forEach(function (it) {
         it.img.setAttribute('href', lens.url);
         it.img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', lens.url);
-        it.img.setAttribute('width', Z); it.img.setAttribute('height', H); it.img.setAttribute('y', 0);
+        var pad = Math.ceil(lens.scale / 2) + 20; it.img.setAttribute('width', Z); it.img.setAttribute('height', H + 2 * pad); it.img.setAttribute('y', -pad);
         it.dm.setAttribute('scale', lens.scale.toFixed(1));
       });
     }
@@ -1532,8 +1532,10 @@
         var inZone = horizontal && r.right > zl && r.left < vw;
         if (!inZone) { if (it.on) { it.el.style.filter = ''; it.on = false; } return; }
         var w = it.el.offsetWidth, h = it.el.offsetHeight;
-        it.f.setAttribute('x', 0); it.f.setAttribute('y', 0);
-        it.f.setAttribute('width', w); it.f.setAttribute('height', h);
+        // marge autour de la carte pour que le contenu déplacé ne soit pas rogné
+        var mg = Math.ceil(lens.scale / 2) + 20;
+        it.f.setAttribute('x', -mg); it.f.setAttribute('y', -mg);
+        it.f.setAttribute('width', w + 2 * mg); it.f.setAttribute('height', h + 2 * mg);
         it.img.setAttribute('x', (zl - r.left).toFixed(1));
         if (!it.on) { it.el.style.filter = 'url(#' + it.id + ')'; it.on = true; }
       });
