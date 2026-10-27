@@ -1496,10 +1496,10 @@
     function lensMap() {
       if (!lens || !lens.items.length) return;
       var vw = root.clientWidth, H = lens.items[0].el.offsetHeight;
-      var Z = Math.round(Math.min(560, Math.max(260, vw * 0.26)));
+      var Z = Math.round(Math.min(480, Math.max(240, vw * 0.22)));
       if (Z === lens.Z && H === lens.H) return;
       lens.Z = Z; lens.H = H;
-      var m = 0.75, kY = 0.16;
+      var m = 0.5, kY = 0.1;
       var maxX = Z * m / (2 * Math.PI), maxY = H * kY / 2, maxD = Math.max(maxX, maxY);
       var cv = document.createElement('canvas'); cv.width = Z; cv.height = H;
       var cx = cv.getContext('2d'), im = cx.createImageData(Z, H), d = im.data;
@@ -1526,7 +1526,7 @@
     }
     function lensUpdate() {
       if (!lens) return;
-      var vw = root.clientWidth, zl = vw - lens.Z;
+      var vw = root.clientWidth, zl = vw - lens.Z * 0.65;   // la zone déborde de 35 % hors de l'écran, à droite
       lens.items.forEach(function (it) {
         var r = it.el.getBoundingClientRect();
         var inZone = horizontal && r.right > zl && r.left < vw;
