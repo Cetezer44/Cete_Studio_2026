@@ -43,7 +43,7 @@
     var t = e.target.closest ? e.target : null;
     var video = !!(t && t.closest('.showreel'));
     over = t && t.closest('.sr-video');
-    var see = !!(t && t.closest('.works-page .works-media'));
+    var see = !!(t && t.closest('.works-page .works-media, .works-page .wl-media'));
     c.classList.toggle('is-video', video);
     c.classList.toggle('is-view', see);
     view.classList.toggle('is-on', see);
@@ -727,6 +727,119 @@
     var title = $('.works-title', container);
     var contact = $('.works-contact', container);
 
+    /* Vue liste / vue grille ------------------------------------------------------------
+       La liste est construite à partir des tuiles CMS (nom, année via data-year, catégories, photo, lien) :
+       une seule source de contenu. Au survol d'une ligne, les autres passent à 15 % et la photo du projet
+       se dévoile à droite (comme les services du Studio) ; le curseur devient « Voir » sur la photo. */
+    var head = $('.works-head', container), gridWrap = $('.works-list', container);
+    gridWrap = gridWrap ? gridWrap.parentNode : null;
+    var rowsEl = null, rows = [];
+    if (head && gridWrap) {
+      var tg = document.createElement('div');
+      tg.className = 'works-toggle';
+      tg.setAttribute('role', 'group');
+      tg.setAttribute('aria-label', 'Affichage des projets');
+      tg.innerHTML =
+        '<button type="button" class="works-tg" data-view="list" aria-pressed="false"><span class="works-tg-ico works-tg-ico--list" aria-hidden="true"><i></i><i></i><i></i></span><span>Liste</span></button>' +
+        '<button type="button" class="works-tg" data-view="grid" aria-pressed="true"><span class="works-tg-ico works-tg-ico--grid" aria-hidden="true"><i></i><i></i><i></i></span><span>Grille</span></button>';
+      head.appendChild(tg);
+
+      rowsEl = document.createElement('div');
+      rowsEl.className = 'works-rows';
+      cards.forEach(function (c) {
+        var link = $('a[href]', c), img = $('.works-img', c), t = $('.works-card-title', c);
+        var a = document.createElement('a');
+        a.className = 'wl-row';
+        a.setAttribute('href', link ? link.getAttribute('href') : '#');
+        var tags = $$('.works-tag', c).map(function (g) { return '<span class="wl-tag">' + g.textContent + '</span>'; }).join('');
+        a.innerHTML = '<span class="wl-name"></span><span class="wl-year"></span><span class="wl-tags">' + tags + '</span>' +
+          '<span class="wl-icon" aria-hidden="true"><i></i><i></i></span><span class="wl-media"></span>';
+        $('.wl-name', a).textContent = t ? t.textContent : '';
+        $('.wl-year', a).textContent = c.getAttribute('data-year') || '';
+        if (img) {
+          var im = document.createElement('img');
+          im.src = img.currentSrc || img.src;
+          if (img.getAttribute('srcset')) { im.setAttribute('srcset', img.getAttribute('srcset')); im.setAttribute('sizes', '360px'); }
+          im.alt = img.alt || '';
+          im.loading = 'lazy';
+          $('.wl-media', a).appendChild(im);
+        }
+        rowsEl.appendChild(a);
+        rows.push(a);
+      });
+      gridWrap.parentNode.insertBefore(rowsEl, gridWrap.nextSibling);
+
+      // la photo flotte légèrement avec le curseur (comme sur le Studio)
+      if (!reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        var lfx = 0, lfy = 0, lcx = 0, lcy = 0, lRaf = null;
+        var lStep = function () {
+          lRaf = null;
+          lcx += (lfx - lcx) * 0.08; lcy += (lfy - lcy) * 0.08;
+          rowsEl.style.setProperty('--fx', lcx.toFixed(2) + 'px');
+          rowsEl.style.setProperty('--fy', lcy.toFixed(2) + 'px');
+          if (Math.abs(lfx - lcx) > 0.05 || Math.abs(lfy - lcy) > 0.05) lRaf = requestAnimationFrame(lStep);
+        };
+        on(rowsEl, 'mousemove', function (e) {
+          var row = e.target.closest && e.target.closest('.wl-row');
+          if (!row) return;
+          var lr = rowsEl.getBoundingClientRect(), ir = row.getBoundingClientRect();
+          lfx = Math.max(-28, Math.min(28, (e.clientX - lr.left - lr.width / 2) * 0.05));
+          lfy = Math.max(-12, Math.min(12, (e.clientY - ir.top - ir.height / 2) * 0.25));
+          if (!lRaf) lRaf = requestAnimationFrame(lStep);
+        });
+        on(rowsEl, 'mouseleave', function () { lfx = 0; lfy = 0; if (!lRaf) lRaf = requestAnimationFrame(lStep); });
+        ac.signal.addEventListener('abort', function () { if (lRaf) cancelAnimationFrame(lRaf); });
+      }
+
+      var VIEW_KEY = 'cete-works-view';
+      var setView = function (v, animate) {
+        var list = v === 'list';
+        $$('.works-tg', tg).forEach(function (b) {
+          var onB = b.getAttribute('data-view') === v;
+          b.classList.toggle('is-active', onB);
+          b.setAttribute('aria-pressed', onB ? 'true' : 'false');
+        });
+        try { sessionStorage.setItem(VIEW_KEY, v); } catch (e) {}
+        var apply = function () {
+          container.classList.toggle('is-list', list);
+          if (list && !reduce) {
+            rows.forEach(function (r, i) {
+              r.style.transition = 'none'; r.style.opacity = '0'; r.style.transform = 'translateY(24px)';
+              void r.offsetWidth;
+              r.style.transition = 'opacity 700ms ease ' + (i * 60) + 'ms, transform 900ms ' + EASE + ' ' + (i * 60) + 'ms';
+              r.style.opacity = ''; r.style.transform = '';
+            });
+            setTimeout(function () { rows.forEach(function (r) { r.style.transition = ''; }); }, 1000 + rows.length * 60);
+          }
+        };
+        if (!animate || reduce) { apply(); return; }
+        var cur = list ? gridWrap : rowsEl;
+        cur.style.transition = 'opacity 350ms ease';
+        cur.style.opacity = '0';
+        setTimeout(function () {
+          cur.style.transition = ''; cur.style.opacity = '';
+          apply();
+          if (!list) {
+            gridWrap.style.opacity = '0';
+            void gridWrap.offsetWidth;
+            gridWrap.style.transition = 'opacity 600ms ease';
+            gridWrap.style.opacity = '';
+            setTimeout(function () { gridWrap.style.transition = ''; }, 650);
+          }
+        }, 360);
+      };
+      $$('.works-tg', tg).forEach(function (b) {
+        on(b, 'click', function () {
+          var v = b.getAttribute('data-view');
+          if (container.classList.contains('is-list') === (v === 'list')) return;
+          setView(v, true);
+        });
+      });
+      var saved = null;
+      try { saved = sessionStorage.getItem(VIEW_KEY); } catch (e) {}
+      setView(saved === 'list' ? 'list' : 'grid', false);
+    }
+
     // Flèches : même animation que sous le nom du projet sur l'accueil
     function nudge(icon) {
       if (reduce || !icon) return;
@@ -784,7 +897,36 @@
     }
 
     function leaveTo(path) {
+      if (container.classList.contains('is-list')) return leaveFromRow(path);
       return leaveFromCards(container, cards, '.home-logo, .home-nav, .home-socials, .works-head', path);
+    }
+    // Vue liste : la photo dévoilée de la ligne cliquée sert de relais vers la page projet
+    function leaveFromRow(path) {
+      var row = null;
+      rows.forEach(function (r) { if (r.getAttribute('href') === path) row = r; });
+      var media = row && $('.wl-media', row);
+      if (!media) return Promise.resolve(null);
+      var r = media.getBoundingClientRect();
+      if (!r.width || getComputedStyle(media).clipPath.indexOf('100%') !== -1) return Promise.resolve(null);
+      root.classList.add('is-leaving');
+      $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat(rows).forEach(function (el) {
+        if (el === row) return;
+        el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0';
+      });
+      $$('.wl-name, .wl-year, .wl-tags, .wl-icon', row).forEach(function (el) { el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0'; });
+      media.style.transition = 'none';
+      media.style.clipPath = 'inset(0 0 0 0)';
+      media.style.position = 'fixed';
+      media.style.left = r.left + 'px'; media.style.top = r.top + 'px';
+      media.style.width = r.width + 'px'; media.style.height = r.height + 'px';
+      media.style.right = 'auto'; media.style.translate = 'none';
+      media.style.transform = 'none'; media.style.margin = '0'; media.style.zIndex = '25';
+      return wait(350).then(function () {
+        var dx = (window.innerWidth - r.width) / 2 - r.left, dy = (window.innerHeight - r.height) / 2 - r.top;
+        media.style.transition = 'transform 1000ms ' + INOUT;
+        media.style.transform = 'translate3d(' + dx + 'px,' + dy + 'px,0)';
+        return wait(1050);
+      }).then(function () { return { card: media, radius: 0 }; });
     }
 
     return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
