@@ -1459,7 +1459,9 @@
     function update() {
       if (!horizontal || !pin) return;
       var r = pin.getBoundingClientRect();
-      var p = dist ? Math.min(1, Math.max(0, (stickyTop - r.top) / dist)) : 0;
+      // le défilement horizontal démarre un peu avant que la section ne se fige (lead), pour une entrée fluide
+      var lead = Math.round(window.innerHeight * 0.45);
+      var p = dist ? Math.min(1, Math.max(0, (stickyTop + lead - r.top) / (dist + lead))) : 0;
       track.style.transform = 'translate3d(' + (x0 - p * dist).toFixed(1) + 'px,0,0)';
       parallax();
     }
@@ -1499,7 +1501,7 @@
       var Z = Math.round(Math.min(480, Math.max(240, vw * 0.22)));
       if (Z === lens.Z && H === lens.H) return;
       lens.Z = Z; lens.H = H;
-      var m = 0.5, kY = 0.1;
+      var m = 0.3, kY = 0.06;
       var maxX = Z * m / (2 * Math.PI), maxY = H * kY / 2, maxD = Math.max(maxX, maxY);
       var cv = document.createElement('canvas'); cv.width = Z; cv.height = H;
       var cx = cv.getContext('2d'), im = cx.createImageData(Z, H), d = im.data;
