@@ -1438,7 +1438,7 @@
     function layout() {
       if (!pin || !sticky || !track) return;
       horizontal = window.innerWidth > 767;
-      if (!horizontal) { pin.style.height = ''; track.style.transform = ''; track.style.setProperty('--k', '0'); return; }
+      if (!horizontal) { pin.style.height = ''; track.style.transform = ''; track.style.setProperty('--k', '0'); parallax(); return; }
       var items = track.children;
       if (!items.length) return;
       track.style.transform = 'none';
@@ -1461,6 +1461,21 @@
       var r = pin.getBoundingClientRect();
       var p = dist ? Math.min(1, Math.max(0, (stickyTop - r.top) / dist)) : 0;
       track.style.transform = 'translate3d(' + (x0 - p * dist).toFixed(1) + 'px,0,0)';
+      parallax();
+    }
+    // Parallaxe horizontale dans les photos : l'image (agrandie de 20 %) glisse à contre-sens du défilement
+    var pImgs = reduce ? [] : $$('.st-member-media img', container);
+    pImgs.forEach(function (img) { img.classList.add('st-plx'); });
+    function parallax() {
+      if (!pImgs.length) return;
+      var vw = root.clientWidth;
+      pImgs.forEach(function (img) {
+        if (!horizontal) { img.style.transform = ''; return; }
+        var r = img.parentNode.getBoundingClientRect();
+        if (r.right < -200 || r.left > vw + 200) return;
+        var d = Math.max(-1, Math.min(1, (r.left + r.width / 2 - vw / 2) / vw));
+        img.style.transform = 'translate3d(' + (-d * 8).toFixed(2) + '%,0,0) scale(1.2)';
+      });
     }
 
     // Services : l'image flotte et suit très légèrement le curseur
