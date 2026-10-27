@@ -1557,6 +1557,34 @@
       });
     }
 
+    // Équipe : halo lumineux qui suit le curseur sur les photos (position lissée)
+    if (!reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      $$('.st-member-media', container).forEach(function (m) {
+        var tx = 50, ty = 50, cx = 50, cy = 50, raf = null;
+        var step = function () {
+          raf = null;
+          cx += (tx - cx) * 0.12; cy += (ty - cy) * 0.12;
+          m.style.setProperty('--mx', cx.toFixed(2) + '%');
+          m.style.setProperty('--my', cy.toFixed(2) + '%');
+          if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) raf = requestAnimationFrame(step);
+        };
+        var kick = function () { if (!raf) raf = requestAnimationFrame(step); };
+        on(m, 'mouseenter', function (e) {
+          var r = m.getBoundingClientRect();
+          cx = tx = (e.clientX - r.left) / r.width * 100; cy = ty = (e.clientY - r.top) / r.height * 100;
+          m.style.setProperty('--mx', cx + '%'); m.style.setProperty('--my', cy + '%');
+          m.classList.add('is-lit');
+        });
+        on(m, 'mousemove', function (e) {
+          var r = m.getBoundingClientRect();
+          tx = (e.clientX - r.left) / r.width * 100; ty = (e.clientY - r.top) / r.height * 100;
+          kick();
+        });
+        on(m, 'mouseleave', function () { m.classList.remove('is-lit'); });
+        ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
+      });
+    }
+
     // Services : l'image flotte et suit très légèrement le curseur
     var svcList = $('.st-services-list', container);
     if (svcList && !reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
