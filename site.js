@@ -1513,7 +1513,7 @@
       }
       var texts = $$('.st-intro, .st-label, .st-head-text, .st-big, .st-small, .st-cta-title, .st-cta-link', container);
       var masks = texts.map(function (el) { return maskText(el); });
-      var blocks = $$('.st-discover, .st-service, .st-clients', container);
+      var blocks = $$('.st-discover, .st-service', container);
       blocks.forEach(function (b) { b.style.opacity = '0'; b.style.transform = 'translateY(40px)'; });
       var members = $$('.st-member', container).map(function (m) {
         var media = $('.st-member-media', m), info = $('.st-member-info', m);

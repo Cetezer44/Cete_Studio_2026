@@ -213,11 +213,6 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 /* Studio — services : l'image flotte avec le curseur (décalage piloté en JS) */
 .st-service-media { translate: var(--fx, 0px) var(--fy, 0px); }
 
-/* Studio — clients : au survol, les autres passent à 10 % */
-@media (hover: hover) {
-  .st-clients-list:has(.st-client-item:hover) .st-client-item:not(:hover) .st-client { opacity: .1; }
-}
-
 /* Pages légales (gabarit 2026) : fond noir, flèches claires */
 html[data-page="legal"], html[data-page="legal"] body { background-color: #000; }
 .legal-link .works-arrow-icon { filter: invert(1); }
