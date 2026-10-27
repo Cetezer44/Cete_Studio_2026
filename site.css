@@ -198,6 +198,11 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
   .st-team-sticky { position: relative !important; top: auto !important; overflow-x: auto; scrollbar-width: none; }
   .st-team-sticky::-webkit-scrollbar { display: none; }
 }
+/* Studio — équipe : cartes déstructurées (décalages verticaux de la maquette, cycle de 6) */
+.st-team-list > * { transform: translate3d(0, calc(var(--k, 0) * var(--dy, 0px)), 0); }
+.st-team-list > :nth-child(6n+1) { --dy: 108px; }
+.st-team-list > :nth-child(6n+2) { --dy: 281px; }
+.st-team-list > :nth-child(6n+4) { --dy: -180px; }
 .studio-page .st-member .hero-tag { transition: background-color 800ms ease, color 800ms ease; }
 .studio-page[data-theme="dark"] .st-member .hero-tag { background-color: #f0f0f0; color: #000; }
 .studio-page[data-theme="dark"] .st-member-link { color: #f0f0f0; }
