@@ -211,13 +211,13 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 .st-member-media::after {
   content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background:
-    radial-gradient(circle 230px at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.9), rgba(255,255,255,.3) 40%, rgba(255,255,255,0) 75%);
+    radial-gradient(circle 230px at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.45), rgba(255,255,255,.14) 40%, rgba(255,255,255,0) 75%);
   mix-blend-mode: soft-light;
   opacity: 0; transition: opacity 600ms ease;
 }
 .st-member-media::before {
   content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background: radial-gradient(circle 150px at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.24), rgba(255,255,255,.06) 50%, rgba(255,255,255,0) 75%);
+  background: radial-gradient(circle 150px at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.1), rgba(255,255,255,.03) 50%, rgba(255,255,255,0) 75%);
   mix-blend-mode: screen;
   opacity: 0; transition: opacity 600ms ease;
 }

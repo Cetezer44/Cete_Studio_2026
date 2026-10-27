@@ -1549,8 +1549,8 @@
       var vw = root.clientWidth;
       pImgs.forEach(function (img) {
         if (!horizontal) { img.style.transform = ''; return; }
+        // toujours recalculée (même hors écran) pour éviter un saut quand la photo réapparaît
         var r = img.parentNode.getBoundingClientRect();
-        if (r.right < -200 || r.left > vw + 200) return;
         var d = (r.left + r.width / 2 - vw / 2) / vw;
         var sx = Math.max(-17, Math.min(17, -d * 30));
         img.style.transform = 'translate3d(' + sx.toFixed(2) + '%,0,0) scale(1.4)';
