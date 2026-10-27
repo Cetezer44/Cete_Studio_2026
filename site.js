@@ -921,6 +921,14 @@
 
     function leaveTo(path) {
       if (container.classList.contains('is-list')) return leaveFromRow(path);
+      // la photo cliquée revient à son cadrage normal (sans parallaxe) pendant qu'elle se centre
+      plx.forEach(function (p) {
+        var a = p.media.parentNode && $('a[href]', p.media.parentNode.closest('.works-card') || p.media);
+        if (!a || a.getAttribute('href') !== path) return;
+        p.img.style.transition = 'transform 1200ms ' + EASE + ', top 900ms ' + INOUT + ', height 900ms ' + INOUT + ', translate 900ms ' + INOUT;
+        p.img.classList.remove('works-plx');
+        p.img.style.setProperty('--py', '0px');
+      });
       return leaveFromCards(container, cards, '.home-logo, .home-nav, .home-socials, .works-head', path);
     }
     // Vue liste : la photo dévoilée de la ligne cliquée sert de relais vers la page projet
