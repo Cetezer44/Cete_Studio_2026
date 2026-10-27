@@ -802,6 +802,7 @@
         try { sessionStorage.setItem(VIEW_KEY, v); } catch (e) {}
         var apply = function () {
           container.classList.toggle('is-list', list);
+          if (!list && typeof plxUpdate === 'function') requestAnimationFrame(plxUpdate);
           if (list && !reduce) {
             rows.forEach(function (r, i) {
               r.style.transition = 'none'; r.style.opacity = '0'; r.style.transform = 'translateY(24px)';
@@ -864,8 +865,7 @@
         var name = maskText($('.works-card-title', c));
         var icon = $('.works-arrow-icon', c);
         if (icon) { icon.dataset.axis = 'y'; hide(icon); }
-        if (media) media.style.clipPath = 'inset(100% 0 0 0)';
-        return { card: c, media: media, texts: [name, icon] };
+        return { card: c, media: null, texts: [name, icon] };   // la photo n'a plus d'apparition par masque
       });
       var queue = [], flushTimer = null;
       function show(t, delay) {
@@ -894,6 +894,29 @@
       } else {
         tiles.forEach(function (t, i) { show(t, 250 + i * 120); });
       }
+    }
+
+    // Grille : parallaxe verticale à l'intérieur de chaque photo (l'image, plus haute que son cadre, glisse au défilement)
+    var plx = reduce ? [] : cards.map(function (c) { return { media: $('.works-media', c), img: $('.works-img', c) }; })
+      .filter(function (p) { return p.media && p.img; });
+    plx.forEach(function (p) { p.img.classList.add('works-plx'); });
+    var plxTick = false;
+    function plxUpdate() {
+      plxTick = false;
+      if (container.classList.contains('is-list') || root.classList.contains('is-leaving')) return;
+      var vh = window.innerHeight;
+      plx.forEach(function (p) {
+        var r = p.media.getBoundingClientRect();
+        if (r.bottom < -100 || r.top > vh + 100) return;
+        var k = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2)));
+        p.img.style.setProperty('--py', (k * r.height * 0.1).toFixed(1) + 'px');
+      });
+    }
+    if (plx.length) {
+      on(window, 'scroll', function () { if (!plxTick) { plxTick = true; requestAnimationFrame(plxUpdate); } }, { passive: true });
+      on(window, 'resize', plxUpdate);
+      plxUpdate();
+      setTimeout(plxUpdate, 400);
     }
 
     function leaveTo(path) {

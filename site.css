@@ -329,3 +329,6 @@ html.is-menu-reset .side-bar { transition: none !important; }
   .wl-tags { justify-content: flex-start; }
   .wl-icon, .wl-media { display: none; }
 }
+
+/* Projets (grille) : parallaxe dans les photos — l'image dépasse de 12 % en haut et en bas, --py piloté par site.js */
+.works-page .works-img.works-plx { top: -12%; height: 124%; translate: 0 var(--py, 0px); will-change: transform, translate; }
