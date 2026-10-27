@@ -66,9 +66,12 @@ html[data-page="works"] .home-nav .nav-link, html[data-page="legal"] .home-nav .
 html[data-page="studio"] .home-nav .nav-link, html[data-page="studio"] .home-socials .nav-link { color: #fff; }
 html[data-page="works"] .home-logo-img, html[data-page="legal"] .home-logo-img, html[data-page="studio"] .home-logo-img { filter: invert(1); }
 /* Accueil : idem (la page défile désormais vers une section noire) ; au-dessus des photos de la roulette */
-html[data-page="home"] .home-nav, html[data-page="home"] .home-logo { mix-blend-mode: difference; z-index: 200; }
-html[data-page="home"] .home-nav .nav-link { color: #fff; }
-html[data-page="home"] .home-logo-img { filter: invert(1); }
+html[data-page="home"] .home-nav, html[data-page="home"] .home-logo { z-index: 200; }
+/* (pas de mode différence ici : la roulette est dans un calque isolé ; noir sur clair, blanc sur la section noire) */
+[data-barba-namespace="home"] .home-nav .nav-link { transition: color 900ms ease; }
+[data-barba-namespace="home"] .home-logo-img { transition: filter 900ms ease; }
+[data-barba-namespace="home"].is-dark .home-nav .nav-link { color: #f0f0f0; }
+[data-barba-namespace="home"].is-dark .home-logo-img { filter: invert(1); }
 .cm-bg { position: fixed; top: 0; right: 0; z-index: 49; width: var(--side, 68px); height: 100vh; background: #000; pointer-events: none; }
 html.is-menu .cm-bg { pointer-events: auto; }
 .cm { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 51; visibility: hidden; pointer-events: none; color: #fff; }
