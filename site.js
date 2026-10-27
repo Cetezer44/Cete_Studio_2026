@@ -349,7 +349,6 @@
       snapTimer = setTimeout(function () {
         target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
         clampT();
-        if (target >= END && !free) goAbout();
       }, 140);
     }
     // Changement de projet « d'un cran » (lecture auto, clavier) : courbe ease-in-out lente
@@ -360,10 +359,15 @@
     // défiler la page vers la section du dessous. En revenant en haut, le scroll vers le haut refait tourner la roue.
     var END = START + N, free = false, anchoring = false;   // fin = retour sur le 01 après le dernier projet
     // dès que la roue quitte le dernier projet vers le 01, elle termine son tour et l'ancre part vers la section du dessous
+    // (la roue doit d'abord s'arrêter sur le dernier projet : un grand geste ne peut pas le sauter)
+    function onLast() { return Math.abs(cur - (END - 1)) < 0.06 && Math.abs(target - (END - 1)) < 0.06; }
     function passLast() {
-      if (target > END - 1 + 0.05) { target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: SLIDE_MS }; goAbout(); return true; }
-      return false;
+      if (!onLast()) return false;
+      target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: SLIDE_MS };
+      goAbout();
+      return true;
     }
+    function holdLast() { if (target > END - 1) target = END - 1; }
     function clampT() { target = Math.max(START, Math.min(END, target)); }
     function atEnd() { return target >= END - 0.001 && Math.abs(cur - END) < 0.02; }
     function setFree(v) {
@@ -455,9 +459,10 @@
       if (dy) dir = dy > 0 ? 1 : -1;
       tween = null;
       autoNext();
+      if (dy > 0 && passLast()) return;
       target += dy / 450;
       clampT();
-      if (dy > 0 && passLast()) return;
+      if (dy > 0) holdLast();
       snapLater();
     }, { passive: false });
 
@@ -475,9 +480,10 @@
       if (blocked()) return;
       if (ty - y > 0 && atEnd()) { goAbout(); ty = y; return; }
       if (ty !== y) dir = ty > y ? 1 : -1;
+      if (ty - y > 0 && passLast()) { ty = y; return; }
       target += (ty - y) / 220;
       clampT();
-      if (ty - y > 0 && passLast()) { ty = y; return; }
+      if (ty - y > 0) holdLast();
       ty = y;
       tween = null;
       autoNext();
