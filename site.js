@@ -1433,13 +1433,19 @@
 
     // Équipe : section fixée, défilement horizontal piloté par le scroll vertical
     var pin = $('.st-team-pin', container), sticky = $('.st-team-sticky', container), track = $('.st-team-list', container);
-    var dist = 0, stickyTop = 0, horizontal = false;
+    // la 1re carte démarre centrée dans l'écran, la dernière finit centrée, puis le défilement vertical reprend
+    var dist = 0, stickyTop = 0, horizontal = false, x0 = 0;
     function layout() {
       if (!pin || !sticky || !track) return;
       horizontal = window.innerWidth > 767;
       if (!horizontal) { pin.style.height = ''; track.style.transform = ''; track.style.setProperty('--k', '0'); return; }
-      var w = sticky.clientWidth;
-      dist = Math.max(0, track.scrollWidth - w);
+      var items = track.children;
+      if (!items.length) return;
+      track.style.transform = 'none';
+      var mid = root.clientWidth / 2;
+      var f = items[0].getBoundingClientRect(), l = items[items.length - 1].getBoundingClientRect();
+      x0 = mid - (f.left + f.width / 2);
+      dist = Math.max(0, (l.left + l.width / 2) - (f.left + f.width / 2));
       var h = sticky.offsetHeight;
       // cartes décalées en hauteur (maquette : de -180 à +288 px) ; on réduit l'écart si l'écran est trop bas
       var up = 180, down = 288;
@@ -1454,7 +1460,7 @@
       if (!horizontal || !pin) return;
       var r = pin.getBoundingClientRect();
       var p = dist ? Math.min(1, Math.max(0, (stickyTop - r.top) / dist)) : 0;
-      track.style.transform = 'translate3d(' + (-p * dist).toFixed(1) + 'px,0,0)';
+      track.style.transform = 'translate3d(' + (x0 - p * dist).toFixed(1) + 'px,0,0)';
     }
 
     // Services : l'image flotte et suit très légèrement le curseur
