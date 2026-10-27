@@ -1460,7 +1460,7 @@
       if (!horizontal || !pin) return;
       var r = pin.getBoundingClientRect();
       // le défilement horizontal démarre un peu avant que la section ne se fige (lead), pour une entrée fluide
-      var lead = Math.round(window.innerHeight * 0.45);
+      var lead = Math.round(window.innerHeight * 0.8);
       var p = dist ? Math.min(1, Math.max(0, (stickyTop + lead - r.top) / (dist + lead))) : 0;
       track.style.transform = 'translate3d(' + (x0 - p * dist).toFixed(1) + 'px,0,0)';
       parallax();
