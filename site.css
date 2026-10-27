@@ -200,18 +200,10 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 /* Page projet : bloc titre / catégories / intro centré dans la zone de contenu (hors barre latérale) */
 .work-intro{left:calc(var(--side, 68px) / -2)}
 
-/* Studio — hero : traînée d'images qui suit le curseur (images de la collection « Images studio ») */
+/* Studio — hero */
 .st-hero { position: relative; }
-.st-hero > :not(.st-trail) { position: relative; }   /* pas de z-index : le mode « difference » doit voir les photos dessous */
 /* Titre et introduction en mode « difference » : noirs sur le fond clair, inversés au-dessus des photos */
 .studio-page .st-title, .studio-page .st-intro { color: #fff; mix-blend-mode: difference; }
-.st-trail { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.st-trail-img {
-  position: absolute; width: clamp(110px, 10.417vw, 180px); aspect-ratio: 1; height: auto; max-width: none; object-fit: cover;
-  transform: translate(-50%, -50%); opacity: 0; transition: opacity 450ms ease;
-}
-.st-trail-img.is-in { opacity: 1; }
-.st-trail-img.is-out { opacity: 0; transition-duration: 400ms; }
 
 /* Studio — services : l'image flotte avec le curseur (décalage piloté en JS) */
 .st-service-media { translate: var(--fx, 0px) var(--fy, 0px); }

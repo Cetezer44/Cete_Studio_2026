@@ -1450,65 +1450,13 @@
       ac.signal.addEventListener('abort', function () { if (fRaf) cancelAnimationFrame(fRaf); });
     }
 
-    // Hero : traînée d'images (collection « Images studio ») qui suit le curseur ; coupée dès que le fond passe au noir
-    var hero = $('.st-hero', container);
-    var trailSrcs = $$('.st-trail-src img', container).map(function (i) { return i.getAttribute('src'); }).filter(Boolean);
-    var trailLayer = null;
-    function clearTrail() {
-      if (!trailLayer) return;
-      $$('.st-trail-img', trailLayer).forEach(function (el) { if (el._fade) el._fade(); });
-    }
-    if (hero && trailSrcs.length && !reduce && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-      trailLayer = document.createElement('div');
-      trailLayer.className = 'st-trail';
-      trailLayer.setAttribute('aria-hidden', 'true');
-      hero.insertBefore(trailLayer, hero.firstChild);
-      trailSrcs.forEach(function (s) { var im = new Image(); im.src = s; });   // préchargement
-      var tIdx = 0, tLast = null;
-      var spawn = function (x, y) {
-        var r = hero.getBoundingClientRect();
-        var el = document.createElement('img');
-        el.className = 'st-trail-img';
-        el.alt = '';
-        el.src = trailSrcs[tIdx++ % trailSrcs.length];
-        el.style.left = (x - r.left) + 'px';
-        el.style.top = (y - r.top) + 'px';
-        trailLayer.appendChild(el);
-        requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('is-in'); }); });
-        var out = function () {
-          if (el._out) return;
-          el._out = true;
-          clearTimeout(el._t);
-          el.classList.add('is-out');
-          setTimeout(function () { el.remove(); }, 450);
-        };
-        el._fade = out;
-        el._t = setTimeout(out, 800);
-        // 3 photos visibles au maximum : la plus ancienne s'efface
-        var live = $$('.st-trail-img', trailLayer).filter(function (i) { return !i._out; });
-        while (live.length > 3) live.shift()._fade();
-      };
-      on(window, 'mousemove', function (e) {
-        if (theme !== 'light') { tLast = null; return; }
-        var r = hero.getBoundingClientRect();
-        if (e.clientY < r.top || e.clientY > r.bottom) { tLast = null; return; }
-        if (!tLast) { tLast = { x: e.clientX, y: e.clientY }; return; }
-        var dx = e.clientX - tLast.x, dy = e.clientY - tLast.y;
-        if (dx * dx + dy * dy < 8100) return;   // une image tous les 90 px parcourus
-        tLast = { x: e.clientX, y: e.clientY };
-        spawn(e.clientX, e.clientY);
-      }, { passive: true });
-    }
-
     var ticking = false;
     function onScroll() {
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(function () {
         ticking = false;
-        var before = theme;
         pickTheme(false);
-        if (theme !== 'light' && before === 'light') clearTrail();
         update();
       });
     }
