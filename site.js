@@ -985,7 +985,7 @@
         pin.style.marginTop = (-natural) + 'px';
         pinTop = 0;
         var hb = head ? head.getBoundingClientRect().bottom + window.scrollY : natural;
-        G.Y0 = hb + 100 * G.k;
+        G.Y0 = hb + 20 * G.k;   // cylindre remonté : le nom du projet central reste bien visible
       }
       function xOf(n) { return Math.floor(n / 2) * G.P2 + (mod(n, 2) === 1 ? G.SQ + G.GAP : 0); }
       function pOf(sx) {
