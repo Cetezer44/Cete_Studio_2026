@@ -405,6 +405,29 @@
       };
       aRaf = requestAnimationFrame(stepA);
     }
+    // À l'inverse : depuis la section du dessous, un scroll vers le haut ramène en haut (ancre),
+    // puis la roue repasse automatiquement du 01 au dernier projet
+    function nearAbout() {
+      var sec = $('.home-about', container);
+      return !sec || sec.getBoundingClientRect().top >= -8;   // on est en haut de la section (ou au-dessus)
+    }
+    function goTop() {
+      if (anchoring) return;
+      anchoring = true;
+      var y0 = window.scrollY, t0a = null, D = reduce ? 0 : 2400;
+      var stepT = function (now) {
+        if (t0a === null) t0a = now;
+        var k = D ? Math.min(1, (now - t0a) / D) : 1;
+        window.scrollTo(0, y0 * (1 - easeInOut(k)));
+        if (k < 1 && alive) { aRaf = requestAnimationFrame(stepT); return; }
+        aRaf = null;
+        anchoring = false;
+        setFree(false);
+        target = END - 1;
+        tween = reduce ? null : { a: cur, b: target, t0: performance.now(), d: SLIDE_MS };
+      };
+      aRaf = requestAnimationFrame(stepT);
+    }
     ac.signal.addEventListener('abort', function () { if (aRaf) cancelAnimationFrame(aRaf); });
     function stepBy(n) {
       target = Math.round(target) + n;
@@ -456,7 +479,8 @@
       if (anchoring || pendingAbout) { e.preventDefault(); return; }   // la roue rejoint le 01 / l'ancre est en cours
       if (free) {
         // page libre : défilement natif, sauf tout en haut vers le haut → la roue reprend la main
-        if (window.scrollY > 0 || dy0 >= 0 || blocked()) return;
+        if (dy0 >= 0 || blocked()) return;
+        if (window.scrollY > 0) { if (nearAbout()) { e.preventDefault(); goTop(); } return; }
         setFree(false);
       }
       e.preventDefault();
@@ -486,7 +510,8 @@
       var y = e.touches[0].clientY;
       if (anchoring || pendingAbout) { e.preventDefault(); ty = y; return; }
       if (free) {
-        if (window.scrollY > 0 || y <= ty || blocked()) { ty = y; return; }
+        if (y <= ty || blocked()) { ty = y; return; }
+        if (window.scrollY > 0) { if (nearAbout()) { e.preventDefault(); goTop(); } ty = y; return; }
         setFree(false);
       }
       e.preventDefault();
@@ -514,6 +539,7 @@
       var down = e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ', up = e.key === 'ArrowUp' || e.key === 'PageUp';
       if (free) {
         if (up && window.scrollY <= 0) { setFree(false); e.preventDefault(); stepBy(-1); }
+        else if (up && nearAbout()) { e.preventDefault(); goTop(); }
         return;   // défilement natif de la page
       }
       if (down && atEnd()) { e.preventDefault(); goAbout(); return; }
