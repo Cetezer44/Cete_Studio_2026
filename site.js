@@ -420,7 +420,10 @@
     function goTop() {
       if (anchoring) return;
       anchoring = true;
-      var y0 = window.scrollY, t0a = null, D = reduce ? 0 : 2000;
+      var y0 = window.scrollY, t0a = null, D = reduce ? 0 : ABOUT_MS;
+      // la roue repasse du 01 au dernier projet pendant que la page remonte (même durée)
+      target = END - 1;
+      tween = reduce ? null : { a: cur, b: target, t0: performance.now(), d: ABOUT_MS };
       var stepT = function (now) {
         if (t0a === null) t0a = now;
         var k = D ? Math.min(1, (now - t0a) / D) : 1;
@@ -429,8 +432,6 @@
         aRaf = null;
         anchoring = false;
         setFree(false);
-        target = END - 1;
-        tween = reduce ? null : { a: cur, b: target, t0: performance.now(), d: SLIDE_MS };
       };
       aRaf = requestAnimationFrame(stepT);
     }
