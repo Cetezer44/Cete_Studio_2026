@@ -1021,7 +1021,9 @@
             if (b.el.classList.contains('is-in') !== inZone) b.el.classList.toggle('is-in', inZone);
           });
           if (!vis) { if (el.classList.contains('is-in')) el.classList.remove('is-in'); return; }
-          el.style.transform = 'translate3d(' + (half - w / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (th * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
+          // la tuile (nom + zone de clic) s'accroche au bord gauche de la photo courbée, tangente au cylindre
+          var thL = th - w / (2 * R);
+          el.style.transform = 'translate3d(' + half.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (thL * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
           el.style.zIndex = String(Math.round(Math.cos(th) * 100) + 100);
           // fondu animé (CSS) : apparition quand la tuile arrive sur la face avant par la droite, disparition en repartant à gauche
           if (el.classList.contains('is-in') !== inZone) el.classList.toggle('is-in', inZone);
