@@ -173,7 +173,7 @@ html.is-menu .cm-bg { cursor: none; }
 /* ---------- Modal showreel ---------- */
 .sr { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 60; visibility: hidden; color: #fff; }
 .sr-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; clip-path: inset(100% 0 0 0); }
-.sr-mark { position: absolute; z-index: 2; left: 30px; top: 31px; width: 14px; opacity: 0; mix-blend-mode: difference; pointer-events: none; }
+.sr-mark { position: absolute; z-index: 2; left: 30px; top: 31px; display: block; width: 14px; opacity: 0; mix-blend-mode: difference; }
 .sr-mark img { display: block; width: 100%; height: auto; filter: invert(1); }
 .sr-nav { position: absolute; z-index: 2; left: 50%; top: 38px; transform: translateX(-50%); display: flex; column-gap: 30px; mix-blend-mode: difference; }
 .sr-link { font-size: 13px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-transform: uppercase; color: #fff; text-decoration: none; }

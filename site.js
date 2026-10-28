@@ -2634,7 +2634,7 @@
     box.setAttribute('aria-label', 'Showreel');
     box.innerHTML =
       '<div class="sr-bg"></div>' +
-      '<div class="sr-mark" aria-hidden="true"></div>' +
+      '<a class="sr-mark" href="/" aria-label="Cete Studio — accueil"></a>' +
       '<nav class="sr-nav" aria-label="Menu"></nav>' +
       '<div class="sr-zone"><div class="sr-frame">' +
         '<video class="sr-video" muted loop playsinline preload="none" tabindex="0" role="button" aria-label="Pause"></video>' +
@@ -2762,6 +2762,12 @@
     }
 
     document.addEventListener('click', function (e) {
+      // Logo dans la modal : retour à l'accueil (déjà sur l'accueil : la modal se ferme simplement)
+      var m = e.target.closest && e.target.closest('.sr-mark');
+      if (m && isOpen) {
+        if (location.pathname.replace(/\/+$/, '') === '') { e.preventDefault(); e.stopPropagation(); shut(); }
+        return;   // autre page : Barba prend le lien, la modal est fermée dans son hook « before »
+      }
       var t = e.target.closest && e.target.closest('.showreel, .sr-close');
       if (!t) return;
       e.preventDefault();
