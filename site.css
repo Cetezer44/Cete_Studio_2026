@@ -102,7 +102,6 @@ html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45d
   .cm-tip { left: 0; top: auto; bottom: 100%; margin: 0 0 10px; transform: translateY(6px); }
   .cm-tip.is-on { transform: none; }
 }
-}
 
 /* ---------- Curseur ---------- */
 @media (hover: hover) and (pointer: fine) {
