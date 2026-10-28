@@ -1011,7 +1011,8 @@
           var w = n % 2 ? G.WD : G.SQ;
           var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
           var th = (x + w / 2 - half) / R;   // angle en radians, 0 = face à l'écran
-          var vis = th > -1.62 && th < 1.62 && y < G.vh + 80 && y > -G.SQ - 140;
+          var vis = n >= 0 && th > -1.62 && th < 1.62 && y < G.vh + 80   // rien avant le premier projet
+             && y > -G.SQ - 140;
           if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
           var inZone = reduce || (th < 1.25 && th > -1.35);
           strips[r].forEach(function (b) {
