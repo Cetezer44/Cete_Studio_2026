@@ -229,6 +229,16 @@
     }
     var cards = $$('.wheel-card', wheel);
     var M = cards.length;
+    // Numéro + titre posés dans chaque photo : ils tournent avec la roue (visibles sur la photo au premier plan)
+    cards.forEach(function (c) {
+      var cap = document.createElement('span');
+      cap.className = 'wheel-cap';
+      cap.setAttribute('aria-hidden', 'true');
+      cap.innerHTML = '<span class="wheel-cap-num"></span><span class="wheel-cap-title"></span>';
+      cap.firstChild.textContent = c.getAttribute('data-num') || '';
+      cap.lastChild.textContent = c.getAttribute('data-title') || '';
+      c.appendChild(cap);
+    });
 
     var info = $('.wheel-info', track);
     var num = $('.wheel-num', track);
@@ -261,6 +271,9 @@
         h: cards[0].offsetHeight
       };
       INTRO_FROM = START - INTRO_DEG / g.step;
+      // la photo au premier plan est agrandie (× sc) : la légende est dimensionnée pour retomber sur la maquette
+      wheel.style.setProperty('--cap-pad', (40 * k / g.sc).toFixed(2) + 'px');
+      wheel.style.setProperty('--cap-s', (1 / g.sc).toFixed(4));
       if (intro && !introGo) cur = INTRO_FROM;
       dirty = true;
     }
@@ -357,14 +370,14 @@
     function easeInOut(t) { return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; }   // quart.inOut
     // La roulette fait un seul tour (START → START + N) ; une fois ce tour fait, le scroll suivant fait
     // défiler la page vers la section du dessous. En revenant en haut, le scroll vers le haut refait tourner la roue.
-    var END = START + N, free = false, anchoring = false;   // fin = retour sur le 01 après le dernier projet
+    var END = START + N, free = false, anchoring = false, pendingAbout = false;   // fin = retour sur le 01 après le dernier projet
     // dès que la roue quitte le dernier projet vers le 01, elle termine son tour et l'ancre part vers la section du dessous
     // (la roue doit d'abord s'arrêter sur le dernier projet : un grand geste ne peut pas le sauter)
     function onLast() { return Math.abs(cur - (END - 1)) < 0.06 && Math.abs(target - (END - 1)) < 0.06; }
     function passLast() {
       if (!onLast()) return false;
       target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: SLIDE_MS };
-      goAbout();
+      pendingAbout = true;   // l'ancre part une fois la roue posée sur le 01 (voir tick)
       return true;
     }
     function holdLast() { if (target > END - 1) target = END - 1; }
@@ -382,7 +395,7 @@
       if (!sec || anchoring) return;
       setFree(true);
       anchoring = true;
-      var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : 1300;
+      var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : 2400;
       var stepA = function (now) {
         if (t0a === null) t0a = now;
         var k = D ? Math.min(1, (now - t0a) / D) : 1;
@@ -397,7 +410,7 @@
       target = Math.round(target) + n;
       clampT();
       tween = !reduce ? { a: cur, b: target, t0: performance.now(), d: SLIDE_MS } : null;
-      if (n > 0 && target >= END) goAbout();
+      if (n > 0 && target >= END) pendingAbout = true;
     }
 
     // Passage automatique au projet suivant toutes les 5 s.
@@ -544,6 +557,7 @@
         cur = target; dirty = true;
       }
       if (dirty) { render(); dirty = false; }
+      if (pendingAbout && Math.abs(cur - END) < 0.01) { pendingAbout = false; goAbout(); }
       requestAnimationFrame(tick);
     }
 
@@ -569,11 +583,20 @@
         // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran
         container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5);
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
-        var n = Math.round(p * aboutWords.length);
-        if (n === litN) return;
-        litN = n;
-        aboutWords.forEach(function (sp, i) { sp.classList.toggle('is-lit', i < n); });
+        litGoal = Math.round(p * aboutWords.length);
+        if (!litTimer && litGoal !== litN) litTimer = setTimeout(litStep, 0);
       };
+      // les mots s'écrivent un par un (≈ 110 ms par mot), vers l'avancée du défilement
+      var litGoal = 0, litTimer = null;
+      var litStep = function () {
+        litTimer = null;
+        if (litN < 0) litN = 0;
+        if (litN === litGoal) return;
+        litN += litGoal > litN ? 1 : -1;
+        aboutWords.forEach(function (sp, i) { sp.classList.toggle('is-lit', i < litN); });
+        litTimer = setTimeout(litStep, reduce ? 0 : 110);
+      };
+      ac.signal.addEventListener('abort', function () { clearTimeout(litTimer); });
       on(window, 'scroll', aboutUpdate, { passive: true });
       on(window, 'resize', aboutUpdate);
       aboutUpdate();
