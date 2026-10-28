@@ -424,4 +424,8 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   .wg-card .works-img { position: absolute; top: 0; left: -10%; width: 120%; max-width: none; height: 100%; object-fit: cover;
     translate: var(--px, 0%) 0; }
   .wg-card .works-card-title { font-size: 20px; }
+  /* Fusion vers les bords (--e : 0 au centre → 1 au bord, piloté par site.js) */
+  .wg-fx { position: absolute; inset: 0; z-index: 2; pointer-events: none; background: #f0f0f0; }
+  .wg-fx--color { mix-blend-mode: color; opacity: var(--e, 0); }                    /* désature vers le gris du fond */
+  .wg-fx--light { mix-blend-mode: soft-light; opacity: calc(var(--e, 0) * .9); }    /* éclaircit / adoucit les contrastes */
 }

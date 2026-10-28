@@ -925,6 +925,8 @@
       for (var r = 0; r < PER; r++) {
         var el = cards[r % N].cloneNode(true);
         el.classList.add('wg-card', r % 2 ? 'is-wide' : 'is-sq');
+        var fxm = el.querySelector('.works-media');
+        if (fxm) fxm.insertAdjacentHTML('beforeend', '<span class="wg-fx wg-fx--color" aria-hidden="true"></span><span class="wg-fx wg-fx--light" aria-hidden="true"></span>');
         el.removeAttribute('id');
         stage.appendChild(el);
         els.push(el);
@@ -985,8 +987,11 @@
           var ty = y + (reduce ? 0 : drift * (14 + 26 * a) * G.k);
           var sc = 1 - 0.2 * e - Math.abs(drift) * 0.025;
           var ry = -sg * 24 * e;
-          el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) perspective(' + Math.round(1600 * G.k) + 'px) rotateY(' + ry.toFixed(2) + 'deg) scale(' + sc.toFixed(4) + ')';
-          el.style.opacity = (1 - 0.5 * e).toFixed(3);
+          // déformation : la tuile s'écrase en largeur et se cisaille en s'éloignant du centre
+          var sx = 1 - 0.16 * e, sk = sg * 6 * e;
+          el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) perspective(' + Math.round(1600 * G.k) + 'px) rotateY(' + ry.toFixed(2) + 'deg) skewY(' + sk.toFixed(2) + 'deg) scale(' + (sc * sx).toFixed(4) + ',' + sc.toFixed(4) + ')';
+          // pas d'opacité : des calques en mode de fusion (couleur + superposition claire) font fondre la photo dans le fond
+          el.style.setProperty('--e', e.toFixed(3));
           var bl = 7 * e * e;
           el.style.filter = bl > 0.15 ? 'blur(' + bl.toFixed(2) + 'px)' : '';
           // parallaxe horizontale dans la photo
