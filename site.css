@@ -296,7 +296,10 @@ html.is-menu-reset .side-bar { transition: none !important; }
   .works-page .works-head { display: flex; align-items: flex-end; justify-content: space-between; margin-left: calc(13.889vw - 30px); margin-right: calc(13.889vw - 30px);
     padding: 0 0 26px; border-bottom: 1px solid #dcdcdc; width: auto; }
   .works-page .works-title { margin: 0; padding: 0; font-size: 50px; line-height: 1; letter-spacing: -0.03em; }
-  .works-page .works-toggle { margin: 0 0 4px; }
+  /* Grille / Liste : fixes, même place qu'au chargement ; en mode « différence » pour rester lisibles sur les photos */
+  .works-page .works-toggle { position: fixed; top: 270px; right: 13.889vw; z-index: 20; margin: 0; mix-blend-mode: difference; }
+  .works-page .works-tg { color: rgba(255,255,255,.28); }
+  .works-page .works-tg:hover, .works-page .works-tg.is-active { color: #fff; }
 }
 
 /* Grille en quinconce (maquette 1440 : tuiles 680 px — gauche / droite décalée / centre…) */

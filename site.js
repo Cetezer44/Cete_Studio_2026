@@ -953,8 +953,12 @@
       function mod(a, b) { return ((a % b) + b) % b; }
       function geo() {
         var vw = root.clientWidth, k = vw / 1440;
-        G = { k: k, SQ: 392 * k, WD: 680 * k, GAP: 25 * k, DY: 200 * k, X0: -33 * k, vw: vw, vh: window.innerHeight, R: 820 * k };
-        stage.style.perspective = Math.round(1900 * k) + 'px';
+        G = { k: k, SQ: 392 * k, WD: 680 * k, GAP: 25 * k, DY: 200 * k, vw: vw, vh: window.innerHeight };
+        G.X0 = vw / 2 - G.SQ / 2;   // le premier projet démarre au centre de l'écran
+        // cylindre sur toute la largeur : rayon tel que sa silhouette (bords à ±90°) touche les bords de l'écran
+        var P = 2200 * k, hw = vw / 2;
+        G.R = hw * P / (P - hw);
+        stage.style.perspective = Math.round(P) + 'px';
         G.P2 = G.SQ + G.WD + 2 * G.GAP;
         LOOP = (PER / 2) * G.P2;
         pin.style.height = (G.vh + 3 * LOOP) + 'px';
@@ -1007,12 +1011,12 @@
           var w = n % 2 ? G.WD : G.SQ;
           var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
           var th = (x + w / 2 - half) / R;   // angle en radians, 0 = face à l'écran
-          var vis = th > -1.75 && th < 1.75 && y < G.vh + 80 && y > -G.SQ - 140;
+          var vis = th > -1.62 && th < 1.62 && y < G.vh + 80 && y > -G.SQ - 140;
           if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
-          var inZone = reduce || (th < 1.2 && th > -1.3);
+          var inZone = reduce || (th < 1.25 && th > -1.35);
           strips[r].forEach(function (b) {
             var u = (b.j + 0.5) * b.sw - w / 2, tj = th + u / R;
-            var bv = vis && tj > -1.75 && tj < 1.75;
+            var bv = vis && tj > -1.62 && tj < 1.62;
             if (b.vis !== bv) { b.el.style.visibility = bv ? 'visible' : 'hidden'; b.vis = bv; }
             if (!bv) { if (b.el.classList.contains('is-in')) b.el.classList.remove('is-in'); return; }
             b.el.style.transform = 'translate3d(' + (half - b.sw / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (tj * 57.2958).toFixed(3) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
