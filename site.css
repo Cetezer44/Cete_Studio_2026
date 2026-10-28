@@ -378,16 +378,16 @@ html[data-page="home"] .home-about { position: relative; z-index: 1; background-
 .wheel-cap-title { font-size: calc(16px * var(--cap-s, .7)); line-height: .85; font-weight: 400; letter-spacing: -0.05em; }
 .wheel-card.is-front .wheel-cap { opacity: 1; transform: none; transition-delay: 150ms; }
 
-/* Curseur « Scroll » (hero de l'accueil) : cercle de 80 px, trait qui s'efface puis le mot « Scroll », en boucle */
+/* Curseur « Scroll » (hero de l'accueil) : cercle de 60 px, trait qui s'efface puis le mot « Scroll », en boucle */
 .c-cursor__cue { position: fixed; top: 0; left: 0; will-change: transform; }
-.c-cursor__cue-in { position: absolute; left: 0; top: 0; width: 80px; height: 80px; margin: -40px 0 0 -40px; display: block;
+.c-cursor__cue-in { position: absolute; left: 0; top: 0; width: 60px; height: 60px; margin: -30px 0 0 -30px; display: block;
   opacity: 0; transform: scale(.6); transition: opacity 400ms ease, transform 700ms cubic-bezier(.65,0,.35,1); }
-html.is-scrollcue .c-cursor__ring { width: 80px; height: 80px; margin: -40px 0 0 -40px; }
+html.is-scrollcue .c-cursor__ring { width: 60px; height: 60px; margin: -30px 0 0 -30px; }
 html.is-scrollcue .c-cursor__dot { opacity: 0; }
 html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-delay: 120ms; }
-.c-cursor__cue-line { position: absolute; left: 50%; top: 32px; width: 1px; height: 16px; margin-left: -.5px; background: #fff;
+.c-cursor__cue-line { position: absolute; left: 50%; top: 22px; width: 1px; height: 16px; margin-left: -.5px; background: #fff;
   transform-origin: 50% 100%; animation: cete-cue-line 3200ms cubic-bezier(.65,0,.35,1) infinite; }
-.c-cursor__cue-txt { position: absolute; left: 50%; top: 50%; color: #fff; font-size: 12px; line-height: .85; font-weight: 300;
+.c-cursor__cue-txt { position: absolute; left: 50%; top: 50%; color: #fff; font-size: 10px; line-height: .85; font-weight: 300;
   letter-spacing: -0.05em; text-transform: uppercase; white-space: nowrap; transform: translate(-50%, -50%);
   animation: cete-cue-txt 3200ms ease infinite; }
 @keyframes cete-cue-line {
