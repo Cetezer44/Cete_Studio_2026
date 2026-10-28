@@ -1213,12 +1213,12 @@
 
     // Entrée : le titre monte dans son masque ; chaque tuile se dévoile de bas en haut (clip-path)
     // quand elle arrive à l'écran, puis son nom et sa flèche montent dans leur masque
-    // Titre : sans masque. Il apparaît en fondu au centre de l'écran, glisse à sa place, puis « Grille / Liste »
+    // Titre : sans masque. Il apparaît en fondu centré sur sa ligne, glisse vers la gauche à sa place, puis « Grille / Liste »
     // apparaissent et la grille arrive en tournant légèrement sur le cylindre jusqu'à sa position initiale
     var tgl = $('.works-toggle', container);
     if (!reduce && title) {
       var tr = title.getBoundingClientRect();
-      var tdx = window.innerWidth / 2 - (tr.left + tr.width / 2), tdy = window.innerHeight / 2 - (tr.top + tr.height / 2);
+      var tdx = window.innerWidth / 2 - (tr.left + tr.width / 2), tdy = 0;   // même ligne : déplacement horizontal seulement
       title.style.transition = 'none';
       title.style.opacity = '0';
       title.style.transform = 'translate3d(' + tdx.toFixed(1) + 'px,' + tdy.toFixed(1) + 'px,0)';

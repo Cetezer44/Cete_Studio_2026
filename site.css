@@ -294,9 +294,9 @@ html.is-menu-reset .side-bar { transition: none !important; }
 /* En-tête (maquette 1440 : titre 50 px à x = 200, filet gris 200 → 1240 à y = 315, Grille / Liste à droite) */
 @media (min-width: 768px) {
   .works-page .works-head { display: flex; align-items: flex-end; justify-content: space-between; margin-left: calc(13.889vw - 30px); margin-right: calc(13.889vw - 30px);
-    padding: 0 0 26px; width: auto; }
-  /* le titre passe au-dessus des photos, en mode « différence » */
-  .works-page .works-title { position: relative; z-index: 5; margin: 0; padding: 0; font-size: 50px; line-height: 1; letter-spacing: -0.03em;
+    padding: 0 0 26px; width: auto; height: 77px; box-sizing: border-box; }
+  /* le titre reste fixe au-dessus des photos, en mode « différence » */
+  .works-page .works-title { position: fixed; top: 230px; left: 13.889vw; z-index: 5; margin: 0; padding: 0; font-size: 50px; line-height: 1; letter-spacing: -0.03em;
     color: #fff; mix-blend-mode: difference; pointer-events: none; }
   /* Grille / Liste : fixes, même place qu'au chargement ; en mode « différence » pour rester lisibles sur les photos */
   .works-page .works-toggle { position: fixed; top: 270px; right: 13.889vw; z-index: 20; margin: 0; mix-blend-mode: difference; }
