@@ -936,7 +936,8 @@
       function mod(a, b) { return ((a % b) + b) % b; }
       function geo() {
         var vw = root.clientWidth, k = vw / 1440;
-        G = { k: k, SQ: 392 * k, WD: 680 * k, GAP: 25 * k, DY: 200 * k, X0: -33 * k, vw: vw, vh: window.innerHeight };
+        G = { k: k, SQ: 392 * k, WD: 680 * k, GAP: 25 * k, DY: 200 * k, X0: -33 * k, vw: vw, vh: window.innerHeight, R: 820 * k };
+        stage.style.perspective = Math.round(1900 * k) + 'px';
         G.P2 = G.SQ + G.WD + 2 * G.GAP;
         LOOP = (PER / 2) * G.P2;
         pin.style.height = (G.vh + 3 * LOOP) + 'px';
@@ -956,7 +957,7 @@
         return rem < G.SQ + G.GAP ? 2 * n2 + rem / (G.SQ + G.GAP) : 2 * n2 + 1 + (rem - G.SQ - G.GAP) / (G.WD + G.GAP);
       }
       /* Rendu : la « caméra » suit le défilement avec un léger retard (lissage), ce qui donne de l'inertie.
-         Les tuiles apparaissent en fondu (animation) en approchant par la droite et s'effacent en sortant par la gauche. */
+         Les tuiles tournent autour d'un cylindre (vis) et apparaissent / s'effacent en fondu animé. */
       var sCur = null, raf = null, frozen = false;
       function smooth(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
       function target() {
@@ -970,21 +971,24 @@
       }
       function draw(s, v) {
         var p = pOf(s), c = p + 2.5, half = G.vw / 2;
+        // Vis : les projets s'enroulent autour d'un cylindre vertical (rayon R) ; la position horizontale
+        // devient un angle (longueur d'arc), la descente en escalier devient le pas de la vis
+        var R = G.R;
         els.forEach(function (el, r) {
           var n = r + PER * Math.round((c - r) / PER);
           var w = n % 2 ? G.WD : G.SQ;
           var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
-          var vis = x < G.vw + 80 && x + w > -80 && y < G.vh + 80 && y > -G.SQ - 140;
+          var th = (x + w / 2 - half) / R;   // angle en radians, 0 = face à l'écran
+          var vis = th > -1.75 && th < 1.75 && y < G.vh + 80 && y > -G.SQ - 140;
           if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
           if (!vis) { if (el.classList.contains('is-in')) el.classList.remove('is-in'); return; }
-          // fondu : animation (ease in-out, CSS) déclenchée quand la tuile approche de l'écran par la droite,
-          // et à l'inverse quand elle le quitte par la gauche — l'opacité n'est pas liée au défilement
-          var q = (x + w / 2 - half) / half;
-          var inZone = reduce || (x < G.vw * 0.9 && x + w > G.vw * 0.12);
-          el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
+          el.style.transform = 'translate3d(' + (half - w / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (th * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
+          el.style.zIndex = String(Math.round(Math.cos(th) * 100) + 100);
+          // fondu animé (CSS) : apparition quand la tuile arrive sur la face avant par la droite, disparition en repartant à gauche
+          var inZone = reduce || (th < 1.2 && th > -1.3);
           if (el.classList.contains('is-in') !== inZone) el.classList.toggle('is-in', inZone);
           // parallaxe horizontale dans la photo
-          el.style.setProperty('--px', (-Math.max(-1, Math.min(1, q / 2)) * 8).toFixed(2) + '%');
+          el.style.setProperty('--px', (-Math.max(-1, Math.min(1, th / 2)) * 8).toFixed(2) + '%');
         });
       }
       function loop() {

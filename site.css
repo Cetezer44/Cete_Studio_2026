@@ -416,8 +416,8 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   .works-page.has-wg .wg-src { display: none; }
   .works-page.has-wg .wg-pin { display: block; position: relative; width: 100vw; margin-left: calc(50% - 50vw); }
   .works-page.has-wg.is-list .wg-pin { display: none; }
-  .wg-stage { position: sticky; top: 0; height: 100vh; overflow: hidden; }
-  .wg-card { position: absolute; left: 0; top: 0; width: var(--wg-sq); margin: 0 !important; will-change: transform, opacity; }
+  .wg-stage { position: sticky; top: 0; height: 100vh; overflow: hidden; perspective-origin: 50% 50%; }
+  .wg-card { position: absolute; left: 0; top: 0; width: var(--wg-sq); margin: 0 !important; will-change: transform, opacity; backface-visibility: hidden; }
   .wg-card.is-wide { width: var(--wg-wd); }
   .wg-card { opacity: 0; transition: opacity 1000ms cubic-bezier(.65,0,.35,1); }
   .wg-card.is-in { opacity: 1; }
