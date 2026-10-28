@@ -469,6 +469,8 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 @media (min-width: 992px) {
   .hero-content, .showreel { left: 5.5556vw !important; }
   .hero-title { font-size: 5.5556vw !important; letter-spacing: -0.03em !important; line-height: 1 !important; }
+  .hero-title { position: relative; top: -0.694vw; }   /* haut des capitales à 239 px (maquette) */
+  .hero-tags { position: relative; top: -0.347vw; }
 }
 @media (min-width: 768px) {
   [data-barba-namespace="home"] .home-socials { left: 0 !important; right: 0 !important; justify-content: center; }
