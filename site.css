@@ -284,7 +284,7 @@ html.is-menu-reset .side-bar { transition: none !important; }
 /* =====================================================================
    Page Projets : vue grille (quinconce) / vue liste + bascule
    ===================================================================== */
-.works-toggle { display: flex; column-gap: 31px; }
+.works-toggle { display: flex; column-gap: 19px; }
 .works-tg { padding: 0; border: 0; background: none; color: #b8b8b8; font: inherit; font-size: 13px; line-height: 1; font-weight: 300;
   letter-spacing: 0; text-transform: uppercase; cursor: pointer; text-decoration: underline; text-decoration-color: transparent;
   text-underline-offset: 3px; text-decoration-thickness: 1px; transition: color 400ms ease, text-decoration-color 400ms ease; }
@@ -312,11 +312,11 @@ html.is-menu-reset .side-bar { transition: none !important; }
 }
 
 /* Vue liste */
-.works-rows { display: none; margin: 66px calc(13.889vw - 30px) 160px; }
+.works-rows { display: none; margin: 52px calc(13.889vw - 30px) 160px; }
 .works-page.is-list .works-rows { display: block; }
 .works-page.is-list .works-list { display: none; }
 .wl-row { position: relative; display: grid; grid-template-columns: 26.73% 14.42% 18.65% 1fr; align-items: center;
-  padding: 19px 0; color: #000; text-decoration: none; transition: opacity 500ms ease; }
+  padding: 18.5px 0; color: #000; text-decoration: none; transition: opacity 500ms ease; }
 .wl-row:hover { z-index: 2; }
 @media (hover: hover) { .works-rows:hover .wl-row:not(:hover) { opacity: .15; } }
 .wl-name { font-size: 25px; line-height: 1.1; font-weight: 300; text-transform: uppercase; letter-spacing: 0; white-space: nowrap; }
