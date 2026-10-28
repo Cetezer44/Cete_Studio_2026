@@ -430,8 +430,9 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
     translate: var(--px, 0%) 0; }
   .wg-card .works-card-title { font-size: 20px; }
   .wg-media-leaving { overflow: hidden; }
-  .wg-media-leaving .works-img { position: absolute; top: 0; left: -10%; width: 120%; max-width: none; height: 100%; object-fit: cover;
+  .wg-media-leaving .works-img { position: absolute; top: 0; left: 0; width: 100%; max-width: none; height: 100%; object-fit: cover;
     translate: 0 0; transform: none !important; }
+  .wg-media-leaving .w-dyn-list, .wg-media-leaving .works-tags { display: none; }   /* étiquettes déjà effacées */
   /* Tuiles courbées (rendu WebGL) : la photo HTML de la tuile est masquée */
   .wg-card.is-bent .works-media > * { opacity: 0; }
   .wg-card.is-bent .works-media { background: transparent; }

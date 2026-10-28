@@ -970,8 +970,8 @@
           'void main(){float a=(aUV.x-0.5)*uW;float ang=uTh+a/uR;float X=uR*sin(ang);float Z=uR*cos(ang)-uR;' +
           'float sc=uP/(uP-Z);float sx=uView.x*0.5+X*sc;float Y=uY+aUV.y*uH;float sy=uView.y*0.5+(Y-uView.y*0.5)*sc;' +
           'vUV=aUV;vCos=cos(ang);gl_Position=vec4(sx/uView.x*2.0-1.0,1.0-sy/uView.y*2.0,0.0,1.0);}';
-        var fs = 'precision highp float;uniform sampler2D uTex,uOv;uniform vec3 uImg;uniform float uW,uH,uAlpha,uReady,uHasOv;varying vec2 vUV;varying float vCos;' +
-          'void main(){if(vCos<0.0)discard;vec2 l=vec2(vUV.x*uW,vUV.y*uH);float Bw=1.2*uW;float bx=l.x+0.1*uW-uImg.z;' +
+        var fs = 'precision highp float;uniform sampler2D uTex,uOv;uniform vec3 uImg;uniform float uW,uH,uAlpha,uReady,uHasOv,uBox;varying vec2 vUV;varying float vCos;' +
+          'void main(){if(vCos<0.0)discard;vec2 l=vec2(vUV.x*uW,vUV.y*uH);float Bw=uBox*uW;float bx=l.x+(uBox-1.0)*0.5*uW-uImg.z;' +
           'float s=max(Bw/uImg.x,uH/uImg.y);float dw=uImg.x*s,dh=uImg.y*s;vec2 uv=vec2((bx-(Bw-dw)*0.5)/dw,(l.y-(uH-dh)*0.5)/dh);' +
           'vec3 c=mix(vec3(0.851),texture2D(uTex,uv).rgb,uReady);vec4 o=texture2D(uOv,vUV);c=mix(c,o.rgb,o.a*uHasOv);' +
           'gl_FragColor=vec4(c,1.0)*uAlpha;}';
@@ -989,7 +989,7 @@
         var loc = gl.getAttribLocation(prog, 'aUV');
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-        ['uTh', 'uW', 'uH', 'uY', 'uR', 'uP', 'uView', 'uTex', 'uOv', 'uImg', 'uAlpha', 'uReady', 'uHasOv'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+        ['uTh', 'uW', 'uH', 'uY', 'uR', 'uP', 'uView', 'uTex', 'uOv', 'uImg', 'uAlpha', 'uReady', 'uHasOv', 'uBox'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
         gl.uniform1i(U.uTex, 0); gl.uniform1i(U.uOv, 1);
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -1161,7 +1161,10 @@
             // la tuile HTML (nom + zone de clic) s'accroche au bord gauche de la photo courbée, tangente au cylindre
             var thL = th - w / (2 * R);
             el.style.transform = 'translate3d(' + half.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (thL * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
-            if (!t.hidden) list.push({ t: t, th: th, w: w, y: y, R: R, px: px });
+            // tuile cliquée : les étiquettes s'effacent d'abord, puis le cadrage de la photo revient au
+            // cadrage standard (cover sur la tuile, sans la marge de parallaxe) — celui de la page projet
+            var fb = r === bendR ? bendU : 0;
+            if (!t.hidden) list.push({ t: t, th: th, w: w, y: y, R: R, px: px * (1 - fb), box: 1.2 - 0.2 * fb, ov: Math.max(0, 1 - fb * 3) });
           } else {
             el.style.transformOrigin = '50% 50%';
             el.style.transform = 'translate3d(' + (half - w / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (th * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
@@ -1177,10 +1180,11 @@
           var im = d.t.img || { ready: false, iw: 1, ih: 1 };
           gl.uniform1f(U.uTh, d.th); gl.uniform1f(U.uW, d.w); gl.uniform1f(U.uH, G.SQ);
           gl.uniform1f(U.uY, d.y); gl.uniform1f(U.uR, d.R);
-          gl.uniform3f(U.uImg, im.iw, im.ih, d.px / 100 * 1.2 * d.w);
+          gl.uniform3f(U.uImg, im.iw, im.ih, d.px / 100 * d.box * d.w);
+          gl.uniform1f(U.uBox, d.box);
           gl.uniform1f(U.uAlpha, d.t.alpha);
           gl.uniform1f(U.uReady, im.ready ? 1 : 0);
-          gl.uniform1f(U.uHasOv, d.t.ov ? 1 : 0);
+          gl.uniform1f(U.uHasOv, d.t.ov ? d.ov : 0);
           gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, im.ready ? im.tex : blank());
           gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, d.t.ov || blank());
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 2 * (SEG + 1));
