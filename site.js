@@ -268,7 +268,7 @@
         sc:   m ? 1.18 : 1.423,           // photo active : 560 px de large sur la maquette
         n1:   m ? 0.95 : 0.973,           // taille des photos voisines
         fall: m ? 0.12 : 0.157,           // réduction de taille par cran supplémentaire
-        sh:   m ? 0 : -179 * k,           // décalage vers la gauche de la photo active
+        sh:   m ? 0 : -135 * k,           // décalage vers la gauche de la photo active (roue un peu plus à droite)
         gap:  m ? 20 : 40 * k,
         k:    m ? Math.max(0.6, k * 0.6) : k,
         w: cards[0].offsetWidth,
@@ -617,8 +617,7 @@
         // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran
         var dark = aboutSec.getBoundingClientRect().top < vh * 0.5;
         container.classList.toggle('is-dark', dark);
-        // la barre noire de droite (et le fond réservé de la modal) sort entièrement par la droite
-        if (dark !== root.classList.contains('is-home-dark')) { root.classList.toggle('is-home-dark', dark); setBar(!dark); }
+
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
         litGoal = Math.round(p * aboutWords.length);
         if (!litTimer && litGoal !== litN) litTimer = setTimeout(litStep, 0);

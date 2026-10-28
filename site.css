@@ -449,3 +449,27 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 .wl-ch > span::after { content: attr(data-c); position: absolute; left: 0; top: 100%; }
 @media (hover: hover) { .wl-row:hover .wl-ch > span, .wg-card:hover .wl-ch > span { transform: translate3d(0, -100%, 0); } }
 .wg-card .works-card-title { line-height: 1.1; white-space: nowrap; }
+
+/* =====================================================================
+   Barre noire de droite supprimée sur tout le site.
+   Desktop : la navigation porte « Contact ». Mobile : seul le burger reste, flottant en haut à droite.
+   ===================================================================== */
+@media (min-width: 768px) {
+  .side-bar { display: none !important; }
+}
+@media (max-width: 767px) {
+  .side-bar { background: transparent !important; width: auto !important; height: auto !important; top: 20px !important; right: 20px !important;
+    bottom: auto !important; left: auto !important; mix-blend-mode: difference; transform: none !important; }
+  .side-bar .side-contact, .side-bar .side-copy { display: none !important; }
+  .side-bar .side-burger { position: static !important; margin: 0 !important; padding: 6px 0; }
+  .side-bar .burger-line { background-color: #fff !important; }
+}
+
+/* Accueil (maquette 1440) : titre 80 px à 80 px du bord, photo de la roue décalée vers la droite, réseaux centrés */
+@media (min-width: 992px) {
+  .hero-content, .showreel { left: 5.5556vw !important; }
+  .hero-title { font-size: 5.5556vw !important; letter-spacing: -0.03em !important; line-height: 1 !important; }
+}
+@media (min-width: 768px) {
+  [data-barba-namespace="home"] .home-socials { left: 0 !important; right: 0 !important; justify-content: center; }
+}
