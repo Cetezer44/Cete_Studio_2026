@@ -956,7 +956,7 @@
         return rem < G.SQ + G.GAP ? 2 * n2 + rem / (G.SQ + G.GAP) : 2 * n2 + 1 + (rem - G.SQ - G.GAP) / (G.WD + G.GAP);
       }
       /* Rendu : la « caméra » suit le défilement avec un léger retard (lissage), ce qui donne de l'inertie.
-         Les tuiles apparaissent en fondu en entrant par la droite et s'effacent en sortant par la gauche. */
+         Les tuiles apparaissent en fondu (animation) en approchant par la droite et s'effacent en sortant par la gauche. */
       var sCur = null, raf = null, frozen = false;
       function smooth(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
       function target() {
@@ -976,12 +976,13 @@
           var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
           var vis = x < G.vw + 80 && x + w > -80 && y < G.vh + 80 && y > -G.SQ - 140;
           if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
-          if (!vis) return;
-          // fondu : la tuile apparaît en entrant par la droite et s'efface en sortant par la gauche
-          var q = (x + w / 2 - half) / half, a = Math.abs(q);
-          var e = reduce ? 0 : smooth(0.55, 1.3, a);   // 0 au centre → 1 sur les bords
+          if (!vis) { if (el.classList.contains('is-in')) el.classList.remove('is-in'); return; }
+          // fondu : animation (ease in-out, CSS) déclenchée quand la tuile approche de l'écran par la droite,
+          // et à l'inverse quand elle le quitte par la gauche — l'opacité n'est pas liée au défilement
+          var q = (x + w / 2 - half) / half;
+          var inZone = reduce || (x < G.vw * 0.9 && x + w > G.vw * 0.12);
           el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
-          el.style.opacity = (1 - e).toFixed(3);
+          if (el.classList.contains('is-in') !== inZone) el.classList.toggle('is-in', inZone);
           // parallaxe horizontale dans la photo
           el.style.setProperty('--px', (-Math.max(-1, Math.min(1, q / 2)) * 8).toFixed(2) + '%');
         });
