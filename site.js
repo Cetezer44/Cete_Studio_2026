@@ -12,6 +12,8 @@
   c.innerHTML = '<div class="c-cursor__ring"></div><div class="c-cursor__dot"></div>' +
     '<div class="c-cursor__label"><div class="c-cursor__label-in"><img src="' + PLAY + '" alt=""><span>Lire le showreel</span></div></div>' +
     '<div class="c-cursor__disc"><span class="c-cursor__disc-in">Découvrir</span></div>' +
+    // Hero de l'accueil : invitation au scroll (trait qui s'efface, puis « Scroll », en boucle)
+    '<div class="c-cursor__cue"><span class="c-cursor__cue-in"><i class="c-cursor__cue-line"></i><span class="c-cursor__cue-txt">Scroll</span></span></div>' +
     // Lecture / pause au survol de la vidéo du showreel (maquette Figma « Play/Pause »)
     '<div class="c-cursor__media"><svg class="c-cursor__icon" viewBox="0 0 60 60" fill="none" stroke="#fff" stroke-width="1">' +
       '<circle cx="30" cy="30" r="29.5"/>' +
@@ -29,6 +31,7 @@
   var ring = c.querySelector('.c-cursor__ring'), dot = c.querySelector('.c-cursor__dot'), label = c.querySelector('.c-cursor__label');
   var media = c.querySelector('.c-cursor__media'), over = null;   // vidéo survolée
   var disc = c.querySelector('.c-cursor__disc');
+  var cue = c.querySelector('.c-cursor__cue');
   var mx = -100, my = -100, rx = mx, ry = my;
   var LINKS = 'a, button, [role="button"], input[type="submit"], label, select';
 
@@ -68,6 +71,7 @@
     media.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     view.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     disc.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
+    cue.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     requestAnimationFrame(loop);
   })();
 })();
@@ -627,6 +631,22 @@
       on(window, 'scroll', aboutUpdate, { passive: true });
       on(window, 'resize', aboutUpdate);
       aboutUpdate();
+    }
+
+    // Curseur « Scroll » sur le hero (hors liens, photos, showreel, menu) tant que la roue a la main
+    if (root.classList.contains('has-cursor')) {
+      var cueOn = false;
+      var cueSet = function (v) { if (v === cueOn) return; cueOn = v; root.classList.toggle('is-scrollcue', v); };
+      on(window, 'mousemove', function (e) {
+        var t = e.target;
+        var inHero = !free && !anchoring && !intro && !root.classList.contains('is-menu') && !root.classList.contains('is-reel') &&
+          t.closest && t.closest('.home-track') &&
+          !t.closest('a, button, .wheel-card, .showreel, .home-nav, .home-logo, .home-socials, .side-bar');
+        cueSet(!!inHero);
+      }, { passive: true });
+      on(window, 'scroll', function () { if (free) cueSet(false); }, { passive: true });
+      on(document, 'mouseleave', function () { cueSet(false); });
+      ac.signal.addEventListener('abort', function () { root.classList.remove('is-scrollcue'); });
     }
 
     window.scrollTo(0, 0);
