@@ -892,82 +892,6 @@
      - survol d'une tuile : zoom dans l'image (CSS) et flèche qui sort à droite / revient par la gauche
      - clic sur un projet : tout disparaît sauf la photo, qui se centre ; la page projet prend le relais
      ===================================================================== */
-  /* Effet lentille sur les bords gauche et droit de l'écran (filtre SVG feDisplacementMap par élément),
-     même réglage que l'équipe du Studio ; la bande droite est reflétée à gauche */
-  function edgeLens(container, items) {
-    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return null;
-    var NS = 'http://www.w3.org/2000/svg', XL = 'http://www.w3.org/1999/xlink';
-    var svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('aria-hidden', 'true');
-    svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
-    container.appendChild(svg);
-    var uid = 'el' + Math.random().toString(36).slice(2, 7);
-    var st = { Z: 0, H: 0, scale: 0, urlR: '', urlL: '' };
-    var list = items.map(function (el, i) {
-      var f = document.createElementNS(NS, 'filter');
-      f.setAttribute('id', uid + i);
-      f.setAttribute('filterUnits', 'userSpaceOnUse');
-      f.setAttribute('primitiveUnits', 'userSpaceOnUse');
-      f.setAttribute('color-interpolation-filters', 'sRGB');
-      f.innerHTML = '<feFlood flood-color="rgb(128,128,128)" result="n"/>' +
-        '<feImage preserveAspectRatio="none" result="l"/><feImage preserveAspectRatio="none" result="r"/>' +
-        '<feMerge result="map"><feMergeNode in="n"/><feMergeNode in="l"/><feMergeNode in="r"/></feMerge>' +
-        '<feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G"/>';
-      svg.appendChild(f);
-      var ims = f.querySelectorAll('feImage');
-      return { el: el, f: f, iL: ims[0], iR: ims[1], dm: f.querySelector('feDisplacementMap'), id: uid + i, on: false };
-    });
-    function maps(H) {
-      var vw = document.documentElement.clientWidth;
-      var Z = Math.round(Math.min(480, Math.max(240, vw * 0.22)));
-      if (Z === st.Z && H === st.H) return;
-      st.Z = Z; st.H = H;
-      var m = 0.3, kY = 0.06, maxX = Z * m / (2 * Math.PI), maxY = H * kY / 2, maxD = Math.max(maxX, maxY);
-      function draw(mirror) {
-        var cv = document.createElement('canvas'); cv.width = Z; cv.height = H;
-        var cx = cv.getContext('2d'), im = cx.createImageData(Z, H), d = im.data;
-        for (var y = 0; y < H; y++) for (var x = 0; x < Z; x++) {
-          var t = (mirror ? Z - 1 - x : x) / Z;
-          var dx = maxX * Math.sin(2 * Math.PI * t) * (mirror ? -1 : 1);
-          var dy = -(y - H / 2) * kY * Math.sin(Math.PI * t);
-          var o = (y * Z + x) * 4;
-          d[o] = Math.round(128 + 127 * dx / maxD); d[o + 1] = Math.round(128 + 127 * dy / maxD); d[o + 2] = 128; d[o + 3] = 255;
-        }
-        cx.putImageData(im, 0, 0);
-        return cv.toDataURL('image/png');
-      }
-      st.urlR = draw(false); st.urlL = draw(true); st.scale = 2 * maxD;
-      var pad = Math.ceil(st.scale / 2) + 20;
-      list.forEach(function (it) {
-        [it.iL, it.iR].forEach(function (im, j) {
-          var u = j ? st.urlR : st.urlL;
-          im.setAttribute('href', u); im.setAttributeNS(XL, 'href', u);
-          im.setAttribute('width', Z); im.setAttribute('height', H + 2 * pad); im.setAttribute('y', -pad);
-        });
-        it.dm.setAttribute('scale', st.scale.toFixed(1));
-      });
-    }
-    function update() {
-      var vw = document.documentElement.clientWidth;
-      list.forEach(function (it) {
-        if (it.el.style.visibility === 'hidden') { if (it.on) { it.el.style.filter = ''; it.on = false; } return; }
-        var r = it.el.getBoundingClientRect();
-        if (!st.H) maps(Math.round(r.height));
-        var Z = st.Z, zl = vw - Z * 0.65, zr = Z * 0.65;   // bandes : 65 % à l'écran, 35 % hors écran
-        var inR = r.right > zl && r.left < vw, inL = r.left < zr && r.right > 0;
-        if (!inR && !inL) { if (it.on) { it.el.style.filter = ''; it.on = false; } return; }
-        var w = it.el.offsetWidth, h = it.el.offsetHeight, mg = Math.ceil(st.scale / 2) + 20;
-        it.f.setAttribute('x', -mg); it.f.setAttribute('y', -mg);
-        it.f.setAttribute('width', w + 2 * mg); it.f.setAttribute('height', h + 2 * mg);
-        it.iR.setAttribute('x', (zl - r.left).toFixed(1));
-        it.iL.setAttribute('x', (zr - Z - r.left).toFixed(1));
-        if (!it.on) { it.el.style.filter = 'url(#' + it.id + ')'; it.on = true; }
-      });
-    }
-    function clear() { list.forEach(function (it) { it.el.style.filter = ''; it.on = false; }); }
-    return { update: update, clear: clear, reset: function () { st.Z = 0; st.H = 0; }, destroy: function () { clear(); svg.remove(); } };
-  }
-
   function Works(container, opts) {
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
@@ -1030,36 +954,66 @@
         var n2 = Math.floor(sx / G.P2), rem = sx - n2 * G.P2;
         return rem < G.SQ + G.GAP ? 2 * n2 + rem / (G.SQ + G.GAP) : 2 * n2 + 1 + (rem - G.SQ - G.GAP) / (G.WD + G.GAP);
       }
-      function render() {
-        if (container.classList.contains('is-list')) return;
-        measure();
-        // le défilement horizontal démarre dès le premier pixel (pendant que le titre sort de l'écran)
-        var s = Math.max(0, window.scrollY);
+      /* Rendu : la « caméra » suit le défilement avec un léger retard (lissage), ce qui donne de l'inertie.
+         Les tuiles éloignées du centre sont « aspirées » vers les bords : elles reculent (rotation en
+         perspective), rétrécissent, s'estompent et se floutent ; la tuile centrale reste nette.
+         La vitesse fait flotter légèrement les tuiles (décalage vertical qui s'accentue vers les bords). */
+      var sCur = null, raf = null, frozen = false;
+      function smooth(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
+      function target() {
+        var t = Math.max(0, window.scrollY);   // le défilement horizontal démarre dès le premier pixel
         // boucle : au-delà de 2 périodes, on recule d'une période (rendu identique)
-        if (s > 2 * LOOP && !root.classList.contains('is-leaving')) { window.scrollTo(0, window.scrollY - LOOP); s -= LOOP; }
-        var p = pOf(s), c = p + 2.5;
+        if (t > 2 * LOOP && !root.classList.contains('is-leaving')) {
+          window.scrollTo(0, window.scrollY - LOOP); t -= LOOP;
+          if (sCur !== null) sCur -= LOOP;
+        }
+        return t;
+      }
+      function draw(s, v) {
+        var p = pOf(s), c = p + 2.5, half = G.vw / 2;
+        var drift = Math.max(-1, Math.min(1, v / 220));   // vitesse normalisée
         els.forEach(function (el, r) {
           var n = r + PER * Math.round((c - r) / PER);
           var w = n % 2 ? G.WD : G.SQ;
           var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
-          var vis = x < G.vw + 60 && x + w > -60 && y < G.vh + 60 && y > -G.SQ - 120;
-          el.style.visibility = vis ? 'visible' : 'hidden';
-          if (vis) {
-            el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
-            // parallaxe horizontale dans la photo
-            var q = Math.max(-1, Math.min(1, (x + w / 2 - G.vw / 2) / G.vw));
-            el.style.setProperty('--px', (-q * 8).toFixed(2) + '%');
-          }
+          var vis = x < G.vw + 80 && x + w > -80 && y < G.vh + 80 && y > -G.SQ - 140;
+          if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
+          if (!vis) return;
+          var q = (x + w / 2 - half) / half, sg = q < 0 ? -1 : 1, a = Math.abs(q);
+          var e = reduce ? 0 : smooth(0.2, 1.15, a);   // 0 au centre → 1 sur les bords
+          var tx = x + sg * e * 70 * G.k;
+          var ty = y + (reduce ? 0 : drift * (14 + 26 * a) * G.k);
+          var sc = 1 - 0.2 * e - Math.abs(drift) * 0.025;
+          var ry = -sg * 24 * e;
+          el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) perspective(' + Math.round(1600 * G.k) + 'px) rotateY(' + ry.toFixed(2) + 'deg) scale(' + sc.toFixed(4) + ')';
+          el.style.opacity = (1 - 0.5 * e).toFixed(3);
+          var bl = 7 * e * e;
+          el.style.filter = bl > 0.15 ? 'blur(' + bl.toFixed(2) + 'px)' : '';
+          // parallaxe horizontale dans la photo
+          el.style.setProperty('--px', (-Math.max(-1, Math.min(1, q / 2)) * 8).toFixed(2) + '%');
         });
-        if (lens) lens.update();
       }
-      var lens = reduce ? null : edgeLens(container, els);
-      var tick = false;
-      on(window, 'scroll', function () { if (!tick) { tick = true; requestAnimationFrame(function () { tick = false; render(); }); } }, { passive: true });
-      on(window, 'resize', function () { geo(); if (lens) lens.reset(); render(); });
-      geo(); render();
-      ac.signal.addEventListener('abort', function () { if (lens) lens.destroy(); });
-      return { els: els, pin: pin, render: function () { geo(); render(); }, lens: lens };
+      function loop() {
+        raf = null;
+        if (frozen || container.classList.contains('is-list')) return;
+        var t = target();
+        if (sCur === null || reduce) sCur = t;
+        var v = t - sCur;
+        sCur += v * 0.085;
+        if (Math.abs(t - sCur) < 0.3) { sCur = t; v = 0; }
+        draw(sCur, v);
+        if (sCur !== t) raf = requestAnimationFrame(loop);
+      }
+      function render() {
+        if (container.classList.contains('is-list')) return;
+        measure();
+        if (!raf) raf = requestAnimationFrame(loop);
+      }
+      on(window, 'scroll', render, { passive: true });
+      on(window, 'resize', function () { geo(); sCur = null; render(); });
+      geo(); sCur = null; measure(); loop();
+      ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
+      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function () { frozen = true; } };
     }
     if (head && gridWrap) {
       var tg = document.createElement('div');
@@ -1122,7 +1076,7 @@
          Les projets se suivent en escalier (carré 392 / allongé 680, 200 px plus bas à chaque projet,
          maquette 1440) ; le défilement vertical de la page fait avancer la « caméra » en diagonale.
          La série est répétée (10 cartes) et la page est ramenée d'une période en arrière quand on
-         avance trop : la boucle est sans fin. Effet lentille sur les bords gauche et droit. */
+         avance trop : la boucle est sans fin. */
       if (window.innerWidth >= 768) wg = buildGrid();
 
       var VIEW_KEY = 'cete-works-view';
@@ -1281,7 +1235,7 @@
       var media = best && $('.works-media', best);
       if (!media) return Promise.resolve(null);
       root.classList.add('is-leaving');
-      if (wg.lens) wg.lens.clear();
+      wg.freeze();
       var r = media.getBoundingClientRect();
       $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat(wg.els).forEach(function (el) {
         el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0';
