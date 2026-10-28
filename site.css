@@ -459,7 +459,7 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 }
 @media (max-width: 767px) {
   .side-bar { background: transparent !important; width: auto !important; height: auto !important; top: 20px !important; right: 20px !important;
-    bottom: auto !important; left: auto !important; mix-blend-mode: difference; transform: none !important; }
+    bottom: auto !important; left: auto !important; padding: 0 !important; display: block !important; mix-blend-mode: difference; transform: none !important; }
   .side-bar .side-contact, .side-bar .side-copy { display: none !important; }
   .side-bar .side-burger { position: static !important; margin: 0 !important; padding: 6px 0; }
   .side-bar .burger-line { background-color: #fff !important; }
