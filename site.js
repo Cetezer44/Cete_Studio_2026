@@ -453,7 +453,7 @@
 
     on(window, 'wheel', function (e) {
       var dy0 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-      if (anchoring) { e.preventDefault(); return; }   // l'ancre vers la section du dessous est en cours
+      if (anchoring || pendingAbout) { e.preventDefault(); return; }   // la roue rejoint le 01 / l'ancre est en cours
       if (free) {
         // page libre : défilement natif, sauf tout en haut vers le haut → la roue reprend la main
         if (window.scrollY > 0 || dy0 >= 0 || blocked()) return;
@@ -484,7 +484,7 @@
     on(window, 'touchmove', function (e) {
       if (ty === null) return;
       var y = e.touches[0].clientY;
-      if (anchoring) { e.preventDefault(); ty = y; return; }
+      if (anchoring || pendingAbout) { e.preventDefault(); ty = y; return; }
       if (free) {
         if (window.scrollY > 0 || y <= ty || blocked()) { ty = y; return; }
         setFree(false);
@@ -510,6 +510,7 @@
     on(window, 'keydown', function (e) {
       var t = e.target.tagName;
       if (t === 'INPUT' || t === 'TEXTAREA' || blocked()) return;
+      if (pendingAbout || anchoring) { e.preventDefault(); return; }
       var down = e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ', up = e.key === 'ArrowUp' || e.key === 'PageUp';
       if (free) {
         if (up && window.scrollY <= 0) { setFree(false); e.preventDefault(); stepBy(-1); }
