@@ -615,7 +615,9 @@
       var aboutUpdate = function () {
         var r = aboutText.getBoundingClientRect(), vh = window.innerHeight;
         // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran
-        container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5);
+        var dark = aboutSec.getBoundingClientRect().top < vh * 0.5;
+        container.classList.toggle('is-dark', dark);
+        root.classList.toggle('is-home-dark', dark);   // la barre noire de droite sort par la droite
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
         litGoal = Math.round(p * aboutWords.length);
         if (!litTimer && litGoal !== litN) litTimer = setTimeout(litStep, 0);
@@ -649,7 +651,7 @@
       }, { passive: true });
       on(window, 'scroll', function () { if (free) cueSet(false); }, { passive: true });
       on(document, 'mouseleave', function () { cueSet(false); });
-      ac.signal.addEventListener('abort', function () { root.classList.remove('is-scrollcue'); });
+      ac.signal.addEventListener('abort', function () { root.classList.remove('is-scrollcue', 'is-home-dark'); });
     }
 
     window.scrollTo(0, 0);
