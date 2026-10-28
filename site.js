@@ -892,6 +892,82 @@
      - survol d'une tuile : zoom dans l'image (CSS) et flèche qui sort à droite / revient par la gauche
      - clic sur un projet : tout disparaît sauf la photo, qui se centre ; la page projet prend le relais
      ===================================================================== */
+  /* Effet lentille sur les bords gauche et droit de l'écran (filtre SVG feDisplacementMap par élément),
+     même réglage que l'équipe du Studio ; la bande droite est reflétée à gauche */
+  function edgeLens(container, items) {
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return null;
+    var NS = 'http://www.w3.org/2000/svg', XL = 'http://www.w3.org/1999/xlink';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
+    container.appendChild(svg);
+    var uid = 'el' + Math.random().toString(36).slice(2, 7);
+    var st = { Z: 0, H: 0, scale: 0, urlR: '', urlL: '' };
+    var list = items.map(function (el, i) {
+      var f = document.createElementNS(NS, 'filter');
+      f.setAttribute('id', uid + i);
+      f.setAttribute('filterUnits', 'userSpaceOnUse');
+      f.setAttribute('primitiveUnits', 'userSpaceOnUse');
+      f.setAttribute('color-interpolation-filters', 'sRGB');
+      f.innerHTML = '<feFlood flood-color="rgb(128,128,128)" result="n"/>' +
+        '<feImage preserveAspectRatio="none" result="l"/><feImage preserveAspectRatio="none" result="r"/>' +
+        '<feMerge result="map"><feMergeNode in="n"/><feMergeNode in="l"/><feMergeNode in="r"/></feMerge>' +
+        '<feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G"/>';
+      svg.appendChild(f);
+      var ims = f.querySelectorAll('feImage');
+      return { el: el, f: f, iL: ims[0], iR: ims[1], dm: f.querySelector('feDisplacementMap'), id: uid + i, on: false };
+    });
+    function maps(H) {
+      var vw = document.documentElement.clientWidth;
+      var Z = Math.round(Math.min(480, Math.max(240, vw * 0.22)));
+      if (Z === st.Z && H === st.H) return;
+      st.Z = Z; st.H = H;
+      var m = 0.3, kY = 0.06, maxX = Z * m / (2 * Math.PI), maxY = H * kY / 2, maxD = Math.max(maxX, maxY);
+      function draw(mirror) {
+        var cv = document.createElement('canvas'); cv.width = Z; cv.height = H;
+        var cx = cv.getContext('2d'), im = cx.createImageData(Z, H), d = im.data;
+        for (var y = 0; y < H; y++) for (var x = 0; x < Z; x++) {
+          var t = (mirror ? Z - 1 - x : x) / Z;
+          var dx = maxX * Math.sin(2 * Math.PI * t) * (mirror ? -1 : 1);
+          var dy = -(y - H / 2) * kY * Math.sin(Math.PI * t);
+          var o = (y * Z + x) * 4;
+          d[o] = Math.round(128 + 127 * dx / maxD); d[o + 1] = Math.round(128 + 127 * dy / maxD); d[o + 2] = 128; d[o + 3] = 255;
+        }
+        cx.putImageData(im, 0, 0);
+        return cv.toDataURL('image/png');
+      }
+      st.urlR = draw(false); st.urlL = draw(true); st.scale = 2 * maxD;
+      var pad = Math.ceil(st.scale / 2) + 20;
+      list.forEach(function (it) {
+        [it.iL, it.iR].forEach(function (im, j) {
+          var u = j ? st.urlR : st.urlL;
+          im.setAttribute('href', u); im.setAttributeNS(XL, 'href', u);
+          im.setAttribute('width', Z); im.setAttribute('height', H + 2 * pad); im.setAttribute('y', -pad);
+        });
+        it.dm.setAttribute('scale', st.scale.toFixed(1));
+      });
+    }
+    function update() {
+      var vw = document.documentElement.clientWidth;
+      list.forEach(function (it) {
+        if (it.el.style.visibility === 'hidden') { if (it.on) { it.el.style.filter = ''; it.on = false; } return; }
+        var r = it.el.getBoundingClientRect();
+        if (!st.H) maps(Math.round(r.height));
+        var Z = st.Z, zl = vw - Z * 0.65, zr = Z * 0.65;   // bandes : 65 % à l'écran, 35 % hors écran
+        var inR = r.right > zl && r.left < vw, inL = r.left < zr && r.right > 0;
+        if (!inR && !inL) { if (it.on) { it.el.style.filter = ''; it.on = false; } return; }
+        var w = it.el.offsetWidth, h = it.el.offsetHeight, mg = Math.ceil(st.scale / 2) + 20;
+        it.f.setAttribute('x', -mg); it.f.setAttribute('y', -mg);
+        it.f.setAttribute('width', w + 2 * mg); it.f.setAttribute('height', h + 2 * mg);
+        it.iR.setAttribute('x', (zl - r.left).toFixed(1));
+        it.iL.setAttribute('x', (zr - Z - r.left).toFixed(1));
+        if (!it.on) { it.el.style.filter = 'url(#' + it.id + ')'; it.on = true; }
+      });
+    }
+    function clear() { list.forEach(function (it) { it.el.style.filter = ''; it.on = false; }); }
+    return { update: update, clear: clear, reset: function () { st.Z = 0; st.H = 0; }, destroy: function () { clear(); svg.remove(); } };
+  }
+
   function Works(container, opts) {
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
@@ -912,14 +988,87 @@
     var head = $('.works-head', container), gridWrap = $('.works-list', container);
     gridWrap = gridWrap ? gridWrap.parentNode : null;
     var rowsEl = null, rows = [];
+    var wg = null;
+    function buildGrid() {
+      var N = cards.length;
+      if (!N) return null;
+      var PER = N % 2 ? 2 * N : N;   // l'alternance carré / allongé retombe juste au bout d'une période
+      var pin = document.createElement('div'); pin.className = 'wg-pin';
+      var stage = document.createElement('div'); stage.className = 'wg-stage';
+      pin.appendChild(stage);
+      gridWrap.parentNode.insertBefore(pin, gridWrap);
+      var els = [];
+      for (var r = 0; r < PER; r++) {
+        var el = cards[r % N].cloneNode(true);
+        el.classList.add('wg-card', r % 2 ? 'is-wide' : 'is-sq');
+        el.removeAttribute('id');
+        stage.appendChild(el);
+        els.push(el);
+      }
+      container.classList.add('has-wg');
+      gridWrap.classList.add('wg-src');
+      var G = {}, pinTop = 0, LOOP = 0;
+      function mod(a, b) { return ((a % b) + b) % b; }
+      function geo() {
+        var vw = root.clientWidth, k = vw / 1440;
+        G = { k: k, SQ: 392 * k, WD: 680 * k, GAP: 25 * k, DY: 200 * k, X0: -33 * k, vw: vw, vh: window.innerHeight };
+        G.P2 = G.SQ + G.WD + 2 * G.GAP;
+        LOOP = (PER / 2) * G.P2;
+        pin.style.height = (G.vh + 3 * LOOP) + 'px';
+        stage.style.setProperty('--wg-sq', G.SQ + 'px');
+        stage.style.setProperty('--wg-wd', G.WD + 'px');
+        measure();
+      }
+      // le premier projet démarre 100 px (maquette) sous le filet du titre
+      function measure() {
+        pinTop = pin.getBoundingClientRect().top + window.scrollY;
+        var hb = head ? head.getBoundingClientRect().bottom + window.scrollY : pinTop;
+        G.Y0 = hb + 100 * G.k - pinTop;
+      }
+      function xOf(n) { return Math.floor(n / 2) * G.P2 + (mod(n, 2) === 1 ? G.SQ + G.GAP : 0); }
+      function pOf(sx) {
+        var n2 = Math.floor(sx / G.P2), rem = sx - n2 * G.P2;
+        return rem < G.SQ + G.GAP ? 2 * n2 + rem / (G.SQ + G.GAP) : 2 * n2 + 1 + (rem - G.SQ - G.GAP) / (G.WD + G.GAP);
+      }
+      function render() {
+        if (container.classList.contains('is-list')) return;
+        measure();
+        // le défilement horizontal démarre dès le premier pixel (pendant que le titre sort de l'écran)
+        var s = Math.max(0, window.scrollY);
+        // boucle : au-delà de 2 périodes, on recule d'une période (rendu identique)
+        if (s > 2 * LOOP && !root.classList.contains('is-leaving')) { window.scrollTo(0, window.scrollY - LOOP); s -= LOOP; }
+        var p = pOf(s), c = p + 2.5;
+        els.forEach(function (el, r) {
+          var n = r + PER * Math.round((c - r) / PER);
+          var w = n % 2 ? G.WD : G.SQ;
+          var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
+          var vis = x < G.vw + 60 && x + w > -60 && y < G.vh + 60 && y > -G.SQ - 120;
+          el.style.visibility = vis ? 'visible' : 'hidden';
+          if (vis) {
+            el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
+            // parallaxe horizontale dans la photo
+            var q = Math.max(-1, Math.min(1, (x + w / 2 - G.vw / 2) / G.vw));
+            el.style.setProperty('--px', (-q * 8).toFixed(2) + '%');
+          }
+        });
+        if (lens) lens.update();
+      }
+      var lens = reduce ? null : edgeLens(container, els);
+      var tick = false;
+      on(window, 'scroll', function () { if (!tick) { tick = true; requestAnimationFrame(function () { tick = false; render(); }); } }, { passive: true });
+      on(window, 'resize', function () { geo(); if (lens) lens.reset(); render(); });
+      geo(); render();
+      ac.signal.addEventListener('abort', function () { if (lens) lens.destroy(); });
+      return { els: els, pin: pin, render: function () { geo(); render(); }, lens: lens };
+    }
     if (head && gridWrap) {
       var tg = document.createElement('div');
       tg.className = 'works-toggle';
       tg.setAttribute('role', 'group');
       tg.setAttribute('aria-label', 'Affichage des projets');
       tg.innerHTML =
-        '<button type="button" class="works-tg" data-view="list" aria-pressed="false"><span class="works-tg-ico works-tg-ico--list" aria-hidden="true"><i></i><i></i><i></i></span><span>Liste</span></button>' +
-        '<button type="button" class="works-tg" data-view="grid" aria-pressed="true"><span class="works-tg-ico works-tg-ico--grid" aria-hidden="true"><i></i><i></i><i></i></span><span>Grille</span></button>';
+        '<button type="button" class="works-tg" data-view="grid" aria-pressed="true">Grille</button>' +
+        '<button type="button" class="works-tg" data-view="list" aria-pressed="false">Liste</button>';
       head.appendChild(tg);
 
       rowsEl = document.createElement('div');
@@ -969,6 +1118,13 @@
         ac.signal.addEventListener('abort', function () { if (lRaf) cancelAnimationFrame(lRaf); });
       }
 
+      /* Vue grille (desktop) : défilement horizontal en boucle -----------------------------------
+         Les projets se suivent en escalier (carré 392 / allongé 680, 200 px plus bas à chaque projet,
+         maquette 1440) ; le défilement vertical de la page fait avancer la « caméra » en diagonale.
+         La série est répétée (10 cartes) et la page est ramenée d'une période en arrière quand on
+         avance trop : la boucle est sans fin. Effet lentille sur les bords gauche et droit. */
+      if (window.innerWidth >= 768) wg = buildGrid();
+
       var VIEW_KEY = 'cete-works-view';
       var setView = function (v, animate) {
         var list = v === 'list';
@@ -981,6 +1137,7 @@
         var apply = function () {
           container.classList.toggle('is-list', list);
           if (!list && typeof plxUpdate === 'function') requestAnimationFrame(plxUpdate);
+          if (!list && wg) requestAnimationFrame(wg.render);
           if (list && !reduce) {
             rows.forEach(function (r, i) {
               r.style.transition = 'none'; r.style.opacity = '0'; r.style.transform = 'translateY(24px)';
@@ -992,18 +1149,19 @@
           }
         };
         if (!animate || reduce) { apply(); return; }
-        var cur = list ? gridWrap : rowsEl;
+        var gEl = wg ? wg.pin : gridWrap;
+        var cur = list ? gEl : rowsEl;
         cur.style.transition = 'opacity 350ms ease';
         cur.style.opacity = '0';
         setTimeout(function () {
           cur.style.transition = ''; cur.style.opacity = '';
           apply();
           if (!list) {
-            gridWrap.style.opacity = '0';
-            void gridWrap.offsetWidth;
-            gridWrap.style.transition = 'opacity 600ms ease';
-            gridWrap.style.opacity = '';
-            setTimeout(function () { gridWrap.style.transition = ''; }, 650);
+            gEl.style.opacity = '0';
+            void gEl.offsetWidth;
+            gEl.style.transition = 'opacity 600ms ease';
+            gEl.style.opacity = '';
+            setTimeout(function () { gEl.style.transition = ''; }, 650);
           }
         }, 360);
       };
@@ -1099,6 +1257,7 @@
 
     function leaveTo(path) {
       if (container.classList.contains('is-list')) return leaveFromRow(path);
+      if (wg) return leaveFromGrid(path);
       // la photo cliquée revient à son cadrage normal (sans parallaxe) pendant qu'elle se centre
       plx.forEach(function (p) {
         var a = p.media.parentNode && $('a[href]', p.media.parentNode.closest('.works-card') || p.media);
@@ -1108,6 +1267,37 @@
         p.img.style.setProperty('--py', '0px');
       });
       return leaveFromCards(container, cards, '.home-logo, .home-nav, .home-socials, .works-head', path);
+    }
+    // Vue grille (défilement horizontal) : la photo cliquée la plus visible sert de relais
+    function leaveFromGrid(path) {
+      var best = null, bd = 1e9, cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+      wg.els.forEach(function (el) {
+        if (el.style.visibility === 'hidden') return;
+        var a = $('a[href]', el);
+        if (!a || a.getAttribute('href') !== path) return;
+        var r = el.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - cx) + Math.abs(r.top + r.height / 2 - cy);
+        if (d < bd) { bd = d; best = el; }
+      });
+      var media = best && $('.works-media', best);
+      if (!media) return Promise.resolve(null);
+      root.classList.add('is-leaving');
+      if (wg.lens) wg.lens.clear();
+      var r = media.getBoundingClientRect();
+      $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat(wg.els).forEach(function (el) {
+        el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0';
+      });
+      // la photo sort de sa carte (transformée) pour pouvoir être fixée à l'écran
+      container.appendChild(media);
+      media.style.position = 'fixed';
+      media.style.left = r.left + 'px'; media.style.top = r.top + 'px';
+      media.style.width = r.width + 'px'; media.style.height = r.height + 'px';
+      media.style.margin = '0'; media.style.zIndex = '25'; media.style.aspectRatio = 'auto';
+      return wait(350).then(function () {
+        var dx = (window.innerWidth - r.width) / 2 - r.left, dy = (window.innerHeight - r.height) / 2 - r.top;
+        media.style.transition = 'transform 1000ms ' + INOUT;
+        media.style.transform = 'translate3d(' + dx + 'px,' + dy + 'px,0)';
+        return wait(1050);
+      }).then(function () { return { card: media, radius: 0 }; });
     }
     // Vue liste : la photo dévoilée de la ligne cliquée sert de relais vers la page projet
     function leaveFromRow(path) {
