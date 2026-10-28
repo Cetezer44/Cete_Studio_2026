@@ -931,23 +931,144 @@
       }
       container.classList.add('has-wg');
       gridWrap.classList.add('wg-src');
-      // Tuiles courbées : la photo de chaque tuile est découpée en fines bandes verticales posées une à une
-      // sur le cylindre (chaque bande a son propre angle). La tuile d'origine reste en place, photo masquée,
-      // pour le survol (« Voir »), le clic et la transition vers le projet.
-      var strips = els.map(function (el, r) {
-        var media = el.querySelector('.works-media'), K = r % 2 ? 22 : 13, list = [];
-        if (!media) return list;
-        el.classList.add('is-bent');
-        for (var j = 0; j < K; j++) {
-          var st = document.createElement('div'); st.className = 'wg-strip'; st.setAttribute('aria-hidden', 'true');
-          var inner = document.createElement('div'); inner.className = 'wg-strip-in';
-          var cm = media.cloneNode(true);
-          $$('a', cm).forEach(function (a) { a.removeAttribute('href'); a.setAttribute('tabindex', '-1'); });
-          inner.appendChild(cm); st.appendChild(inner); stage.appendChild(st);
-          list.push({ el: st, inner: inner, j: j, K: K, vis: null });
-        }
-        return list;
+      /* Tuiles courbées, rendues en WebGL : chaque photo est plaquée sur une portion de cylindre (maillage de
+         64 colonnes) dans un canvas placé derrière les tuiles. Les tuiles HTML restent en place, photo masquée,
+         pour le nom du projet, le survol (« Voir »), le clic et la transition vers la page projet.
+         Sans WebGL (ou si une image ne peut pas être lue), les tuiles HTML s'affichent à plat sur le cylindre. */
+      var SEG = 64, FADE = 1000, DPR = Math.min(2, window.devicePixelRatio || 1);
+      var tiles = els.map(function (el) {
+        var img = el.querySelector('.works-img');
+        el.style.opacity = '0';
+        return { el: el, media: el.querySelector('.works-media'), src: img ? bestSrc(img) : '', alpha: 0, a0: 0, target: 0, at: 0, dur: FADE, hidden: false };
       });
+      function bestSrc(img) {
+        var set = (img.getAttribute('srcset') || '').split(',').map(function (c) {
+          var p = c.trim().split(/\s+/); return { u: p[0], w: parseInt(p[1], 10) || 0 };
+        }).filter(function (c) { return c.u && c.w; }).sort(function (a, b) { return a.w - b.w; });
+        var want = 1400 * Math.min(DPR, 1.5);
+        for (var i = 0; i < set.length; i++) if (set[i].w >= want) return set[i].u;
+        return set.length ? set[set.length - 1].u : (img.currentSrc || img.src);
+      }
+      var gl = null, cv = null, prog = null, U = {}, texCache = {}, glFailed = false;
+      function glFail() {
+        if (glFailed) return;
+        glFailed = true; gl = null;
+        if (cv) cv.remove();
+        els.forEach(function (el) { el.classList.remove('is-bent'); });
+        render(true);
+      }
+      (function initGL() {
+        if (reduce) return;
+        cv = document.createElement('canvas');
+        cv.className = 'wg-gl';
+        cv.setAttribute('aria-hidden', 'true');
+        stage.insertBefore(cv, stage.firstChild);
+        var o = { premultipliedAlpha: true, antialias: true, alpha: true };
+        gl = cv.getContext('webgl2', o) || cv.getContext('webgl', o);
+        if (!gl) { glFail(); return; }
+        var vs = 'attribute vec2 aUV;uniform float uTh,uW,uH,uY,uR,uP;uniform vec2 uView;varying vec2 vUV;varying float vCos;' +
+          'void main(){float a=(aUV.x-0.5)*uW;float ang=uTh+a/uR;float X=uR*sin(ang);float Z=uR*cos(ang)-uR;' +
+          'float sc=uP/(uP-Z);float sx=uView.x*0.5+X*sc;float Y=uY+aUV.y*uH;float sy=uView.y*0.5+(Y-uView.y*0.5)*sc;' +
+          'vUV=aUV;vCos=cos(ang);gl_Position=vec4(sx/uView.x*2.0-1.0,1.0-sy/uView.y*2.0,0.0,1.0);}';
+        var fs = 'precision highp float;uniform sampler2D uTex,uOv;uniform vec3 uImg;uniform float uW,uH,uAlpha,uReady,uHasOv;varying vec2 vUV;varying float vCos;' +
+          'void main(){if(vCos<0.0)discard;vec2 l=vec2(vUV.x*uW,vUV.y*uH);float Bw=1.2*uW;float bx=l.x+0.1*uW-uImg.z;' +
+          'float s=max(Bw/uImg.x,uH/uImg.y);float dw=uImg.x*s,dh=uImg.y*s;vec2 uv=vec2((bx-(Bw-dw)*0.5)/dw,(l.y-(uH-dh)*0.5)/dh);' +
+          'vec3 c=mix(vec3(0.851),texture2D(uTex,uv).rgb,uReady);vec4 o=texture2D(uOv,vUV);c=mix(c,o.rgb,o.a*uHasOv);' +
+          'gl_FragColor=vec4(c,1.0)*uAlpha;}';
+        function sh(t, src) { var x = gl.createShader(t); gl.shaderSource(x, src); gl.compileShader(x); return x; }
+        prog = gl.createProgram();
+        gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { glFail(); return; }
+        gl.useProgram(prog);
+        var d = [];
+        for (var i = 0; i <= SEG; i++) { var u = i / SEG; d.push(u, 0, u, 1); }
+        var buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(d), gl.STATIC_DRAW);
+        var loc = gl.getAttribLocation(prog, 'aUV');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        ['uTh', 'uW', 'uH', 'uY', 'uR', 'uP', 'uView', 'uTex', 'uOv', 'uImg', 'uAlpha', 'uReady', 'uHasOv'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+        gl.uniform1i(U.uTex, 0); gl.uniform1i(U.uOv, 1);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+        els.forEach(function (el) { el.classList.add('is-bent'); });
+        tiles.forEach(function (t) {
+          if (!t.src) return;
+          var c = texCache[t.src];
+          if (!c) {
+            c = texCache[t.src] = { tex: null, iw: 1, ih: 1, ready: false };
+            var im = new Image();
+            im.crossOrigin = 'anonymous';
+            im.onload = function () {
+              if (!gl) return;
+              try {
+                var tx = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, tx);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, im);
+                var mip = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+                if (mip) gl.generateMipmap(gl.TEXTURE_2D);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                c.tex = tx; c.iw = im.naturalWidth; c.ih = im.naturalHeight; c.ready = true;
+                render(true);
+              } catch (e) { glFail(); }
+            };
+            im.onerror = glFail;
+            im.src = t.src;
+          }
+          t.img = c;
+        });
+        cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); glFail(); });
+      })();
+      var blankTex = null;
+      function blank() {
+        if (blankTex) return blankTex;
+        blankTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, blankTex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+        return blankTex;
+      }
+      // étiquettes (Web, Branding…) dessinées dans une texture transparente, posée sur la photo
+      function overlays() {
+        if (!gl) return;
+        tiles.forEach(function (t) {
+          if (!t.media) return;
+          var w = t.media.offsetWidth, h = t.media.offsetHeight;
+          if (!w || !h) return;
+          var c = document.createElement('canvas');
+          c.width = Math.round(w * DPR); c.height = Math.round(h * DPR);
+          var x = c.getContext('2d');
+          x.scale(DPR, DPR);
+          $$('.works-tag', t.media).forEach(function (g) {
+            var ox = 0, oy = 0, e = g;
+            while (e && e !== t.media) { ox += e.offsetLeft; oy += e.offsetTop; e = e.offsetParent; }
+            var cs = getComputedStyle(g), gw = g.offsetWidth, gh = g.offsetHeight, rad = Math.min(parseFloat(cs.borderTopLeftRadius) || 0, gh / 2);
+            x.fillStyle = cs.backgroundColor;
+            x.beginPath();
+            if (x.roundRect) x.roundRect(ox, oy, gw, gh, rad); else x.rect(ox, oy, gw, gh);
+            x.fill();
+            x.fillStyle = cs.color;
+            x.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+            if ('letterSpacing' in x) x.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
+            x.textBaseline = 'middle';
+            x.textAlign = 'center';
+            var txt = cs.textTransform === 'uppercase' ? g.textContent.trim().toUpperCase() : g.textContent.trim();
+            x.fillText(txt, ox + gw / 2, oy + gh / 2 + 0.5);
+          });
+          if (!t.ov) t.ov = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, t.ov);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        });
+      }
 
       var G = {}, pinTop = 0, LOOP = 0;
       function mod(a, b) { return ((a % b) + b) % b; }
@@ -956,28 +1077,23 @@
         G = { k: k, SQ: 392 * k, WD: 680 * k, GAP: 25 * k, DY: 200 * k, vw: vw, vh: window.innerHeight };
         G.X0 = vw / 2 - G.SQ / 2;   // le premier projet démarre au centre de l'écran
         // cylindre sur toute la largeur : rayon tel que sa silhouette (bords à ±90°) touche les bords de l'écran
-        var P = 2200 * k, hw = vw / 2;
-        G.R = hw * P / (P - hw);
-        stage.style.perspective = Math.round(P) + 'px';
+        G.P = 2200 * k;
+        var hw = vw / 2;
+        G.R = hw * G.P / (G.P - hw);
+        stage.style.perspective = Math.round(G.P) + 'px';
         G.P2 = G.SQ + G.WD + 2 * G.GAP;
         LOOP = (PER / 2) * G.P2;
         pin.style.height = (G.vh + 3 * LOOP) + 'px';
         stage.style.setProperty('--wg-sq', G.SQ + 'px');
         stage.style.setProperty('--wg-wd', G.WD + 'px');
-        strips.forEach(function (list, r) {
-          var w = r % 2 ? G.WD : G.SQ;
-          list.forEach(function (b) {
-            var sw = w / b.K;
-            b.sw = sw;
-            b.el.style.width = (sw + 1).toFixed(2) + 'px';   // 1 px de recouvrement : pas de jour entre les bandes
-            b.el.style.height = G.SQ + 'px';
-            b.inner.style.width = w + 'px';
-            b.inner.style.left = (-b.j * sw).toFixed(2) + 'px';
-          });
-        });
+        if (gl) {
+          cv.width = Math.round(vw * DPR); cv.height = Math.round(G.vh * DPR);
+          gl.viewport(0, 0, cv.width, cv.height);
+          overlays();
+        }
         measure();
       }
-      // le premier projet démarre 100 px (maquette) sous le filet du titre
+      // le premier projet démarre sous le titre
       function measure() {
         // la scène démarre en haut de la page : les photos peuvent passer sous le titre
         pin.style.marginTop = '0px';
@@ -993,9 +1109,13 @@
         return rem < G.SQ + G.GAP ? 2 * n2 + rem / (G.SQ + G.GAP) : 2 * n2 + 1 + (rem - G.SQ - G.GAP) / (G.WD + G.GAP);
       }
       /* Rendu : la « caméra » suit le défilement avec un léger retard (lissage), ce qui donne de l'inertie.
-         Les tuiles tournent autour d'un cylindre (vis) et apparaissent / s'effacent en fondu animé. */
-      var sCur = null, raf = null, frozen = false, hold = !reduce, introOff = 0, bendR = -1, bendU = 0;
-      function smooth(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
+         Les tuiles tournent autour d'un cylindre (vis) et apparaissent / s'effacent en fondu animé (ease in-out). */
+      var sCur = null, raf = null, frozen = false, hold = !reduce, introOff = 0, bendR = -1, bendU = 0, fading = false, lastS = 0;
+      function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+      function fadeTo(t, v, now, dur) {
+        if (t.target === v) return;
+        t.a0 = t.alpha; t.target = v; t.at = now; t.dur = dur || FADE;
+      }
       function target() {
         var t = Math.max(0, window.scrollY);   // le défilement horizontal démarre dès le premier pixel
         // boucle : au-delà de 2 périodes, on recule d'une période (rendu identique)
@@ -1005,11 +1125,14 @@
         }
         return t;
       }
-      function draw(s, v) {
-        var p = pOf(s), c = p + 2.5, half = G.vw / 2;
+      function draw(s) {
+        lastS = s;
+        var p = pOf(s), c = p + 2.5, half = G.vw / 2, now = performance.now(), list = [];
+        fading = false;
         // Vis : les projets s'enroulent autour d'un cylindre vertical (rayon R) ; la position horizontale
         // devient un angle (longueur d'arc), la descente en escalier devient le pas de la vis
-        els.forEach(function (el, r) {
+        tiles.forEach(function (t, r) {
+          var el = t.el;
           var n = r + PER * Math.round((c - r) / PER);
           var w = n % 2 ? G.WD : G.SQ;
           var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
@@ -1019,27 +1142,48 @@
           var th = (x + w / 2 - half) / R;   // angle en radians, 0 = face à l'écran
           var vis = n >= 0 && th > -1.62 && th < 1.62 && y < G.vh + 80   // rien avant le premier projet
              && y > -G.SQ - 140;
-          if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
-          var inZone = reduce || (!hold && th < 1.25 && th > -1.35);
-          strips[r].forEach(function (b) {
-            var u = (b.j + 0.5) * b.sw - w / 2, tj = th + u / R;
-            var bv = vis && tj > -1.62 && tj < 1.62;
-            if (b.vis !== bv) { b.el.style.visibility = bv ? 'visible' : 'hidden'; b.vis = bv; }
-            if (!bv) { if (b.el.classList.contains('is-in')) b.el.classList.remove('is-in'); return; }
-            b.el.style.transform = 'translate3d(' + (half - b.sw / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (tj * 57.2958).toFixed(3) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
-            b.el.style.zIndex = String(Math.round(Math.cos(tj) * 100) + 100);
-            b.el.style.setProperty('--px', (-Math.max(-1, Math.min(1, th / 2)) * 8).toFixed(2) + '%');
-            if (b.el.classList.contains('is-in') !== inZone) b.el.classList.toggle('is-in', inZone);
-          });
-          if (!vis) { if (el.classList.contains('is-in')) el.classList.remove('is-in'); return; }
-          // la tuile (nom + zone de clic) s'accroche au bord gauche de la photo courbée, tangente au cylindre
-          var thL = th - w / (2 * R);
-          el.style.transform = 'translate3d(' + half.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (thL * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
+          // fondu : apparition quand la tuile arrive sur la face avant par la droite, disparition en repartant à gauche
+          if (!frozen || r !== bendR) fadeTo(t, (vis && (reduce || (!hold && th < 1.25 && th > -1.35))) && !(frozen && r !== bendR) ? 1 : 0, now, frozen ? 600 : FADE);
+          var k = Math.min(1, (now - t.at) / t.dur);
+          t.alpha = t.a0 + (t.target - t.a0) * (reduce ? 1 : ease(k));
+          if (k < 1) fading = true;
+          if (!vis || t.alpha <= 0.001) {
+            if (el.style.visibility !== 'hidden') el.style.visibility = 'hidden';
+            if (!vis) { t.alpha = t.target = t.a0 = 0; }
+            return;
+          }
+          if (el.style.visibility !== 'visible') el.style.visibility = 'visible';
+          el.style.opacity = t.alpha.toFixed(3);
           el.style.zIndex = String(Math.round(Math.cos(th) * 100) + 100);
-          // fondu animé (CSS) : apparition quand la tuile arrive sur la face avant par la droite, disparition en repartant à gauche
-          if (el.classList.contains('is-in') !== inZone) el.classList.toggle('is-in', inZone);
-          // parallaxe horizontale dans la photo
-          el.style.setProperty('--px', (-Math.max(-1, Math.min(1, th / 2)) * 8).toFixed(2) + '%');
+          var px = -Math.max(-1, Math.min(1, th / 2)) * 8;   // parallaxe horizontale dans la photo (%)
+          el.style.setProperty('--px', px.toFixed(2) + '%');
+          if (gl) {
+            // la tuile HTML (nom + zone de clic) s'accroche au bord gauche de la photo courbée, tangente au cylindre
+            var thL = th - w / (2 * R);
+            el.style.transform = 'translate3d(' + half.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (thL * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
+            if (!t.hidden) list.push({ t: t, th: th, w: w, y: y, R: R, px: px });
+          } else {
+            el.style.transformOrigin = '50% 50%';
+            el.style.transform = 'translate3d(' + (half - w / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (th * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
+          }
+        });
+        if (!gl) return;
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.uniform1f(U.uP, G.P);
+        gl.uniform2f(U.uView, G.vw, G.vh);
+        list.sort(function (a, b) { return Math.cos(a.th) - Math.cos(b.th); });   // de l'arrière vers l'avant
+        list.forEach(function (d) {
+          var im = d.t.img || { ready: false, iw: 1, ih: 1 };
+          gl.uniform1f(U.uTh, d.th); gl.uniform1f(U.uW, d.w); gl.uniform1f(U.uH, G.SQ);
+          gl.uniform1f(U.uY, d.y); gl.uniform1f(U.uR, d.R);
+          gl.uniform3f(U.uImg, im.iw, im.ih, d.px / 100 * 1.2 * d.w);
+          gl.uniform1f(U.uAlpha, d.t.alpha);
+          gl.uniform1f(U.uReady, im.ready ? 1 : 0);
+          gl.uniform1f(U.uHasOv, d.t.ov ? 1 : 0);
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, im.ready ? im.tex : blank());
+          gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, d.t.ov || blank());
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 2 * (SEG + 1));
         });
       }
       function loop() {
@@ -1047,11 +1191,10 @@
         if (frozen || container.classList.contains('is-list')) return;
         var t = target();
         if (sCur === null || reduce) sCur = t;
-        var v = t - sCur;
-        sCur += v * 0.085;
-        if (Math.abs(t - sCur) < 0.3) { sCur = t; v = 0; }
-        draw(sCur + introOff, v);
-        if (sCur !== t) raf = requestAnimationFrame(loop);
+        sCur += (t - sCur) * 0.085;
+        if (Math.abs(t - sCur) < 0.3) sCur = t;
+        draw(sCur + introOff);
+        if (sCur !== t || fading) raf = requestAnimationFrame(loop);
       }
       function render() {
         if (container.classList.contains('is-list')) return;
@@ -1061,8 +1204,11 @@
       on(window, 'resize', function () { geo(); sCur = null; render(); });
       geo(); sCur = null; loop();
       on(window, 'load', function () { measure(); render(); });
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!frozen) { measure(); render(); } });
-      ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!frozen) { measure(); overlays(); render(); } });
+      ac.signal.addEventListener('abort', function () {
+        if (raf) cancelAnimationFrame(raf);
+        if (gl) { var lose = gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); gl = null; }
+      });
       // entrée : le cylindre part tourné d'un demi-radian et revient à sa position initiale (ease out)
       function intro(delay) {
         if (reduce || !delay) { hold = false; introOff = 0; render(); return; }
@@ -1073,38 +1219,38 @@
           (function step(now) {
             var t = Math.min(1, (now - t0) / 1900), e = 1 - Math.pow(1 - t, 3);
             introOff = from * (1 - e);
-            if (!frozen && !container.classList.contains('is-list')) draw((sCur === null ? 0 : sCur) + introOff, 0);
-            if (t < 1) requestAnimationFrame(step);
+            if (!frozen && !container.classList.contains('is-list')) draw((sCur === null ? 0 : sCur) + introOff);
+            if (t < 1) requestAnimationFrame(step); else render();
           })(t0);
         }, delay);
       }
       /* Clic sur un projet : le cylindre tourne pour amener la tuile face à l'écran pendant qu'elle se déplie
-         (rayon → infini) ; les autres tuiles s'effacent. À la fin, la photo plate d'origine remplace les bandes
-         exactement au même endroit : pas de saut. */
+         (rayon → infini) ; les autres tuiles s'effacent. À la fin, la photo HTML d'origine, plate, remplace le
+         rendu WebGL exactement au même endroit : pas de saut. */
       function focus(el, dur) {
         frozen = true;
         if (raf) { cancelAnimationFrame(raf); raf = null; }
         var r = els.indexOf(el);
-        strips.forEach(function (list, i) {
-          if (i === r) return;
-          list.forEach(function (b) { b.el.style.transition = 'opacity 500ms ease'; b.el.style.opacity = '0'; });
-        });
-        var s0 = (sCur === null ? 0 : sCur) + introOff, n = el._n, w = n % 2 ? G.WD : G.SQ;
+        var s0 = lastS, n = el._n, w = n % 2 ? G.WD : G.SQ;
         var s1 = G.X0 + xOf(n) + w / 2 - G.vw / 2;   // caméra qui centre la tuile
         bendR = r;
         return new Promise(function (res) {
-          if (reduce) { bendU = 1; draw(s1, 0); res(); return; }
+          if (reduce) { bendU = 1; draw(s1); res(); return; }
           var t0 = performance.now();
           (function step(now) {
-            var t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            var t = Math.min(1, (now - t0) / dur), e = ease(t);
             bendU = e;
-            draw(s0 + (s1 - s0) * e, 0);
+            draw(s0 + (s1 - s0) * e);
             if (t < 1) requestAnimationFrame(step); else res();
           })(t0);
         }).then(function () {
-          el.style.transform = 'translate3d(' + (G.vw / 2 - w / 2).toFixed(1) + 'px,' + el.style.transform.match(/translate3d\([^,]+,\s*([^,]+),/)[1] + ',0)';
-          el.classList.remove('is-bent');                      // la photo plate réapparaît…
-          strips[r].forEach(function (b) { b.el.style.transition = 'none'; b.el.style.opacity = '0'; });   // …à la place des bandes
+          if (gl) {
+            el.style.transform = 'translate3d(' + (G.vw / 2 - w / 2).toFixed(1) + 'px,' + el.style.transform.match(/translate3d\([^,]+,\s*([^,]+),/)[1] + ',0)';
+            el.classList.remove('is-bent');   // la photo HTML plate réapparaît…
+            tiles[r].hidden = true;           // …à la place du rendu WebGL
+            draw(s1);
+            cv.style.opacity = '0';
+          }
         });
       }
       return { els: els, pin: pin, intro: intro, focus: focus, render: function () { geo(); render(); } };
@@ -1347,8 +1493,7 @@
       if (!media) return Promise.resolve(null);
       root.classList.add('is-leaving');
       // les autres tuiles, l'en-tête et le nom du projet cliqué s'effacent pendant que la tuile se déplie
-      $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat(wg.els.filter(function (el) { return el !== best; }))
-        .concat($$('.works-name', best)).forEach(function (el) { el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0'; });
+      $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat($$('.works-name', best)).forEach(function (el) { el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0'; });
       var r;
       return wg.focus(best, 900).then(function () {
         r = media.getBoundingClientRect();
