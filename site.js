@@ -925,37 +925,13 @@
       for (var r = 0; r < PER; r++) {
         var el = cards[r % N].cloneNode(true);
         el.classList.add('wg-card', r % 2 ? 'is-wide' : 'is-sq');
-        var fxm = el.querySelector('.works-media');
-        if (fxm) fxm.insertAdjacentHTML('beforeend', '<span class="wg-fx wg-fx--color" aria-hidden="true"></span><span class="wg-fx wg-fx--light" aria-hidden="true"></span>');
         el.removeAttribute('id');
         stage.appendChild(el);
         els.push(el);
       }
       container.classList.add('has-wg');
       gridWrap.classList.add('wg-src');
-      // Déformation glitch : un bruit en bandes horizontales, quantifié en paliers (feComponentTransfer discrete),
-      // décale des tranches de la tuile vers la gauche ou la droite ; le rouge est décalé à part (aberration RVB).
-      // L'amplitude grandit vers les bords ; le motif saute d'un état à l'autre pendant le défilement
-      var NS = 'http://www.w3.org/2000/svg', fsvg = document.createElementNS(NS, 'svg');
-      fsvg.setAttribute('aria-hidden', 'true');
-      fsvg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
-      var fx = els.map(function (el, i) {
-        var f = document.createElementNS(NS, 'filter'), id = 'wg-warp-' + i;
-        f.setAttribute('id', id);
-        f.setAttribute('x', '-15%'); f.setAttribute('y', '-15%'); f.setAttribute('width', '130%'); f.setAttribute('height', '130%');
-        f.setAttribute('color-interpolation-filters', 'sRGB');
-        f.innerHTML = '<feTurbulence type="fractalNoise" baseFrequency="0 0.03" numOctaves="1" seed="' + (3 + i * 7) + '" result="n"/>' +
-          '<feComponentTransfer in="n" result="q"><feFuncR type="discrete" tableValues="0.5 0.5 0.15 0.5 0.85 0.5 0.3 1 0.5 0 0.5 0.7"/>' +
-          '<feFuncG type="discrete" tableValues="0.5"/></feComponentTransfer>' +
-          '<feDisplacementMap in="SourceGraphic" in2="q" scale="0" xChannelSelector="R" yChannelSelector="G" result="d"/>' +
-          '<feColorMatrix in="d" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="r"/>' +
-          '<feOffset in="r" dx="0" dy="0" result="ro"/>' +
-          '<feColorMatrix in="d" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" result="gb"/>' +
-          '<feBlend in="ro" in2="gb" mode="screen"/>';
-        fsvg.appendChild(f);
-        return { id: id, t: f.querySelector('feTurbulence'), d: f.querySelector('feDisplacementMap'), o: f.querySelector('feOffset'), last: '', seed: -1 };
-      });
-      pin.appendChild(fsvg);
+
       var G = {}, pinTop = 0, LOOP = 0;
       function mod(a, b) { return ((a % b) + b) % b; }
       function geo() {
@@ -980,9 +956,7 @@
         return rem < G.SQ + G.GAP ? 2 * n2 + rem / (G.SQ + G.GAP) : 2 * n2 + 1 + (rem - G.SQ - G.GAP) / (G.WD + G.GAP);
       }
       /* Rendu : la « caméra » suit le défilement avec un léger retard (lissage), ce qui donne de l'inertie.
-         Les tuiles éloignées du centre sont « aspirées » vers les bords : elles reculent (rotation en
-         perspective), rétrécissent, s'estompent et se floutent ; la tuile centrale reste nette.
-         La vitesse fait flotter légèrement les tuiles (décalage vertical qui s'accentue vers les bords). */
+         Les tuiles apparaissent en fondu en entrant par la droite et s'effacent en sortant par la gauche. */
       var sCur = null, raf = null, frozen = false;
       function smooth(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
       function target() {
@@ -996,7 +970,6 @@
       }
       function draw(s, v) {
         var p = pOf(s), c = p + 2.5, half = G.vw / 2;
-        var drift = Math.max(-1, Math.min(1, v / 220));   // vitesse normalisée
         els.forEach(function (el, r) {
           var n = r + PER * Math.round((c - r) / PER);
           var w = n % 2 ? G.WD : G.SQ;
@@ -1004,33 +977,11 @@
           var vis = x < G.vw + 80 && x + w > -80 && y < G.vh + 80 && y > -G.SQ - 140;
           if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
           if (!vis) return;
-          var q = (x + w / 2 - half) / half, sg = q < 0 ? -1 : 1, a = Math.abs(q);
-          var e = reduce ? 0 : smooth(0.2, 1.15, a);   // 0 au centre → 1 sur les bords
-          var tx = x + sg * e * 70 * G.k;
-          var ty = y + (reduce ? 0 : drift * (14 + 26 * a) * G.k);
-          var sc = 1 - 0.2 * e - Math.abs(drift) * 0.025;
-          var ry = -sg * 24 * e;
-          // la tuile s'écrase un peu en largeur en s'éloignant du centre
-          var sx = 1 - 0.1 * e;
-          el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) perspective(' + Math.round(1600 * G.k) + 'px) rotateY(' + ry.toFixed(2) + 'deg) scale(' + (sc * sx).toFixed(4) + ',' + sc.toFixed(4) + ')';
-          // pas d'opacité : des calques en mode de fusion (couleur + superposition claire) font fondre la photo dans le fond
-          el.style.setProperty('--e', e.toFixed(3));
-          var bl = 2.5 * e * e;
-          // glitch : amplitude selon la distance au centre (+ selon la vitesse) ; le motif change par sauts
-          var amp = (reduce ? 0 : (90 * e * e + 30 * Math.abs(drift) * (0.2 + a))) * G.k, F = fx[r], fl = '';
-          if (amp > 1.5) {
-            var sd = 3 + r * 7 + Math.floor(s / 70);
-            if (sd !== F.seed) {
-              F.seed = sd;
-              F.t.setAttribute('seed', sd);
-              F.t.setAttribute('baseFrequency', '0 ' + (0.018 + 0.03 * ((sd * 0.618) % 1)).toFixed(4));   // tranches plus ou moins fines
-            }
-            F.d.setAttribute('scale', amp.toFixed(1));
-            F.o.setAttribute('dx', (-sg * (2 + 9 * e) * G.k).toFixed(1));   // aberration rouge vers l'extérieur
-            fl = 'url(#' + F.id + ')';
-          }
-          if (bl > 0.15) fl += (fl ? ' ' : '') + 'blur(' + bl.toFixed(2) + 'px)';
-          if (fl !== F.last) { el.style.filter = fl; F.last = fl; }
+          // fondu : la tuile apparaît en entrant par la droite et s'efface en sortant par la gauche
+          var q = (x + w / 2 - half) / half, a = Math.abs(q);
+          var e = reduce ? 0 : smooth(0.55, 1.3, a);   // 0 au centre → 1 sur les bords
+          el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
+          el.style.opacity = (1 - e).toFixed(3);
           // parallaxe horizontale dans la photo
           el.style.setProperty('--px', (-Math.max(-1, Math.min(1, q / 2)) * 8).toFixed(2) + '%');
         });
@@ -1055,7 +1006,7 @@
       on(window, 'resize', function () { geo(); sCur = null; render(); });
       geo(); sCur = null; measure(); loop();
       ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
-      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function () { frozen = true; els.forEach(function (el, i) { el.style.filter = ''; fx[i].last = ''; }); } };
+      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function () { frozen = true; } };
     }
     if (head && gridWrap) {
       var tg = document.createElement('div');

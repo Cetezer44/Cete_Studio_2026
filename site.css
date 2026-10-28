@@ -417,15 +417,11 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   .works-page.has-wg .wg-pin { display: block; position: relative; width: 100vw; margin-left: calc(50% - 50vw); }
   .works-page.has-wg.is-list .wg-pin { display: none; }
   .wg-stage { position: sticky; top: 0; height: 100vh; overflow: hidden; }
-  .wg-card { position: absolute; left: 0; top: 0; width: var(--wg-sq); margin: 0 !important; will-change: transform, filter, opacity; }
+  .wg-card { position: absolute; left: 0; top: 0; width: var(--wg-sq); margin: 0 !important; will-change: transform, opacity; }
   .wg-card.is-wide { width: var(--wg-wd); }
   .wg-card .works-media { position: relative; width: 100%; height: var(--wg-sq); aspect-ratio: auto; padding: 0; overflow: hidden; }
   .wg-card .works-media-link { display: block; width: 100%; height: 100%; }
   .wg-card .works-img { position: absolute; top: 0; left: -10%; width: 120%; max-width: none; height: 100%; object-fit: cover;
     translate: var(--px, 0%) 0; }
   .wg-card .works-card-title { font-size: 20px; }
-  /* Fusion vers les bords (--e : 0 au centre → 1 au bord, piloté par site.js) */
-  .wg-fx { position: absolute; inset: 0; z-index: 2; pointer-events: none; background: #f0f0f0; }
-  .wg-fx--color { mix-blend-mode: color; opacity: var(--e, 0); }                    /* désature vers le gris du fond */
-  .wg-fx--light { mix-blend-mode: soft-light; opacity: calc(var(--e, 0) * .9); }    /* éclaircit / adoucit les contrastes */
 }
