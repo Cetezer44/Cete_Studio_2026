@@ -426,4 +426,14 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   .wg-card .works-img { position: absolute; top: 0; left: -10%; width: 120%; max-width: none; height: 100%; object-fit: cover;
     translate: var(--px, 0%) 0; }
   .wg-card .works-card-title { font-size: 20px; }
+  /* Tuiles courbées : bandes de photo posées sur le cylindre ; la photo de la tuile elle-même est masquée */
+  .wg-card.is-bent .works-media > * { opacity: 0; }
+  .wg-card.is-bent .works-media { background: transparent; }
+  .wg-strip { position: absolute; left: 0; top: 0; overflow: hidden; pointer-events: none; backface-visibility: hidden;
+    opacity: 0; transition: opacity 1000ms cubic-bezier(.65,0,.35,1); will-change: transform, opacity; }
+  .wg-strip.is-in { opacity: 1; }
+  .wg-strip-in { position: absolute; top: 0; height: 100%; }
+  .wg-strip-in .works-media { position: relative; width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  .wg-strip .works-img { position: absolute; top: 0; left: -10%; width: 120%; max-width: none; height: 100%; object-fit: cover;
+    translate: var(--px, 0%) 0; transform: none !important; transition: none; }
 }

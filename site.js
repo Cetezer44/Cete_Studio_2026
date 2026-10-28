@@ -931,6 +931,23 @@
       }
       container.classList.add('has-wg');
       gridWrap.classList.add('wg-src');
+      // Tuiles courbées : la photo de chaque tuile est découpée en fines bandes verticales posées une à une
+      // sur le cylindre (chaque bande a son propre angle). La tuile d'origine reste en place, photo masquée,
+      // pour le survol (« Voir »), le clic et la transition vers le projet.
+      var strips = els.map(function (el, r) {
+        var media = el.querySelector('.works-media'), K = r % 2 ? 22 : 13, list = [];
+        if (!media) return list;
+        el.classList.add('is-bent');
+        for (var j = 0; j < K; j++) {
+          var st = document.createElement('div'); st.className = 'wg-strip'; st.setAttribute('aria-hidden', 'true');
+          var inner = document.createElement('div'); inner.className = 'wg-strip-in';
+          var cm = media.cloneNode(true);
+          $$('a', cm).forEach(function (a) { a.removeAttribute('href'); a.setAttribute('tabindex', '-1'); });
+          inner.appendChild(cm); st.appendChild(inner); stage.appendChild(st);
+          list.push({ el: st, inner: inner, j: j, K: K, vis: null });
+        }
+        return list;
+      });
 
       var G = {}, pinTop = 0, LOOP = 0;
       function mod(a, b) { return ((a % b) + b) % b; }
@@ -943,6 +960,17 @@
         pin.style.height = (G.vh + 3 * LOOP) + 'px';
         stage.style.setProperty('--wg-sq', G.SQ + 'px');
         stage.style.setProperty('--wg-wd', G.WD + 'px');
+        strips.forEach(function (list, r) {
+          var w = r % 2 ? G.WD : G.SQ;
+          list.forEach(function (b) {
+            var sw = w / b.K;
+            b.sw = sw;
+            b.el.style.width = (sw + 1).toFixed(2) + 'px';   // 1 px de recouvrement : pas de jour entre les bandes
+            b.el.style.height = G.SQ + 'px';
+            b.inner.style.width = w + 'px';
+            b.inner.style.left = (-b.j * sw).toFixed(2) + 'px';
+          });
+        });
         measure();
       }
       // le premier projet démarre 100 px (maquette) sous le filet du titre
@@ -981,11 +1009,21 @@
           var th = (x + w / 2 - half) / R;   // angle en radians, 0 = face à l'écran
           var vis = th > -1.75 && th < 1.75 && y < G.vh + 80 && y > -G.SQ - 140;
           if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
+          var inZone = reduce || (th < 1.2 && th > -1.3);
+          strips[r].forEach(function (b) {
+            var u = (b.j + 0.5) * b.sw - w / 2, tj = th + u / R;
+            var bv = vis && tj > -1.75 && tj < 1.75;
+            if (b.vis !== bv) { b.el.style.visibility = bv ? 'visible' : 'hidden'; b.vis = bv; }
+            if (!bv) { if (b.el.classList.contains('is-in')) b.el.classList.remove('is-in'); return; }
+            b.el.style.transform = 'translate3d(' + (half - b.sw / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (tj * 57.2958).toFixed(3) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
+            b.el.style.zIndex = String(Math.round(Math.cos(tj) * 100) + 100);
+            b.el.style.setProperty('--px', (-Math.max(-1, Math.min(1, th / 2)) * 8).toFixed(2) + '%');
+            if (b.el.classList.contains('is-in') !== inZone) b.el.classList.toggle('is-in', inZone);
+          });
           if (!vis) { if (el.classList.contains('is-in')) el.classList.remove('is-in'); return; }
           el.style.transform = 'translate3d(' + (half - w / 2).toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (th * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
           el.style.zIndex = String(Math.round(Math.cos(th) * 100) + 100);
           // fondu animé (CSS) : apparition quand la tuile arrive sur la face avant par la droite, disparition en repartant à gauche
-          var inZone = reduce || (th < 1.2 && th > -1.3);
           if (el.classList.contains('is-in') !== inZone) el.classList.toggle('is-in', inZone);
           // parallaxe horizontale dans la photo
           el.style.setProperty('--px', (-Math.max(-1, Math.min(1, th / 2)) * 8).toFixed(2) + '%');
@@ -1011,7 +1049,11 @@
       on(window, 'resize', function () { geo(); sCur = null; render(); });
       geo(); sCur = null; measure(); loop();
       ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
-      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function () { frozen = true; } };
+      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function (keep) {
+        frozen = true;
+        strips.forEach(function (list) { list.forEach(function (b) { b.el.style.transition = 'opacity 500ms ease'; b.el.style.opacity = '0'; }); });
+        if (keep) keep.classList.remove('is-bent');   // la photo de la tuile cliquée réapparaît pour la transition
+      } };
     }
     if (head && gridWrap) {
       var tg = document.createElement('div');
@@ -1233,7 +1275,7 @@
       var media = best && $('.works-media', best);
       if (!media) return Promise.resolve(null);
       root.classList.add('is-leaving');
-      wg.freeze();
+      wg.freeze(best);
       var r = media.getBoundingClientRect();
       $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat(wg.els).forEach(function (el) {
         el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0';
