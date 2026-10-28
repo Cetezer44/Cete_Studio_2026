@@ -284,7 +284,7 @@ html.is-menu-reset .side-bar { transition: none !important; }
 /* =====================================================================
    Page Projets : vue grille (quinconce) / vue liste + bascule
    ===================================================================== */
-.works-toggle { display: flex; column-gap: 25px; }
+.works-toggle { display: flex; column-gap: 31px; }
 .works-tg { padding: 0; border: 0; background: none; color: #b8b8b8; font: inherit; font-size: 13px; line-height: 1; font-weight: 300;
   letter-spacing: 0; text-transform: uppercase; cursor: pointer; text-decoration: underline; text-decoration-color: transparent;
   text-underline-offset: 3px; text-decoration-thickness: 1px; transition: color 400ms ease, text-decoration-color 400ms ease; }
@@ -293,7 +293,7 @@ html.is-menu-reset .side-bar { transition: none !important; }
 
 /* En-tête (maquette 1440 : titre 50 px à x = 200, filet gris 200 → 1240 à y = 315, Grille / Liste à droite) */
 @media (min-width: 768px) {
-  .works-page .works-head { display: flex; align-items: flex-end; justify-content: space-between; margin-left: 13.889vw; margin-right: 13.889vw;
+  .works-page .works-head { display: flex; align-items: flex-end; justify-content: space-between; margin-left: calc(13.889vw - 30px); margin-right: calc(13.889vw - 30px);
     padding: 0 0 26px; border-bottom: 1px solid #dcdcdc; width: auto; }
   .works-page .works-title { margin: 0; padding: 0; font-size: 50px; line-height: 1; letter-spacing: -0.03em; }
   .works-page .works-toggle { margin: 0 0 4px; }
@@ -312,7 +312,7 @@ html.is-menu-reset .side-bar { transition: none !important; }
 }
 
 /* Vue liste */
-.works-rows { display: none; margin: 66px 13.889vw 160px; }
+.works-rows { display: none; margin: 66px calc(13.889vw - 30px) 160px; }
 .works-page.is-list .works-rows { display: block; }
 .works-page.is-list .works-list { display: none; }
 .wl-row { position: relative; display: grid; grid-template-columns: 26.73% 14.42% 18.65% 1fr; align-items: center;
@@ -414,7 +414,7 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 .wg-pin { display: none; }
 @media (min-width: 768px) {
   .works-page.has-wg .wg-src { display: none; }
-  .works-page.has-wg .wg-pin { display: block; position: relative; }
+  .works-page.has-wg .wg-pin { display: block; position: relative; width: 100vw; margin-left: calc(50% - 50vw); }
   .works-page.has-wg.is-list .wg-pin { display: none; }
   .wg-stage { position: sticky; top: 0; height: 100vh; overflow: hidden; }
   .wg-card { position: absolute; left: 0; top: 0; width: var(--wg-sq); margin: 0 !important; will-change: transform; }
