@@ -263,6 +263,7 @@
         n1:   m ? 0.95 : 0.973,           // taille des photos voisines
         fall: m ? 0.12 : 0.157,           // réduction de taille par cran supplémentaire
         sh:   m ? 0 : -135 * k,           // décalage vers la gauche de la photo active (roue un peu plus à droite)
+        bx:   m ? 0 : 60 * k,             // photos de derrière poussées vers la droite (pas de vide sur le bord droit)
         gap:  m ? 20 : 40 * k,
         k:    m ? Math.max(0.6, k * 0.6) : k,
         w: cards[0].offsetWidth,
@@ -333,7 +334,7 @@
         var a = -d * g.step;              // les projets suivants arrivent par le bas
         var f = smooth(Math.max(0, 1 - ad));
         var rad = a * Math.PI / 180;
-        var x = g.px - g.R * Math.cos(rad) + g.sh * f;
+        var x = g.px - g.R * Math.cos(rad) + g.sh * f + g.bx * (1 - f);
         var y = g.py - g.R * Math.sin(rad);
         var s = ad < 1 ? g.n1 + (g.sc - g.n1) * f : Math.max(0.55, g.n1 - g.fall * (ad - 1));
         var c = cards[j];
