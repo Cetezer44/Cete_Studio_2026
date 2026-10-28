@@ -12,6 +12,8 @@
   c.innerHTML = '<div class="c-cursor__ring"></div><div class="c-cursor__dot"></div>' +
     '<div class="c-cursor__label"><div class="c-cursor__label-in"><img src="' + PLAY + '" alt=""><span>Lire le showreel</span></div></div>' +
     '<div class="c-cursor__disc"><span class="c-cursor__disc-in">Découvrir</span></div>' +
+    // Modal contact : « Fermer » partout où il n'y a pas de lien
+    '<div class="c-cursor__close"><span class="c-cursor__close-in">Fermer</span></div>' +
     // Hero de l'accueil : invitation au scroll (trait qui s'efface, puis « Scroll », en boucle)
     '<div class="c-cursor__cue"><span class="c-cursor__cue-in"><i class="c-cursor__cue-line"></i><span class="c-cursor__cue-txt">Scroll</span></span></div>' +
     // Lecture / pause au survol de la vidéo du showreel (maquette Figma « Play/Pause »)
@@ -32,6 +34,7 @@
   var media = c.querySelector('.c-cursor__media'), over = null;   // vidéo survolée
   var disc = c.querySelector('.c-cursor__disc');
   var cue = c.querySelector('.c-cursor__cue');
+  var closer = c.querySelector('.c-cursor__close');
   var mx = -100, my = -100, rx = mx, ry = my;
   var LINKS = 'a, button, [role="button"], input[type="submit"], label, select';
 
@@ -41,7 +44,7 @@
   });
   document.addEventListener('mouseleave', function () { c.classList.remove('is-visible'); view.classList.remove('is-on'); });
   // clic sur un projet : la pastille disparaît pendant la transition
-  document.addEventListener('click', function () { view.classList.remove('is-on'); c.classList.remove('is-view'); }, true);
+  document.addEventListener('click', function () { view.classList.remove('is-on'); c.classList.remove('is-view', 'is-close'); }, true);
   document.addEventListener('mouseover', function (e) {
     var t = e.target.closest ? e.target : null;
     var video = !!(t && t.closest('.showreel'));
@@ -51,6 +54,7 @@
     c.classList.toggle('is-view', see);
     view.classList.toggle('is-on', see);
     c.classList.toggle('is-hover', !video && !over && !see && !!(t && t.closest(LINKS)));
+    c.classList.toggle('is-close', !!(t && document.documentElement.classList.contains('is-menu') && t.closest('.cm, .cm-bg') && !t.closest(LINKS)));
     mediaState();
   });
   function mediaState() {
@@ -72,6 +76,7 @@
     view.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     disc.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     cue.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
+    closer.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     requestAnimationFrame(loop);
   })();
 })();
@@ -85,22 +90,6 @@
   var $ = function (s, c) { return (c || document).querySelector(s); };
   var $$ = function (s, c) { return [].slice.call((c || document).querySelectorAll(s)); };
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-  // Barre noire de droite : uniquement sur l'accueil (sur les autres pages elle sort par la droite,
-  // sauf sur mobile où elle porte le menu). --side = largeur réellement occupée (0 quand elle est masquée).
-  function barOff() { return root.classList.contains('no-bar') && window.innerWidth >= 768; }
-  function sideW() { var s = $('.side-bar'); if (!s) return 0; return barOff() ? 0 : s.offsetWidth; }
-  function setSide() { root.style.setProperty('--side', sideW() + 'px'); }
-  var barT = null;
-  function setBar(on) {
-    clearTimeout(barT);
-    var was = !root.classList.contains('no-bar');
-    root.classList.toggle('no-bar', !on);
-    // retour de la barre : l'espace (fond de la modal) n'est réservé qu'une fois la barre revenue, sans saut
-    if (on && !was) barT = setTimeout(setSide, 750); else setSide();
-  }
-  root.classList.toggle('no-bar', location.pathname.replace(/\/+$/, '') !== '');
-  setSide();
-  window.addEventListener('resize', setSide);
 
   /* ---------- Outils : masques ---------- */
   function maskText(el, axis) {
@@ -167,7 +156,8 @@
         s.textContent = w;
         s.style.display = 'inline-block';
         h.appendChild(s);
-        if (i < words.length - 1) h.appendChild(document.createTextNode(' '));
+        // retour à la ligne forcé après « de » (maquette : « Studio de / design digital. »)
+        if (i < words.length - 1) h.appendChild(/^de$/i.test(w) ? document.createElement('br') : document.createTextNode(' '));
         return s;
       });
       var lines = [], top = null;
@@ -205,7 +195,11 @@
         s.style.transform = 'translateY(-110%)';
       });
     }
-    if (reduce) { root.classList.remove('is-intro'); }
+    if (reduce) {
+      root.classList.remove('is-intro');
+      var hr = $('.hero-title', track);
+      if (hr) hr.innerHTML = hr.textContent.trim().replace(/(^|\s)de\s+/i, '$1de<br>');
+    }
     else if (first && document.fonts && document.fonts.ready) {
       document.fonts.ready.then(splitTitle);
       setTimeout(splitTitle, 1500); // filet de sécurité
@@ -615,8 +609,7 @@
       var aboutUpdate = function () {
         var r = aboutText.getBoundingClientRect(), vh = window.innerHeight;
         // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran
-        var dark = aboutSec.getBoundingClientRect().top < vh * 0.5;
-        container.classList.toggle('is-dark', dark);
+        container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5);
 
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
         litGoal = Math.round(p * aboutWords.length);
@@ -646,12 +639,12 @@
         var t = e.target;
         var inHero = !free && !anchoring && !intro && !root.classList.contains('is-menu') && !root.classList.contains('is-reel') &&
           t.closest && t.closest('.home-track') &&
-          !t.closest('a, button, .wheel-card, .showreel, .home-nav, .home-logo, .home-socials, .side-bar');
+          !t.closest('a, button, .wheel-card, .showreel, .home-nav, .home-logo, .home-socials');
         cueSet(!!inHero);
       }, { passive: true });
       on(window, 'scroll', function () { if (free) cueSet(false); }, { passive: true });
       on(document, 'mouseleave', function () { cueSet(false); });
-      ac.signal.addEventListener('abort', function () { root.classList.remove('is-scrollcue', 'is-home-dark'); });
+      ac.signal.addEventListener('abort', function () { root.classList.remove('is-scrollcue'); });
     }
 
     window.scrollTo(0, 0);
@@ -713,9 +706,7 @@
     }
 
     /* ---- 5. Loader (1re visite, étapes 1 à 8 de la maquette) ---- */
-    var sideContact = maskText($('.side-contact'), 'x');
-    var sideCopy = maskText($('.side-copy'), 'x');
-    var burger = $$('.burger-line');
+    var burger = $$('.burger-line');   // burger (mobile)
     burger.forEach(function (b) { b.style.transformOrigin = 'right center'; b.style.transform = 'scaleX(0)'; });
     var navLinks = $$('.home-nav .nav-link', track).map(function (a) { return maskText(a); });
     var socials = $$('.home-socials .nav-link', track).map(function (a) { return maskText(a); });
@@ -723,7 +714,6 @@
     var logoImg = $('.home-logo img', track);
     if (logo && logoImg) { logo.style.overflow = 'hidden'; logoImg.dataset.axis = 'y'; hide(logoImg); }
 
-    var side = $('.side-bar');
     var L = document.createElement('div');
     L.setAttribute('aria-hidden', 'true');
     L.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:100vw;z-index:9998;background:#f0f0f0;overflow:hidden;' +
@@ -776,17 +766,16 @@
     at(T += 1000, function () { lMask.style.transform = 'translateX(0)'; reveal([tIn], 300, 0, 1000); });
     // Étape 3 : le fond passe au noir (le texte s'inverse grâce au mode différence)
     at(T += 1500, function () { L.style.backgroundColor = '#000'; });
-    // Étape 4 : les textes sortent, le fond se réduit à droite pour devenir la barre latérale
+    // Étape 4 : les textes sortent, le fond se retire vers la droite
     at(T += 1000, function () {
       lIn.style.transition = 'clip-path 550ms ' + INOUT;
       lIn.style.clipPath = 'inset(-8px -8px -8px calc(100% + 8px))';
       conceal([tIn], 60, 0, 550);
     });
-    at(T += 550, function () { L.style.width = (side ? side.offsetWidth : 68) + 'px'; });
-    // Étape 5 : contenu de la barre latérale
+    at(T += 550, function () { L.style.width = '0px'; });
+    // Étape 5 : le burger (mobile) se dessine
     at(T += 1100, function () {
       L.remove();
-      reveal([sideContact, sideCopy], 0, 120, 900);
       burger.forEach(function (b, i) {
         setTimeout(function () { b.style.transition = 'transform 800ms ' + EASE; b.style.transform = 'scaleX(1)'; }, 80 + i * 70);
       });
@@ -905,7 +894,6 @@
     });
     var cards = $$('.works-card', container);
     var title = $('.works-title', container);
-    var contact = $('.works-contact', container);
 
     /* Vue liste / vue grille ------------------------------------------------------------
        La liste est construite à partir des tuiles CMS (nom, année via data-year, catégories, photo, lien) :
@@ -1404,11 +1392,8 @@
       on(i, 'animationend', function () { i.classList.remove('is-nudge'); });
     });
     cards.forEach(function (c) { on(c, 'mouseenter', function () { nudge($('.works-arrow-icon', c)); }); });
-    if (contact) on(contact, 'mouseenter', function () { nudge($('.works-arrow-icon', contact)); });
 
-    // Entrée : le titre monte dans son masque ; chaque tuile se dévoile de bas en haut (clip-path)
-    // quand elle arrive à l'écran, puis son nom et sa flèche montent dans leur masque
-    // Titre : sans masque. Il apparaît en fondu centré sur sa ligne, glisse vers la gauche à sa place, puis « Grille / Liste »
+    // Entrée — titre : sans masque. Il apparaît en fondu centré sur sa ligne, glisse vers la gauche à sa place, puis « Grille / Liste »
     // apparaissent et la grille arrive en tournant légèrement sur le cylindre jusqu'à sa position initiale
     var tgl = $('.works-toggle', container);
     if (!reduce && title) {
@@ -1438,25 +1423,16 @@
       setTimeout(function () { title.style.transition = ''; title.style.transform = ''; letters.forEach(function (l) { l.style.transition = ''; }); }, 1750);
       if (wg) wg.intro(container.classList.contains('is-list') ? 0 : 1600);
     } else if (wg) wg.intro(0);
-    if (!reduce) {
+    // Grille mobile (empilée) : à l'arrivée de chaque tuile, son nom et sa flèche montent dans leur masque
+    if (!reduce && !wg) {
       var tiles = cards.map(function (c) {
-        var media = $('.works-media', c);
         var name = maskText($('.works-card-title', c));
         var icon = $('.works-arrow-icon', c);
         if (icon) { icon.dataset.axis = 'y'; hide(icon); }
-        return { card: c, media: null, texts: [name, icon] };   // la photo n'a plus d'apparition par masque
+        return { card: c, texts: [name, icon] };
       });
       var queue = [], flushTimer = null;
-      function show(t, delay) {
-        setTimeout(function () {
-          if (t.media) {
-            t.media.style.transition = 'clip-path 1200ms ' + INOUT;
-            t.media.style.clipPath = 'inset(0% 0 0 0)';
-            setTimeout(function () { t.media.style.transition = ''; t.media.style.clipPath = ''; }, 1250);
-          }
-          reveal(t.texts, 650, 80, 900);
-        }, delay);
-      }
+      function show(t, delay) { setTimeout(function () { reveal(t.texts, 650, 80, 900); }, delay); }
       // Les tuiles qui entrent ensemble s'enchaînent avec un léger décalage
       function flush() { queue.forEach(function (t, i) { show(t, i * 120); }); queue = []; flushTimer = null; }
       if ('IntersectionObserver' in window) {
@@ -1475,8 +1451,8 @@
       }
     }
 
-    // Grille : parallaxe verticale à l'intérieur de chaque photo (l'image, plus haute que son cadre, glisse au défilement)
-    var plx = reduce ? [] : cards.map(function (c) { return { media: $('.works-media', c), img: $('.works-img', c) }; })
+    // Grille mobile : parallaxe verticale à l'intérieur de chaque photo (l'image, plus haute que son cadre, glisse au défilement)
+    var plx = reduce || wg ? [] : cards.map(function (c) { return { media: $('.works-media', c), img: $('.works-img', c) }; })
       .filter(function (p) { return p.media && p.img; });
     plx.forEach(function (p) { p.img.classList.add('works-plx'); });
     var plxTick = false;
@@ -1829,8 +1805,7 @@
     if (!reduce) {
       // Étapes 2-3 : le titre est centré dans la fenêtre ; à l'étape 4 il descend à sa place, centré sous la photo
       var hr = heading.getBoundingClientRect();
-      // centré dans la zone de contenu (hors barre latérale), comme sa position finale : aucun glissement horizontal
-      heading.style.transform = 'translate(' + ((window.innerWidth - sideW()) / 2 - (hr.left + hr.width / 2)) + 'px,' +
+      heading.style.transform = 'translate(' + (window.innerWidth / 2 - (hr.left + hr.width / 2)) + 'px,' +
         (window.innerHeight / 2 - (hr.top + hr.height / 2)) + 'px)';
       if (tagsBox) { tagsBox.style.overflow = 'hidden'; tagsBox.style.padding = '2px 0'; }
       tags.forEach(function (t) { t.dataset.axis = 'y'; hide(t); });
@@ -1868,7 +1843,7 @@
     }
 
     var PROPS = ['left', 'top', 'width', 'height', 'border-radius'];
-    function full() { return { left: 0, top: 0, width: window.innerWidth - sideW(), height: window.innerHeight }; }
+    function full() { return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }; }
     function place(r, radius) {
       media.style.left = r.left + 'px'; media.style.top = r.top + 'px';
       media.style.width = r.width + 'px'; media.style.height = r.height + 'px';
@@ -2177,7 +2152,7 @@
         px = e.clientX; py = e.clientY;
         // pas de pastille par-dessus la modale contact / le showreel, ni hors du hero lui-même
         var inside = inHero() && heroDisc.contains(e.target) && !root.classList.contains('is-menu') && !root.classList.contains('is-reel') &&
-          !(e.target.closest && e.target.closest('a, button, .home-nav, .home-logo, .side-bar'));
+          !(e.target.closest && e.target.closest('a, button, .home-nav, .home-logo'));
         if (!inside && !inHero()) discOff = false;
         discSet(inside && !discOff);
       }, { passive: true });
@@ -2412,7 +2387,7 @@
   }
 
   /* =====================================================================
-     MODAL CONTACT : le fond noir s'étend depuis la barre latérale, le contenu apparaît en masque
+     MODAL CONTACT : le fond noir s'étend depuis la droite sur toute la largeur, le contenu apparaît en masque
      ===================================================================== */
   var CONTACT = {
     email: 'cetestudio.pro@gmail.com',
@@ -2435,12 +2410,7 @@
     var bg = document.createElement('div');
     bg.className = 'cm-bg';
     bg.setAttribute('aria-hidden', 'true');
-    // Bande de gauche : la page reste visible derrière un effet verre (clic = fermer)
-    var glass = document.createElement('div');
-    glass.className = 'cm-glass';
-    glass.setAttribute('aria-hidden', 'true');
-    var pageLogo = $('.home-logo-img');
-    function panelW() { return window.innerWidth - glass.offsetWidth; }
+    function panelW() { return window.innerWidth; }   // la modal prend toute la largeur
     var box = document.createElement('div');
     box.className = 'cm';
     box.id = 'contact-modal';
@@ -2457,12 +2427,11 @@
         '</div>' +
         '<a class="cm-coord" href="tel:' + CONTACT.phoneLink + '">' + CONTACT.phone + '</a></div></div>' +
       '<button type="button" class="cm-close">Fermer</button>' +
-      '<div class="cm-logo" aria-hidden="true"><img src="' + LOADER_LOGO + '" alt=""></div>' +
-      (pageLogo ? '<a class="cm-mark" href="/" aria-label="Cete Studio — accueil"><img src="' + (pageLogo.currentSrc || pageLogo.src) + '" alt=""></a>' : '');
-    document.body.appendChild(glass);
+      '<div class="cm-logo" aria-hidden="true"><img src="' + LOADER_LOGO + '" alt=""></div>';
     document.body.appendChild(bg);
     document.body.appendChild(box);
-    glass.addEventListener('click', function () { shut(); });
+    // clic en dehors des liens (curseur « Fermer ») : la modal se ferme
+    bg.addEventListener('click', function () { if (isOpen && !busy) shut(); });
 
     // Adresse e-mail : un clic la copie dans le presse-papier, une infobulle le confirme
     var mailLink = $('.cm-mail-link', box), tip = $('.cm-tip', box), tipTimer = null;
@@ -2497,8 +2466,7 @@
     });
 
     // Chaque texte dans son masque (même système que le loader et l'accueil)
-    var heads = $$('.cm-head', box).map(function (el) { return maskText(el); });
-    var links = $$('.cm-link', box).map(function (el) { return maskText(el); });
+    $$('.cm-head, .cm-link', box).forEach(function (el) { maskText(el); });
     var title = maskText($('.cm-title', box));
     var coords = $$('.cm-coord', box).map(function (el) { return maskText(el); });
     var close = maskText($('.cm-close', box));
@@ -2564,7 +2532,7 @@
       box.style.visibility = 'visible';
       box.offsetHeight;
       if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.transform = 'none'; }); busy = false; $('.cm-close', box).focus(); return; }
-      // 1. Le fond noir de la barre latérale s'étend vers la gauche, jusqu'à la bande en verre
+      // 1. Le fond noir s'étend depuis le bord droit jusqu'à couvrir tout l'écran
       bg.style.transition = 'width 1000ms ' + INOUT;
       bg.style.width = panelW() + 'px';
       // 2. Les textes montent depuis leur masque, colonne par colonne
@@ -2602,12 +2570,10 @@
         });
       });
     }
-    // Ouverture : « Contact » (barre latérale, navigation principale [data-contact], « Nous contacter ») ou le burger ;
-    // fermeture : « Fermer », le burger (croix) ou Échap
+    // Ouverture : « Contact » (navigation principale, [data-contact]) ou le burger (mobile) ;
+    // fermeture : clic hors des liens (curseur « Fermer »), le burger (croix) ou Échap
     document.addEventListener('click', function (e) {
-      // Logo de la modal sur l'accueil : on referme simplement la modal
-      if (e.target.closest && e.target.closest('.cm-mark') && root.getAttribute('data-page') === 'home') { e.preventDefault(); e.stopPropagation(); shut(); return; }
-      var t = e.target.closest && e.target.closest('.side-contact, .side-burger, .cm-close, .works-contact, [data-contact]');
+      var t = e.target.closest && e.target.closest('.side-burger, .cm-close, [data-contact]');
       if (!t) return;
       e.preventDefault();
       e.stopPropagation();
@@ -2623,7 +2589,6 @@
       busy = true;
       tip.classList.remove('is-on');
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // pas de contour de focus qui reste à l'écran
-      root.classList.add('is-expanding');   // petit logo de la modal : sort avec le reste
       if (reduce) { bg.style.transition = 'none'; bg.style.width = window.innerWidth + 'px'; return Promise.resolve(); }
       conceal(all, 0, 15, 450);
       logo.style.transition = 'clip-path 550ms ' + INOUT;
@@ -2641,8 +2606,8 @@
       box.style.visibility = 'hidden';
       bg.style.transition = 'none';
       bg.style.width = '';
-      root.classList.add('is-menu-reset');   // logos, burger, verre : bascule sans animation (pas de saut visible)
-      root.classList.remove('is-menu', 'is-expanding');
+      root.classList.add('is-menu-reset');   // logo, burger : bascule sans animation (pas de saut visible)
+      root.classList.remove('is-menu');
       burger(false);
       void root.offsetWidth;
       requestAnimationFrame(function () { root.classList.remove('is-menu-reset'); });
@@ -2895,12 +2860,9 @@
   var leaveData = null;
   var LEGAL_PATH = /^\/(mentions-legales|protection-des-donnees|cookies)\/?$/;
   barba.hooks.before(function (data) {   // un lien d'une modal la ferme avant la transition
-    var toHome = (data.next.url.path || '').replace(/\/+$/, '') === '';
-    var done = function () { setBar(toHome); };   // la barre noire sort (ou revient sur l'accueil) dès le départ
-    if (Reel.isOpen()) return Promise.resolve(Reel.close(true)).then(done);
+    if (Reel.isOpen()) return Promise.resolve(Reel.close(true));
     // vers une page légale, la modal contact reste ouverte : son fond noir sert de transition
-    if (Menu.isOpen() && !LEGAL_PATH.test(data.next.url.path || '')) return Promise.resolve(Menu.close(true)).then(done);
-    done();
+    if (Menu.isOpen() && !LEGAL_PATH.test(data.next.url.path || '')) return Promise.resolve(Menu.close(true));
   });   // un lien du menu ferme la modal
   barba.hooks.beforeLeave(function () { prev = page; });
   barba.hooks.afterLeave(function () { if (prev && prev.destroy) prev.destroy(); });
