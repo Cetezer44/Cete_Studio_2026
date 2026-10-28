@@ -933,8 +933,9 @@
       }
       container.classList.add('has-wg');
       gridWrap.classList.add('wg-src');
-      // Déformation organique : un bruit (feTurbulence) déplace les pixels de la tuile (feDisplacementMap) ;
-      // l'amplitude grandit vers les bords et le bruit « respire » avec le défilement
+      // Déformation glitch : un bruit en bandes horizontales, quantifié en paliers (feComponentTransfer discrete),
+      // décale des tranches de la tuile vers la gauche ou la droite ; le rouge est décalé à part (aberration RVB).
+      // L'amplitude grandit vers les bords ; le motif saute d'un état à l'autre pendant le défilement
       var NS = 'http://www.w3.org/2000/svg', fsvg = document.createElementNS(NS, 'svg');
       fsvg.setAttribute('aria-hidden', 'true');
       fsvg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
@@ -943,10 +944,16 @@
         f.setAttribute('id', id);
         f.setAttribute('x', '-15%'); f.setAttribute('y', '-15%'); f.setAttribute('width', '130%'); f.setAttribute('height', '130%');
         f.setAttribute('color-interpolation-filters', 'sRGB');
-        f.innerHTML = '<feTurbulence type="fractalNoise" baseFrequency="0.005 0.008" numOctaves="2" seed="' + (3 + i * 7) + '" result="n"/>' +
-          '<feDisplacementMap in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/>';
+        f.innerHTML = '<feTurbulence type="fractalNoise" baseFrequency="0 0.03" numOctaves="1" seed="' + (3 + i * 7) + '" result="n"/>' +
+          '<feComponentTransfer in="n" result="q"><feFuncR type="discrete" tableValues="0.5 0.5 0.15 0.5 0.85 0.5 0.3 1 0.5 0 0.5 0.7"/>' +
+          '<feFuncG type="discrete" tableValues="0.5"/></feComponentTransfer>' +
+          '<feDisplacementMap in="SourceGraphic" in2="q" scale="0" xChannelSelector="R" yChannelSelector="G" result="d"/>' +
+          '<feColorMatrix in="d" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="r"/>' +
+          '<feOffset in="r" dx="0" dy="0" result="ro"/>' +
+          '<feColorMatrix in="d" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" result="gb"/>' +
+          '<feBlend in="ro" in2="gb" mode="screen"/>';
         fsvg.appendChild(f);
-        return { id: id, t: f.firstChild, d: f.lastChild, last: '' };
+        return { id: id, t: f.querySelector('feTurbulence'), d: f.querySelector('feDisplacementMap'), o: f.querySelector('feOffset'), last: '', seed: -1 };
       });
       pin.appendChild(fsvg);
       var G = {}, pinTop = 0, LOOP = 0;
@@ -1008,14 +1015,18 @@
           el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) perspective(' + Math.round(1600 * G.k) + 'px) rotateY(' + ry.toFixed(2) + 'deg) scale(' + (sc * sx).toFixed(4) + ',' + sc.toFixed(4) + ')';
           // pas d'opacité : des calques en mode de fusion (couleur + superposition claire) font fondre la photo dans le fond
           el.style.setProperty('--e', e.toFixed(3));
-          var bl = 7 * e * e;
-          // déformation organique : amplitude selon la distance au centre (+ un peu selon la vitesse),
-          // le bruit ondule avec la position de défilement
-          var amp = (reduce ? 0 : (70 * e * e + 18 * Math.abs(drift) * (0.3 + a))) * G.k, F = fx[r], fl = '';
-          if (amp > 0.8) {
-            var ph = s / 520 + r * 1.7;
-            F.t.setAttribute('baseFrequency', (0.0045 + 0.0012 * Math.sin(ph)).toFixed(5) + ' ' + (0.0075 + 0.0018 * Math.cos(ph * 0.8)).toFixed(5));
+          var bl = 2.5 * e * e;
+          // glitch : amplitude selon la distance au centre (+ selon la vitesse) ; le motif change par sauts
+          var amp = (reduce ? 0 : (90 * e * e + 30 * Math.abs(drift) * (0.2 + a))) * G.k, F = fx[r], fl = '';
+          if (amp > 1.5) {
+            var sd = 3 + r * 7 + Math.floor(s / 70);
+            if (sd !== F.seed) {
+              F.seed = sd;
+              F.t.setAttribute('seed', sd);
+              F.t.setAttribute('baseFrequency', '0 ' + (0.018 + 0.03 * ((sd * 0.618) % 1)).toFixed(4));   // tranches plus ou moins fines
+            }
             F.d.setAttribute('scale', amp.toFixed(1));
+            F.o.setAttribute('dx', (-sg * (2 + 9 * e) * G.k).toFixed(1));   // aberration rouge vers l'extérieur
             fl = 'url(#' + F.id + ')';
           }
           if (bl > 0.15) fl += (fl ? ' ' : '') + 'blur(' + bl.toFixed(2) + 'px)';
