@@ -14,7 +14,7 @@ html[data-page="home"]:not(.home-free), html[data-page="home"]:not(.home-free) b
 /* Accueil : une fois le tour de roulette fait, la page défile vers la section du dessous (barre de défilement masquée : pas de saut de mise en page) */
 html[data-page="home"] { scrollbar-width: none; }
 html[data-page="home"]::-webkit-scrollbar { display: none; }
-.home-about-word { color: rgba(255,255,255,.15); transition: color 700ms ease; }
+.home-about-word { color: rgba(255,255,255,.15); transition: color 600ms ease; }
 .home-about-word.is-lit { color: #fff; }
 .is-intro .hero-title { opacity: 0; }
 /* Cache plein écran le temps que le loader se mette en place (disparaît seul après 8 s si le script échoue) */

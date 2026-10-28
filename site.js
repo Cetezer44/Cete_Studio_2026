@@ -587,7 +587,7 @@
         litGoal = Math.round(p * aboutWords.length);
         if (!litTimer && litGoal !== litN) litTimer = setTimeout(litStep, 0);
       };
-      // les mots s'écrivent un par un (≈ 110 ms par mot), vers l'avancée du défilement
+      // les mots s'écrivent un par un (≈ 85 ms par mot), vers l'avancée du défilement
       var litGoal = 0, litTimer = null;
       var litStep = function () {
         litTimer = null;
@@ -595,7 +595,7 @@
         if (litN === litGoal) return;
         litN += litGoal > litN ? 1 : -1;
         aboutWords.forEach(function (sp, i) { sp.classList.toggle('is-lit', i < litN); });
-        litTimer = setTimeout(litStep, reduce ? 0 : 110);
+        litTimer = setTimeout(litStep, reduce ? 0 : 85);
       };
       ac.signal.addEventListener('abort', function () { clearTimeout(litTimer); });
       on(window, 'scroll', aboutUpdate, { passive: true });
