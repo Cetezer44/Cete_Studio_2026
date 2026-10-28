@@ -2417,6 +2417,7 @@
     box.setAttribute('role', 'dialog');
     box.setAttribute('aria-modal', 'true');
     box.setAttribute('aria-label', 'Contact');
+    box.setAttribute('tabindex', '-1');   // focus sur la modal à l'ouverture (le bouton « Fermer » ne s'affiche qu'au clavier)
     box.innerHTML =
       '<div class="cm-cols">' + col('Social', CONTACT.social) + col('Menu', CONTACT.menu) + col('Légal', CONTACT.legal) + '</div>' +
       '<div class="cm-main"><p class="cm-title">Discutons de votre projet</p><div class="cm-coords">' +
@@ -2531,7 +2532,7 @@
       prepLogo();
       box.style.visibility = 'visible';
       box.offsetHeight;
-      if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.transform = 'none'; }); busy = false; $('.cm-close', box).focus(); return; }
+      if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.transform = 'none'; }); busy = false; box.focus({ preventScroll: true }); return; }
       // 1. Le fond noir s'étend depuis le bord droit jusqu'à couvrir tout l'écran
       bg.style.transition = 'width 1000ms ' + INOUT;
       bg.style.width = panelW() + 'px';
@@ -2542,7 +2543,7 @@
       reveal([close], 950, 0, 900);
       // 3. Le grand logo se construit lettre par lettre
       buildLogo(850);
-      later(1000, function () { busy = false; $('.cm-close', box).focus({ preventScroll: true }); });
+      later(1000, function () { busy = false; box.focus({ preventScroll: true }); });
     }
     function shut(fast) {
       if (!isOpen) return Promise.resolve();

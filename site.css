@@ -67,7 +67,7 @@ html[data-page="home"] .home-nav, html[data-page="home"] .home-logo { z-index: 2
 [data-barba-namespace="home"].is-dark .home-logo-img { filter: invert(1); }
 .cm-bg { position: fixed; top: 0; right: 0; z-index: 49; width: 0; height: 100vh; background: #000; pointer-events: none; }
 html.is-menu .cm-bg { pointer-events: auto; }
-.cm { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 51; visibility: hidden; pointer-events: none; color: #fff; }
+.cm { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 51; visibility: hidden; pointer-events: none; color: #fff; outline: none; }
 .cm a, .cm button { pointer-events: auto; color: #fff; text-decoration: none; }
 .cm-cols { position: absolute; left: 5.556vw; top: 78px; display: flex; column-gap: 10.42vw; }
 .cm-col { display: flex; flex-direction: column; align-items: flex-start; row-gap: 20px; }
