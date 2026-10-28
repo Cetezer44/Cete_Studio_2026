@@ -979,9 +979,13 @@
       }
       // le premier projet démarre 100 px (maquette) sous le filet du titre
       function measure() {
-        pinTop = pin.getBoundingClientRect().top + window.scrollY;
-        var hb = head ? head.getBoundingClientRect().bottom + window.scrollY : pinTop;
-        G.Y0 = hb + 100 * G.k - pinTop;
+        // la scène démarre en haut de la page : les photos peuvent passer sous le titre
+        pin.style.marginTop = '0px';
+        var natural = pin.getBoundingClientRect().top + window.scrollY;
+        pin.style.marginTop = (-natural) + 'px';
+        pinTop = 0;
+        var hb = head ? head.getBoundingClientRect().bottom + window.scrollY : natural;
+        G.Y0 = hb + 100 * G.k;
       }
       function xOf(n) { return Math.floor(n / 2) * G.P2 + (mod(n, 2) === 1 ? G.SQ + G.GAP : 0); }
       function pOf(sx) {
@@ -990,7 +994,7 @@
       }
       /* Rendu : la « caméra » suit le défilement avec un léger retard (lissage), ce qui donne de l'inertie.
          Les tuiles tournent autour d'un cylindre (vis) et apparaissent / s'effacent en fondu animé. */
-      var sCur = null, raf = null, frozen = false;
+      var sCur = null, raf = null, frozen = false, hold = !reduce, introOff = 0;
       function smooth(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
       function target() {
         var t = Math.max(0, window.scrollY);   // le défilement horizontal démarre dès le premier pixel
@@ -1014,7 +1018,7 @@
           var vis = n >= 0 && th > -1.62 && th < 1.62 && y < G.vh + 80   // rien avant le premier projet
              && y > -G.SQ - 140;
           if (el.style.visibility !== (vis ? 'visible' : 'hidden')) el.style.visibility = vis ? 'visible' : 'hidden';
-          var inZone = reduce || (th < 1.25 && th > -1.35);
+          var inZone = reduce || (!hold && th < 1.25 && th > -1.35);
           strips[r].forEach(function (b) {
             var u = (b.j + 0.5) * b.sw - w / 2, tj = th + u / R;
             var bv = vis && tj > -1.62 && tj < 1.62;
@@ -1044,19 +1048,35 @@
         var v = t - sCur;
         sCur += v * 0.085;
         if (Math.abs(t - sCur) < 0.3) { sCur = t; v = 0; }
-        draw(sCur, v);
+        draw(sCur + introOff, v);
         if (sCur !== t) raf = requestAnimationFrame(loop);
       }
       function render() {
         if (container.classList.contains('is-list')) return;
-        measure();
         if (!raf) raf = requestAnimationFrame(loop);
       }
       on(window, 'scroll', render, { passive: true });
       on(window, 'resize', function () { geo(); sCur = null; render(); });
-      geo(); sCur = null; measure(); loop();
+      geo(); sCur = null; loop();
+      on(window, 'load', function () { measure(); render(); });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!frozen) { measure(); render(); } });
       ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
-      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function (keep) {
+      // entrée : le cylindre part tourné d'un demi-radian et revient à sa position initiale (ease out)
+      function intro(delay) {
+        if (reduce || !delay) { hold = false; introOff = 0; render(); return; }
+        introOff = -0.5 * G.R;
+        setTimeout(function () {
+          hold = false;
+          var t0 = performance.now(), from = introOff;
+          (function step(now) {
+            var t = Math.min(1, (now - t0) / 1900), e = 1 - Math.pow(1 - t, 3);
+            introOff = from * (1 - e);
+            if (!frozen && !container.classList.contains('is-list')) draw((sCur === null ? 0 : sCur) + introOff, 0);
+            if (t < 1) requestAnimationFrame(step);
+          })(t0);
+        }, delay);
+      }
+      return { els: els, pin: pin, intro: intro, render: function () { geo(); render(); }, freeze: function (keep) {
         frozen = true;
         strips.forEach(function (list) { list.forEach(function (b) { b.el.style.transition = 'opacity 500ms ease'; b.el.style.opacity = '0'; }); });
         if (keep) keep.classList.remove('is-bent');   // la photo de la tuile cliquée réapparaît pour la transition
@@ -1193,10 +1213,27 @@
 
     // Entrée : le titre monte dans son masque ; chaque tuile se dévoile de bas en haut (clip-path)
     // quand elle arrive à l'écran, puis son nom et sa flèche montent dans leur masque
-    var titleIn = title ? maskText(title) : null;
-    if (reduce) { if (titleIn) titleIn.style.transform = 'none'; }
-    else {
-      reveal([titleIn], 150, 0, 1000);
+    // Titre : sans masque. Il apparaît en fondu au centre de l'écran, glisse à sa place, puis « Grille / Liste »
+    // apparaissent et la grille arrive en tournant légèrement sur le cylindre jusqu'à sa position initiale
+    var tgl = $('.works-toggle', container);
+    if (!reduce && title) {
+      var tr = title.getBoundingClientRect();
+      var tdx = window.innerWidth / 2 - (tr.left + tr.width / 2), tdy = window.innerHeight / 2 - (tr.top + tr.height / 2);
+      title.style.transition = 'none';
+      title.style.opacity = '0';
+      title.style.transform = 'translate3d(' + tdx.toFixed(1) + 'px,' + tdy.toFixed(1) + 'px,0)';
+      if (tgl) { tgl.style.transition = 'none'; tgl.style.opacity = '0'; }
+      void title.offsetWidth;
+      setTimeout(function () { title.style.transition = 'opacity 800ms ease'; title.style.opacity = '1'; }, 150);
+      setTimeout(function () {
+        title.style.transition = 'transform 1200ms ' + INOUT;
+        title.style.transform = 'translate3d(0,0,0)';
+      }, 1050);
+      setTimeout(function () { if (tgl) { tgl.style.transition = 'opacity 700ms ease'; tgl.style.opacity = '1'; } }, 2150);
+      setTimeout(function () { title.style.transition = ''; title.style.transform = ''; }, 2300);
+      if (wg) wg.intro(container.classList.contains('is-list') ? 0 : 2450);
+    } else if (wg) wg.intro(0);
+    if (!reduce) {
       var tiles = cards.map(function (c) {
         var media = $('.works-media', c);
         var name = maskText($('.works-card-title', c));

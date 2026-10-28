@@ -294,8 +294,10 @@ html.is-menu-reset .side-bar { transition: none !important; }
 /* En-tête (maquette 1440 : titre 50 px à x = 200, filet gris 200 → 1240 à y = 315, Grille / Liste à droite) */
 @media (min-width: 768px) {
   .works-page .works-head { display: flex; align-items: flex-end; justify-content: space-between; margin-left: calc(13.889vw - 30px); margin-right: calc(13.889vw - 30px);
-    padding: 0 0 26px; border-bottom: 1px solid #dcdcdc; width: auto; }
-  .works-page .works-title { margin: 0; padding: 0; font-size: 50px; line-height: 1; letter-spacing: -0.03em; }
+    padding: 0 0 26px; width: auto; }
+  /* le titre passe au-dessus des photos, en mode « différence » */
+  .works-page .works-title { position: relative; z-index: 5; margin: 0; padding: 0; font-size: 50px; line-height: 1; letter-spacing: -0.03em;
+    color: #fff; mix-blend-mode: difference; pointer-events: none; }
   /* Grille / Liste : fixes, même place qu'au chargement ; en mode « différence » pour rester lisibles sur les photos */
   .works-page .works-toggle { position: fixed; top: 270px; right: 13.889vw; z-index: 20; margin: 0; mix-blend-mode: difference; }
   .works-page .works-tg { color: rgba(255,255,255,.28); }
@@ -419,7 +421,7 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   .works-page.has-wg .wg-src { display: none; }
   .works-page.has-wg .wg-pin { display: block; position: relative; width: 100vw; margin-left: calc(50% - 50vw); }
   .works-page.has-wg.is-list .wg-pin { display: none; }
-  .wg-stage { position: sticky; top: 0; height: 100vh; overflow: hidden; perspective-origin: 50% 50%; }
+  .wg-stage { position: sticky; top: 0; z-index: 0; height: 100vh; overflow: hidden; perspective-origin: 50% 50%; }
   .wg-card { position: absolute; left: 0; top: 0; width: var(--wg-sq); margin: 0 !important; will-change: transform, opacity; backface-visibility: hidden; transform-origin: 0 50%; }
   .wg-card.is-wide { width: var(--wg-wd); }
   .wg-card { opacity: 0; transition: opacity 1000ms cubic-bezier(.65,0,.35,1); }
