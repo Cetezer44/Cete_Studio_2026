@@ -347,7 +347,7 @@ html.is-menu-reset .side-bar { transition: none !important; }
 
 /* Accueil : le fond passe au noir en fondu quand la section du dessous arrive (classe is-dark posée par site.js) ;
    la roulette n'est plus rognée en bas et passe par-dessus la section noire */
-html[data-page="home"] [data-barba-namespace="home"] { background-color: #f0f0f0; transition: background-color 1800ms ease; }
+html[data-page="home"] [data-barba-namespace="home"] { background-color: #f0f0f0; transition: background-color 1500ms ease; }
 html[data-page="home"] [data-barba-namespace="home"].is-dark { background-color: #000; }
 html[data-page="home"] .home-track, html[data-page="home"] .home-sticky { background-color: transparent; overflow-x: clip; overflow-y: visible; }
 html[data-page="home"] .home-track { position: relative; z-index: 2; }

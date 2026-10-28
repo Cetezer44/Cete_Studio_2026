@@ -395,7 +395,7 @@
       if (!sec || anchoring) return;
       setFree(true);
       anchoring = true;
-      var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : 2400;
+      var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : 2000;
       var stepA = function (now) {
         if (t0a === null) t0a = now;
         var k = D ? Math.min(1, (now - t0a) / D) : 1;
@@ -414,7 +414,7 @@
     function goTop() {
       if (anchoring) return;
       anchoring = true;
-      var y0 = window.scrollY, t0a = null, D = reduce ? 0 : 2400;
+      var y0 = window.scrollY, t0a = null, D = reduce ? 0 : 2000;
       var stepT = function (now) {
         if (t0a === null) t0a = now;
         var k = D ? Math.min(1, (now - t0a) / D) : 1;
