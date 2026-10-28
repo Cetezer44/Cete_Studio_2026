@@ -497,7 +497,7 @@
       tween = null;
       autoNext();
       if (dy > 0 && passLast()) return;
-      target += dy / 450;
+      target += dy / 700;   // sensibilité de la molette (plus grand = moins sensible)
       clampT();
       if (dy > 0) holdLast();
       snapLater();
@@ -519,7 +519,7 @@
       if (ty - y > 0 && atEnd()) { goAbout(); ty = y; return; }
       if (ty !== y) dir = ty > y ? 1 : -1;
       if (ty - y > 0 && passLast()) { ty = y; return; }
-      target += (ty - y) / 220;
+      target += (ty - y) / 320;
       clampT();
       if (ty - y > 0) holdLast();
       ty = y;
