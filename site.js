@@ -1279,7 +1279,13 @@
         var tags = $$('.works-tag', c).map(function (g) { return '<span class="wl-tag">' + g.textContent + '</span>'; }).join('');
         a.innerHTML = '<span class="wl-name"></span><span class="wl-year"></span><span class="wl-tags">' + tags + '</span>' +
           '<span class="wl-icon" aria-hidden="true"><i></i><i></i></span><span class="wl-media"></span>';
-        $('.wl-name', a).textContent = t ? t.textContent : '';
+        // nom découpé en lettres : au survol, chaque lettre sort par le haut et revient par le bas (décalées)
+        var nm = $('.wl-name', a), label = t ? t.textContent.trim() : '';
+        nm.setAttribute('aria-label', label);
+        nm.innerHTML = label.split('').map(function (ch, i) {
+          var c = ch === ' ' ? '&nbsp;' : ch.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+          return '<span class="wl-ch" aria-hidden="true" style="--i:' + i + '"><span data-c="' + c + '">' + c + '</span></span>';
+        }).join('');
         $('.wl-year', a).textContent = c.getAttribute('data-year') || '';
         if (img) {
           var im = document.createElement('img');
