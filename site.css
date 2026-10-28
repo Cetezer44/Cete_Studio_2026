@@ -447,4 +447,5 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 .wl-ch { display: inline-block; overflow: hidden; vertical-align: top; height: 1.1em; }
 .wl-ch > span { position: relative; display: block; transition: transform 650ms cubic-bezier(.65,0,.35,1); transition-delay: calc(var(--i, 0) * 28ms); }
 .wl-ch > span::after { content: attr(data-c); position: absolute; left: 0; top: 100%; }
-@media (hover: hover) { .wl-row:hover .wl-ch > span { transform: translate3d(0, -100%, 0); } }
+@media (hover: hover) { .wl-row:hover .wl-ch > span, .wg-card:hover .wl-ch > span { transform: translate3d(0, -100%, 0); } }
+.wg-card .works-card-title { line-height: 1.1; white-space: nowrap; }

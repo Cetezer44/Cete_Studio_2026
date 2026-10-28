@@ -926,6 +926,16 @@
         var el = cards[r % N].cloneNode(true);
         el.classList.add('wg-card', r % 2 ? 'is-wide' : 'is-sq');
         el.removeAttribute('id');
+        // nom découpé en lettres : au survol, chaque lettre sort par le haut et revient par le bas (comme la liste)
+        var ttl = el.querySelector('.works-card-title');
+        if (ttl) {
+          var lab = ttl.textContent.trim();
+          ttl.setAttribute('aria-label', lab);
+          ttl.innerHTML = lab.split('').map(function (ch, i) {
+            var c = ch === ' ' ? '&nbsp;' : ch.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            return '<span class="wl-ch" aria-hidden="true" style="--i:' + i + '"><span data-c="' + c + '">' + c + '</span></span>';
+          }).join('');
+        }
         stage.appendChild(el);
         els.push(el);
       }
