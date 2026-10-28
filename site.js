@@ -994,7 +994,7 @@
       }
       /* Rendu : la « caméra » suit le défilement avec un léger retard (lissage), ce qui donne de l'inertie.
          Les tuiles tournent autour d'un cylindre (vis) et apparaissent / s'effacent en fondu animé. */
-      var sCur = null, raf = null, frozen = false, hold = !reduce, introOff = 0;
+      var sCur = null, raf = null, frozen = false, hold = !reduce, introOff = 0, bendR = -1, bendU = 0;
       function smooth(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
       function target() {
         var t = Math.max(0, window.scrollY);   // le défilement horizontal démarre dès le premier pixel
@@ -1009,11 +1009,13 @@
         var p = pOf(s), c = p + 2.5, half = G.vw / 2;
         // Vis : les projets s'enroulent autour d'un cylindre vertical (rayon R) ; la position horizontale
         // devient un angle (longueur d'arc), la descente en escalier devient le pas de la vis
-        var R = G.R;
         els.forEach(function (el, r) {
           var n = r + PER * Math.round((c - r) / PER);
           var w = n % 2 ? G.WD : G.SQ;
           var x = G.X0 + xOf(n) - s, y = G.Y0 + (n - p) * G.DY;
+          el._n = n;
+          // tuile cliquée : son rayon grandit jusqu'à l'infini → elle se déplie et devient plate
+          var R = r === bendR ? G.R / Math.max(1 - bendU, 0.004) : G.R;
           var th = (x + w / 2 - half) / R;   // angle en radians, 0 = face à l'écran
           var vis = n >= 0 && th > -1.62 && th < 1.62 && y < G.vh + 80   // rien avant le premier projet
              && y > -G.SQ - 140;
@@ -1076,11 +1078,36 @@
           })(t0);
         }, delay);
       }
-      return { els: els, pin: pin, intro: intro, render: function () { geo(); render(); }, freeze: function (keep) {
+      /* Clic sur un projet : le cylindre tourne pour amener la tuile face à l'écran pendant qu'elle se déplie
+         (rayon → infini) ; les autres tuiles s'effacent. À la fin, la photo plate d'origine remplace les bandes
+         exactement au même endroit : pas de saut. */
+      function focus(el, dur) {
         frozen = true;
-        strips.forEach(function (list) { list.forEach(function (b) { b.el.style.transition = 'opacity 500ms ease'; b.el.style.opacity = '0'; }); });
-        if (keep) keep.classList.remove('is-bent');   // la photo de la tuile cliquée réapparaît pour la transition
-      } };
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+        var r = els.indexOf(el);
+        strips.forEach(function (list, i) {
+          if (i === r) return;
+          list.forEach(function (b) { b.el.style.transition = 'opacity 500ms ease'; b.el.style.opacity = '0'; });
+        });
+        var s0 = (sCur === null ? 0 : sCur) + introOff, n = el._n, w = n % 2 ? G.WD : G.SQ;
+        var s1 = G.X0 + xOf(n) + w / 2 - G.vw / 2;   // caméra qui centre la tuile
+        bendR = r;
+        return new Promise(function (res) {
+          if (reduce) { bendU = 1; draw(s1, 0); res(); return; }
+          var t0 = performance.now();
+          (function step(now) {
+            var t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            bendU = e;
+            draw(s0 + (s1 - s0) * e, 0);
+            if (t < 1) requestAnimationFrame(step); else res();
+          })(t0);
+        }).then(function () {
+          el.style.transform = 'translate3d(' + (G.vw / 2 - w / 2).toFixed(1) + 'px,' + el.style.transform.match(/translate3d\([^,]+,\s*([^,]+),/)[1] + ',0)';
+          el.classList.remove('is-bent');                      // la photo plate réapparaît…
+          strips[r].forEach(function (b) { b.el.style.transition = 'none'; b.el.style.opacity = '0'; });   // …à la place des bandes
+        });
+      }
+      return { els: els, pin: pin, intro: intro, focus: focus, render: function () { geo(); render(); } };
     }
     if (head && gridWrap) {
       var tg = document.createElement('div');
@@ -1319,18 +1346,22 @@
       var media = best && $('.works-media', best);
       if (!media) return Promise.resolve(null);
       root.classList.add('is-leaving');
-      wg.freeze(best);
-      var r = media.getBoundingClientRect();
-      $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat(wg.els).forEach(function (el) {
-        el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0';
-      });
-      // la photo sort de sa carte (transformée) pour pouvoir être fixée à l'écran
-      container.appendChild(media);
-      media.style.position = 'fixed';
-      media.style.left = r.left + 'px'; media.style.top = r.top + 'px';
-      media.style.width = r.width + 'px'; media.style.height = r.height + 'px';
-      media.style.margin = '0'; media.style.zIndex = '25'; media.style.aspectRatio = 'auto';
-      return wait(350).then(function () {
+      // les autres tuiles, l'en-tête et le nom du projet cliqué s'effacent pendant que la tuile se déplie
+      $$('.home-logo, .home-nav, .home-socials, .works-head', container).concat(wg.els.filter(function (el) { return el !== best; }))
+        .concat($$('.works-name', best)).forEach(function (el) { el.style.transition = 'opacity 500ms ease'; el.style.opacity = '0'; });
+      var r;
+      return wg.focus(best, 900).then(function () {
+        r = media.getBoundingClientRect();
+        // la photo sort de sa carte (transformée) pour pouvoir être fixée à l'écran
+        media.classList.add('wg-media-leaving');   // garde le cadrage de la photo une fois sortie de la tuile
+        container.appendChild(media);
+        media.style.position = 'fixed';
+        media.style.left = r.left + 'px'; media.style.top = r.top + 'px';
+        media.style.width = r.width + 'px'; media.style.height = r.height + 'px';
+        media.style.margin = '0'; media.style.zIndex = '25'; media.style.aspectRatio = 'auto';
+        best.style.opacity = '0';
+        return wait(30);
+      }).then(function () {
         var dx = (window.innerWidth - r.width) / 2 - r.left, dy = (window.innerHeight - r.height) / 2 - r.top;
         media.style.transition = 'transform 1000ms ' + INOUT;
         media.style.transform = 'translate3d(' + dx + 'px,' + dy + 'px,0)';
