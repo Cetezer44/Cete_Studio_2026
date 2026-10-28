@@ -617,7 +617,8 @@
         // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran
         var dark = aboutSec.getBoundingClientRect().top < vh * 0.5;
         container.classList.toggle('is-dark', dark);
-        root.classList.toggle('is-home-dark', dark);   // la barre noire de droite sort par la droite
+        // la barre noire de droite (et le fond réservé de la modal) sort entièrement par la droite
+        if (dark !== root.classList.contains('is-home-dark')) { root.classList.toggle('is-home-dark', dark); setBar(!dark); }
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
         litGoal = Math.round(p * aboutWords.length);
         if (!litTimer && litGoal !== litN) litTimer = setTimeout(litStep, 0);

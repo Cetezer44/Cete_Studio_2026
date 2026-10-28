@@ -277,7 +277,7 @@ html.is-menu-reset .cm-glass, html.is-menu-reset .cm-mark, html.is-menu-reset .h
    Sur mobile elle reste partout (elle porte le menu). */
 .side-bar { transition: transform 700ms cubic-bezier(.65,0,.35,1); }
 @media (min-width: 768px) {
-  html.no-bar:not(.is-menu) .side-bar, html.is-home-dark:not(.is-menu) .side-bar { transform: translate3d(100%, 0, 0); pointer-events: none; }
+  html.no-bar:not(.is-menu) .side-bar { transform: translate3d(100%, 0, 0); pointer-events: none; }
 }
 html.is-menu-reset .side-bar { transition: none !important; }
 
