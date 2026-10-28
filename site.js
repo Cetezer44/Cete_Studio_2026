@@ -1160,7 +1160,8 @@
           if (gl) {
             // la tuile HTML (nom + zone de clic) s'accroche au bord gauche de la photo courbée, tangente au cylindre
             var thL = th - w / (2 * R);
-            el.style.transform = 'translate3d(' + half.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (thL * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
+            if (r === bendR && bendU > 0) el.style.transform = 'translate3d(' + x.toFixed(2) + 'px,' + y.toFixed(2) + 'px,0)';   // tuile cliquée : à plat, alignée sur le rendu WebGL déplié
+            else el.style.transform = 'translate3d(' + half.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + (-R).toFixed(1) + 'px) rotateY(' + (thL * 57.2958).toFixed(2) + 'deg) translateZ(' + R.toFixed(1) + 'px)';
             // tuile cliquée : les étiquettes s'effacent d'abord, puis le cadrage de la photo revient au
             // cadrage standard (cover sur la tuile, sans la marge de parallaxe) — celui de la page projet
             var fb = r === bendR ? bendU : 0;
@@ -1249,7 +1250,6 @@
           })(t0);
         }).then(function () {
           if (gl) {
-            el.style.transform = 'translate3d(' + (G.vw / 2 - w / 2).toFixed(1) + 'px,' + el.style.transform.match(/translate3d\([^,]+,\s*([^,]+),/)[1] + ',0)';
             el.classList.remove('is-bent');   // la photo HTML plate réapparaît…
             tiles[r].hidden = true;           // …à la place du rendu WebGL
             draw(s1);
