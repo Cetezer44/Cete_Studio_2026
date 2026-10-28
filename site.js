@@ -374,14 +374,16 @@
     function easeInOut(t) { return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; }   // quart.inOut
     // La roulette fait un seul tour (START → START + N) ; une fois ce tour fait, le scroll suivant fait
     // défiler la page vers la section du dessous. En revenant en haut, le scroll vers le haut refait tourner la roue.
-    var END = START + N, free = false, anchoring = false, pendingAbout = false;   // fin = retour sur le 01 après le dernier projet
+    var END = START + N, free = false, anchoring = false, pendingAbout = false;
+    var ABOUT_MS = 2000;   // durée du passage section 1 → section 2 (défilement + rotation 05 → 01)   // fin = retour sur le 01 après le dernier projet
     // dès que la roue quitte le dernier projet vers le 01, elle termine son tour et l'ancre part vers la section du dessous
     // (la roue doit d'abord s'arrêter sur le dernier projet : un grand geste ne peut pas le sauter)
     function onLast() { return Math.abs(cur - (END - 1)) < 0.06 && Math.abs(target - (END - 1)) < 0.06; }
     function passLast() {
       if (!onLast()) return false;
-      target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: SLIDE_MS };
-      pendingAbout = true;   // l'ancre part une fois la roue posée sur le 01 (voir tick)
+      // la roue tourne du dernier projet au 01 pendant que la page descend vers la section noire (même durée)
+      target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: ABOUT_MS };
+      goAbout();
       return true;
     }
     function holdLast() { if (target > END - 1) target = END - 1; }
@@ -399,7 +401,7 @@
       if (!sec || anchoring) return;
       setFree(true);
       anchoring = true;
-      var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : 2000;
+      var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : ABOUT_MS;
       var stepA = function (now) {
         if (t0a === null) t0a = now;
         var k = D ? Math.min(1, (now - t0a) / D) : 1;
@@ -437,7 +439,7 @@
       target = Math.round(target) + n;
       clampT();
       tween = !reduce ? { a: cur, b: target, t0: performance.now(), d: SLIDE_MS } : null;
-      if (n > 0 && target >= END) pendingAbout = true;
+      if (n > 0 && target >= END) { if (tween) tween.d = ABOUT_MS; goAbout(); }
     }
 
     // Passage automatique au projet suivant toutes les 5 s.
