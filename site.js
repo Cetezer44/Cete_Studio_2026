@@ -1222,7 +1222,7 @@
           hold = false;
           var t0 = performance.now(), from = introOff;
           (function step(now) {
-            var t = Math.min(1, (now - t0) / 1900), e = 1 - Math.pow(1 - t, 3);
+            var t = Math.min(1, (now - t0) / 1500), e = 1 - Math.pow(1 - t, 3);
             introOff = from * (1 - e);
             if (!frozen && !container.classList.contains('is-list')) draw((sCur === null ? 0 : sCur) + introOff);
             if (t < 1) requestAnimationFrame(step); else render();
@@ -1394,21 +1394,31 @@
     // apparaissent et la grille arrive en tournant légèrement sur le cylindre jusqu'à sa position initiale
     var tgl = $('.works-toggle', container);
     if (!reduce && title) {
+      // lettre par lettre, chaque lettre monte dans son masque
+      var label = title.textContent.trim();
+      title.setAttribute('aria-label', label);
+      title.innerHTML = label.split('').map(function (ch) {
+        return '<span class="wt-m" aria-hidden="true"><span class="wt-l">' + (ch === ' ' ? '&nbsp;' : ch.replace(/[&<>]/g, '')) + '</span></span>';
+      }).join('');
+      var letters = $$('.wt-l', title);
+      letters.forEach(function (l) { l.style.transform = 'translate3d(0,110%,0)'; });
       var tr = title.getBoundingClientRect();
-      var tdx = window.innerWidth / 2 - (tr.left + tr.width / 2), tdy = 0;   // même ligne : déplacement horizontal seulement
+      var tdx = window.innerWidth / 2 - (tr.left + tr.width / 2);   // même ligne : déplacement horizontal seulement
       title.style.transition = 'none';
-      title.style.opacity = '0';
-      title.style.transform = 'translate3d(' + tdx.toFixed(1) + 'px,' + tdy.toFixed(1) + 'px,0)';
+      title.style.transform = 'translate3d(' + tdx.toFixed(1) + 'px,0,0)';
       if (tgl) { tgl.style.transition = 'none'; tgl.style.opacity = '0'; }
       void title.offsetWidth;
-      setTimeout(function () { title.style.transition = 'opacity 800ms ease'; title.style.opacity = '1'; }, 150);
+      letters.forEach(function (l, i) {
+        l.style.transition = 'transform 700ms ' + EASE + ' ' + (100 + i * 45) + 'ms';
+        l.style.transform = 'translate3d(0,0,0)';
+      });
       setTimeout(function () {
-        title.style.transition = 'transform 1200ms ' + INOUT;
+        title.style.transition = 'transform 950ms ' + INOUT;
         title.style.transform = 'translate3d(0,0,0)';
-      }, 1050);
-      setTimeout(function () { if (tgl) { tgl.style.transition = 'opacity 700ms ease'; tgl.style.opacity = '1'; } }, 2150);
-      setTimeout(function () { title.style.transition = ''; title.style.transform = ''; }, 2300);
-      if (wg) wg.intro(container.classList.contains('is-list') ? 0 : 2450);
+      }, 750);
+      setTimeout(function () { if (tgl) { tgl.style.transition = 'opacity 550ms ease'; tgl.style.opacity = '1'; } }, 1450);
+      setTimeout(function () { title.style.transition = ''; title.style.transform = ''; letters.forEach(function (l) { l.style.transition = ''; }); }, 1750);
+      if (wg) wg.intro(container.classList.contains('is-list') ? 0 : 1600);
     } else if (wg) wg.intro(0);
     if (!reduce) {
       var tiles = cards.map(function (c) {

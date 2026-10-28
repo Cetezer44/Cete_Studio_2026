@@ -438,3 +438,7 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   .wg-card.is-bent .works-media { background: transparent; }
   .wg-gl { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 }
+
+/* Titre « Projets. » : lettres dans leur masque (entrée lettre par lettre) */
+.works-title .wt-m { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .12em; margin-bottom: -.12em; }
+.works-title .wt-l { display: inline-block; will-change: transform; }
