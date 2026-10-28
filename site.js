@@ -933,6 +933,22 @@
       }
       container.classList.add('has-wg');
       gridWrap.classList.add('wg-src');
+      // Déformation organique : un bruit (feTurbulence) déplace les pixels de la tuile (feDisplacementMap) ;
+      // l'amplitude grandit vers les bords et le bruit « respire » avec le défilement
+      var NS = 'http://www.w3.org/2000/svg', fsvg = document.createElementNS(NS, 'svg');
+      fsvg.setAttribute('aria-hidden', 'true');
+      fsvg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
+      var fx = els.map(function (el, i) {
+        var f = document.createElementNS(NS, 'filter'), id = 'wg-warp-' + i;
+        f.setAttribute('id', id);
+        f.setAttribute('x', '-15%'); f.setAttribute('y', '-15%'); f.setAttribute('width', '130%'); f.setAttribute('height', '130%');
+        f.setAttribute('color-interpolation-filters', 'sRGB');
+        f.innerHTML = '<feTurbulence type="fractalNoise" baseFrequency="0.005 0.008" numOctaves="2" seed="' + (3 + i * 7) + '" result="n"/>' +
+          '<feDisplacementMap in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/>';
+        fsvg.appendChild(f);
+        return { id: id, t: f.firstChild, d: f.lastChild, last: '' };
+      });
+      pin.appendChild(fsvg);
       var G = {}, pinTop = 0, LOOP = 0;
       function mod(a, b) { return ((a % b) + b) % b; }
       function geo() {
@@ -987,13 +1003,23 @@
           var ty = y + (reduce ? 0 : drift * (14 + 26 * a) * G.k);
           var sc = 1 - 0.2 * e - Math.abs(drift) * 0.025;
           var ry = -sg * 24 * e;
-          // déformation : la tuile s'écrase en largeur et se cisaille en s'éloignant du centre
-          var sx = 1 - 0.16 * e, sk = sg * 6 * e;
-          el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) perspective(' + Math.round(1600 * G.k) + 'px) rotateY(' + ry.toFixed(2) + 'deg) skewY(' + sk.toFixed(2) + 'deg) scale(' + (sc * sx).toFixed(4) + ',' + sc.toFixed(4) + ')';
+          // la tuile s'écrase un peu en largeur en s'éloignant du centre
+          var sx = 1 - 0.1 * e;
+          el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) perspective(' + Math.round(1600 * G.k) + 'px) rotateY(' + ry.toFixed(2) + 'deg) scale(' + (sc * sx).toFixed(4) + ',' + sc.toFixed(4) + ')';
           // pas d'opacité : des calques en mode de fusion (couleur + superposition claire) font fondre la photo dans le fond
           el.style.setProperty('--e', e.toFixed(3));
           var bl = 7 * e * e;
-          el.style.filter = bl > 0.15 ? 'blur(' + bl.toFixed(2) + 'px)' : '';
+          // déformation organique : amplitude selon la distance au centre (+ un peu selon la vitesse),
+          // le bruit ondule avec la position de défilement
+          var amp = (reduce ? 0 : (70 * e * e + 18 * Math.abs(drift) * (0.3 + a))) * G.k, F = fx[r], fl = '';
+          if (amp > 0.8) {
+            var ph = s / 520 + r * 1.7;
+            F.t.setAttribute('baseFrequency', (0.0045 + 0.0012 * Math.sin(ph)).toFixed(5) + ' ' + (0.0075 + 0.0018 * Math.cos(ph * 0.8)).toFixed(5));
+            F.d.setAttribute('scale', amp.toFixed(1));
+            fl = 'url(#' + F.id + ')';
+          }
+          if (bl > 0.15) fl += (fl ? ' ' : '') + 'blur(' + bl.toFixed(2) + 'px)';
+          if (fl !== F.last) { el.style.filter = fl; F.last = fl; }
           // parallaxe horizontale dans la photo
           el.style.setProperty('--px', (-Math.max(-1, Math.min(1, q / 2)) * 8).toFixed(2) + '%');
         });
@@ -1018,7 +1044,7 @@
       on(window, 'resize', function () { geo(); sCur = null; render(); });
       geo(); sCur = null; measure(); loop();
       ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
-      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function () { frozen = true; } };
+      return { els: els, pin: pin, render: function () { geo(); render(); }, freeze: function () { frozen = true; els.forEach(function (el, i) { el.style.filter = ''; fx[i].last = ''; }); } };
     }
     if (head && gridWrap) {
       var tg = document.createElement('div');
