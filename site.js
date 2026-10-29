@@ -490,13 +490,30 @@
       else goTop();
     }
     // bas des services (fin de la page d'accueil) : un geste vers le bas ouvre la modal contact
-    function atSvcEnd() { var el = $('.home-services', container); return !!el && window.scrollY >= secTop('.home-services') + el.offsetHeight - window.innerHeight - 2; }
+    function atSvcEnd() {
+      var el = $('.home-services', container);
+      if (!el) return false;
+      var y = window.scrollY, max = document.documentElement.scrollHeight - window.innerHeight;
+      return y >= max - 4 || y >= secTop('.home-services') + el.offsetHeight - window.innerHeight - 4;
+    }
+    // Bords de la section services : le geste qui continue au-delà (même dans l'élan du trackpad, sans pause)
+    // enchaîne directement — vers la section noire en haut, vers la modal contact en bas — dès ~60 px de défilement
+    var edgeAcc = 0, edgeDir = 0;
+    function edgePush(dir, amount) {
+      if (dir !== edgeDir) { edgeDir = dir; edgeAcc = 0; }
+      edgeAcc += amount;
+      if (edgeAcc < 60) return false;
+      edgeAcc = 0; edgeDir = 0;
+      wLast = performance.now(); wUsed = true;   // la suite de l'élan est ignorée
+      sectionMove(dir);
+      return true;
+    }
     function svcNative(up) { return zone === 'svc' && !(up && atSvcTop()) && !(!up && atSvcEnd()); }
     on(window, 'resize', function () {   // la section noire reste calée
       if (svcCtl && !anchoring && free && zone === 'about') window.scrollTo(0, secTop('.home-about'));
     });
-    on(window, 'scroll', function () {   // pas de retour progressif dans la section noire : on reste en haut des services
-      if (svcCtl && zone === 'svc' && !anchoring && window.scrollY < secTop('.home-services') - 2) window.scrollTo(0, secTop('.home-services'));
+    on(window, 'scroll', function () {   // l'élan dépasse le haut des services : on enchaîne vers la section noire
+      if (svcCtl && zone === 'svc' && !anchoring && !blocked() && window.scrollY < secTop('.home-services') - 2) goBack();
     }, { passive: true });
     function stepBy(n) {
       target = Math.round(target) + n;
@@ -531,8 +548,9 @@
       if (anchoring || pendingAbout) { e.preventDefault(); wLast = performance.now(); wUsed = true; return; }   // la roue rejoint le 01 / l'ancre est en cours
       if (free && svcCtl) {
         if (blocked()) { e.preventDefault(); return; }
-        if (svcNative(dy0 < 0)) { wLast = performance.now(); wUsed = true; return; }   // défilement natif dans les services
+        if (svcNative(dy0 < 0)) { wLast = performance.now(); wUsed = true; edgeAcc = 0; return; }   // défilement natif dans les services
         e.preventDefault();
+        if (zone === 'svc') { edgePush(dy0 > 0 ? 1 : -1, Math.abs(dy0)); return; }
         if (gesture(dy0)) sectionMove(dy0 > 0 ? 1 : -1);
         return;
       }
