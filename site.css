@@ -402,7 +402,7 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 @media (hover: hover) { .wl-row:hover .wl-ch > span, .wg-card:hover .wl-ch > span { transform: translate3d(0, -100%, 0); } }
 .wg-card .works-card-title { line-height: 1.1; white-space: nowrap; }
 
-/* Accueil, section services : curseur « Suivant » / « Précédent » (cercle de 60 px) et indicateur généré par site.js */
+/* Accueil, section services : curseur « Suivant » / « Précédent » (cercle de 60 px) */
 .c-cursor__nav { position: fixed; top: 0; left: 0; will-change: transform; }
 .c-cursor__nav-in { position: absolute; left: 0; top: 0; display: block; transform: translate(-50%, -50%) scale(.6); opacity: 0; white-space: nowrap; color: #fff;
   font-family: 'Be Vietnam Pro', Arial, sans-serif; font-size: 10px; line-height: .85; font-weight: 300; letter-spacing: 0; text-transform: uppercase;
@@ -410,6 +410,4 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 html.is-svc-next .c-cursor__ring, html.is-svc-prev .c-cursor__ring { width: 60px; height: 60px; margin: -30px 0 0 -30px; }
 html.is-svc-next .c-cursor__dot, html.is-svc-prev .c-cursor__dot { opacity: 0; }
 html.is-svc-next .c-cursor__nav-next, html.is-svc-prev .c-cursor__nav-prev { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-.hs-dot { display: block; width: 30px; height: 3px; background: #d9d9d9; transition: background-color 500ms ease; }
-.hs-dot.is-on { background: #000; }
 .c-cursor__nav-prev { font-size: 9px; letter-spacing: -0.02em; }
