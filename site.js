@@ -514,7 +514,8 @@
       if (e && e.cancelable) e.preventDefault();
       if (!up) { menuAcc = 0; return true; }
       menuAcc += amount;
-      if (menuAcc >= 40 && Menu.isOpen()) { menuAcc = 0; wLast = performance.now(); wUsed = true; Menu.close(); }
+      if (!Menu.shown()) { menuAcc = 0; return true; }   // modal encore en cours d'apparition : on attend
+      if (menuAcc >= 40) { menuAcc = 0; wLast = performance.now(); wUsed = true; Menu.close(); }
       return true;
     }
     // bas des services (fin de la page d'accueil) : un geste vers le bas ouvre la modal contact
@@ -639,7 +640,7 @@
     on(window, 'touchend', function (e) {
       ty = null;
       if (root.classList.contains('is-menu')) {   // swipe vers le bas (retour vers le haut de page) : la modal se ferme
-        if (tsY !== null && e.changedTouches[0].clientY - tsY > 60 && Menu.isOpen()) Menu.close();
+        if (tsY !== null && e.changedTouches[0].clientY - tsY > 60 && Menu.shown()) Menu.close();
         tsY = null;
         return;
       }
@@ -658,7 +659,7 @@
       var t = e.target.tagName;
       if (t === 'INPUT' || t === 'TEXTAREA') return;
       if (root.classList.contains('is-menu')) {
-        if ((e.key === 'ArrowUp' || e.key === 'PageUp') && Menu.isOpen()) { e.preventDefault(); Menu.close(); }
+        if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); if (Menu.shown()) Menu.close(); }
         return;
       }
       if (blocked()) return;
@@ -2979,7 +2980,7 @@
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
   var Menu = (function () {
-    var isOpen = false, busy = false, lastFocus = null, timers = [];
+    var isOpen = false, busy = false, lastFocus = null, timers = [], shownAt = 0;
     function later(ms, fn) { timers.push(setTimeout(fn, ms)); }
     function clearLater() { timers.forEach(clearTimeout); timers = []; }
     function col(title, items) {
@@ -3111,6 +3112,7 @@
       prepLogo();
       box.style.visibility = 'visible';
       box.offsetHeight;
+      shownAt = 0;
       if (reduce) { bg.style.transition = 'none'; bg.style.clipPath = 'inset(0 0 0 0)'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.transform = 'none'; }); busy = false; box.focus({ preventScroll: true }); return; }
       // 1. Le fond noir monte depuis le bas de l'écran
       bg.style.transition = 'clip-path 1000ms ' + INOUT;
@@ -3123,6 +3125,9 @@
       // 3. Le grand logo se construit lettre par lettre
       buildLogo(850);
       later(1000, function () { busy = false; box.focus({ preventScroll: true }); });
+      // instant où tout est affiché (fond, textes, logo) : avant, un geste de défilement ne referme pas la modal
+      shownAt = performance.now() + Math.max(650 + 35 * Math.max(0, cols.length - 1) + 900, 1900,
+        900 + 80 * Math.max(0, coords.length - 1) + 1000, 850 + (logoPaths.length ? (logoPaths.length - 1) * 110 + 1300 : 1400));
     }
     function shut(fast) {
       if (!isOpen) return Promise.resolve();
@@ -3187,7 +3192,8 @@
       void root.offsetWidth;
       requestAnimationFrame(function () { root.classList.remove('is-menu-reset'); });
     }
-    return { open: open, close: shut, expand: expand, reset: reset, isOpen: function () { return isOpen; } };
+    return { open: open, close: shut, expand: expand, reset: reset, isOpen: function () { return isOpen; },
+      shown: function () { return isOpen && performance.now() >= shownAt; } };
   })();
 
   /* =====================================================================
