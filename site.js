@@ -489,6 +489,16 @@
       else if (dir > 0) goSvc();
       else goTop();
     }
+    // Modal contact ouverte sur l'accueil : un geste vers le haut la referme (≈ 40 px)
+    var menuAcc = 0;
+    function menuScroll(e, up, amount) {
+      if (!root.classList.contains('is-menu')) { menuAcc = 0; return false; }
+      if (e && e.cancelable) e.preventDefault();
+      if (!up) { menuAcc = 0; return true; }
+      menuAcc += amount;
+      if (menuAcc >= 40 && Menu.isOpen()) { menuAcc = 0; wLast = performance.now(); wUsed = true; Menu.close(); }
+      return true;
+    }
     // bas des services (fin de la page d'accueil) : un geste vers le bas ouvre la modal contact
     function atSvcEnd() {
       var el = $('.home-services', container);
@@ -545,6 +555,7 @@
 
     on(window, 'wheel', function (e) {
       var dy0 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if (menuScroll(e, dy0 < 0, Math.abs(dy0))) return;
       if (anchoring || pendingAbout) { e.preventDefault(); wLast = performance.now(); wUsed = true; return; }   // la roue rejoint le 01 / l'ancre est en cours
       if (free && svcCtl) {
         if (blocked()) { e.preventDefault(); return; }
@@ -585,6 +596,7 @@
     on(window, 'touchmove', function (e) {
       if (ty === null) return;
       var y = e.touches[0].clientY;
+      if (root.classList.contains('is-menu')) { e.preventDefault(); ty = y; return; }
       if (anchoring || pendingAbout) { e.preventDefault(); ty = y; return; }
       if (free && svcCtl) {   // le geste est lu au relâchement (défilement natif dans les services)
         if (!svcNative(y > ty)) e.preventDefault();
@@ -608,6 +620,11 @@
     }, { passive: false });
     on(window, 'touchend', function (e) {
       ty = null;
+      if (root.classList.contains('is-menu')) {   // swipe vers le bas (retour vers le haut de page) : la modal se ferme
+        if (tsY !== null && e.changedTouches[0].clientY - tsY > 60 && Menu.isOpen()) Menu.close();
+        tsY = null;
+        return;
+      }
       if (free && svcCtl && tsY !== null && !anchoring && !blocked()) {
         var dyT = tsY - e.changedTouches[0].clientY;
         tsY = null;
@@ -621,7 +638,12 @@
     });
     on(window, 'keydown', function (e) {
       var t = e.target.tagName;
-      if (t === 'INPUT' || t === 'TEXTAREA' || blocked()) return;
+      if (t === 'INPUT' || t === 'TEXTAREA') return;
+      if (root.classList.contains('is-menu')) {
+        if ((e.key === 'ArrowUp' || e.key === 'PageUp') && Menu.isOpen()) { e.preventDefault(); Menu.close(); }
+        return;
+      }
+      if (blocked()) return;
       if (pendingAbout || anchoring) { e.preventDefault(); return; }
       var down = e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ', up = e.key === 'ArrowUp' || e.key === 'PageUp';
       if (free && svcCtl) {
