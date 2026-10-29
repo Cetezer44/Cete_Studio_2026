@@ -476,11 +476,14 @@
     }
     // un geste = un passage : la traîne d'inertie du trackpad est ignorée jusqu'à une pause de 180 ms
     var wLast = 0, wUsed = false;
+    // Nouveau geste = pause de 180 ms OU relance pendant l'élan (delta qui repart nettement à la hausse) :
+    // on n'a pas besoin d'attendre la fin de l'inertie du trackpad pour passer à la section suivante
+    var wPrev = 0;
     function gesture(dy) {
-      var now = performance.now(), fresh = now - wLast > 180;
-      wLast = now;
+      var now = performance.now(), a = Math.abs(dy), fresh = now - wLast > 180, push = a > wPrev * 1.5 + 8;
+      wLast = now; wPrev = a;
       if (fresh) wUsed = false;
-      if (wUsed || Math.abs(dy) < 3) return false;
+      if (a < 3 || (wUsed && !push)) return false;
       wUsed = true;
       return true;
     }
@@ -556,7 +559,7 @@
     on(window, 'wheel', function (e) {
       var dy0 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
       if (menuScroll(e, dy0 < 0, Math.abs(dy0))) return;
-      if (anchoring || pendingAbout) { e.preventDefault(); wLast = performance.now(); wUsed = true; return; }   // la roue rejoint le 01 / l'ancre est en cours
+      if (anchoring || pendingAbout) { e.preventDefault(); wLast = performance.now(); wUsed = true; wPrev = Math.abs(dy0); return; }   // la roue rejoint le 01 / l'ancre est en cours
       if (free && svcCtl) {
         if (blocked()) { e.preventDefault(); return; }
         if (svcNative(dy0 < 0)) { wLast = performance.now(); wUsed = true; edgeAcc = 0; return; }   // défilement natif dans les services
@@ -728,7 +731,7 @@
         litGoal = Math.round(p * aboutWords.length);
         if (!litTimer && litGoal !== litN) litTimer = setTimeout(litStep, 0);
       };
-      // les mots s'écrivent un par un (≈ 85 ms par mot), vers l'avancée du défilement
+      // les mots s'écrivent un par un (≈ 35 ms par mot), vers l'avancée du défilement
       var litGoal = 0, litTimer = null;
       var litStep = function () {
         litTimer = null;
@@ -736,7 +739,7 @@
         if (litN === litGoal) return;
         litN += litGoal > litN ? 1 : -1;
         aboutWords.forEach(function (sp, i) { sp.classList.toggle('is-lit', i < litN); });
-        litTimer = setTimeout(litStep, reduce ? 0 : 85);
+        litTimer = setTimeout(litStep, reduce ? 0 : 35);
       };
       ac.signal.addEventListener('abort', function () { clearTimeout(litTimer); });
       on(window, 'scroll', aboutUpdate, { passive: true });
