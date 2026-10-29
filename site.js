@@ -1030,7 +1030,7 @@
         var y0 = window.scrollY, y1 = Math.round(secY() + (k - 1) * window.innerHeight * SEG);
         if (Math.abs(y1 - y0) < 2) return;
         if (reduce) { window.scrollTo(0, y1); return; }
-        var t0 = null, D = Math.min(800, 400 + Math.abs(y1 - y0) * 0.6);
+        var t0 = null, D = 300;
         var step = function (now) {
           if (t0 === null) t0 = now;
           var p = Math.min(1, (now - t0) / D), e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
