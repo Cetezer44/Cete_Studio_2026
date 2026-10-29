@@ -65,18 +65,18 @@ html[data-page="home"] .home-nav, html[data-page="home"] .home-logo { z-index: 2
 [data-barba-namespace="home"] .home-logo-img { transition: filter 900ms ease; }
 [data-barba-namespace="home"].is-dark .home-nav .nav-link { color: #f0f0f0; }
 [data-barba-namespace="home"].is-dark .home-logo-img { filter: invert(1); }
-.cm-bg { position: fixed; top: 0; right: 0; z-index: 49; width: 0; height: 100vh; background: #000; pointer-events: none; }
+.cm-bg { position: fixed; top: 0; left: 0; z-index: 49; width: 100%; height: 100vh; background: #000; pointer-events: none; clip-path: inset(100% 0 0 0); }
 html.is-menu .cm-bg { pointer-events: auto; }
 .cm { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 51; visibility: hidden; pointer-events: none; color: #fff; outline: none; }
 .cm a, .cm button { pointer-events: auto; color: #fff; text-decoration: none; }
-.cm-cols { position: absolute; left: 5.556vw; top: 78px; display: flex; column-gap: 10.42vw; }
+.cm-cols { position: absolute; left: 5.556vw; top: 80px; display: flex; column-gap: 10.42vw; }
 .cm-col { display: flex; flex-direction: column; align-items: flex-start; row-gap: 20px; }
 .cm-head { margin: 0; font-size: 11px; line-height: .85; font-weight: 300; letter-spacing: 0; text-decoration: underline; }
 .cm-link { font-size: 13px; line-height: .85; font-weight: 300; letter-spacing: 0; text-transform: uppercase; }
-.cm-main { position: absolute; left: 5.556vw; top: 50%; transform: translateY(-50%); display: flex; align-items: center; column-gap: 4.861vw; }
+.cm-main { position: absolute; left: 5.556vw; top: 50%; transform: translateY(-50%); display: flex; align-items: flex-end; column-gap: 10.42vw; }
 .cm-title { margin: 0; font-size: clamp(30px, 3.472vw, 50px); line-height: 1; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
 .cm-coords { display: flex; flex-direction: column; align-items: flex-start; row-gap: 16px; }
-.cm-coord { font-size: clamp(16px, 1.389vw, 20px); line-height: .85; font-weight: 300; letter-spacing: 0; }
+.cm-coord { font-size: clamp(15px, 1.18vw, 17px); line-height: .85; font-weight: 300; letter-spacing: 0; }
 /* E-mail : icône « copier » en exposant, infobulle de confirmation au clic */
 .cm-mail { position: relative; }
 .cm-copy { display: inline-block; width: .79em; height: .79em; margin-left: .25em; vertical-align: top; fill: currentColor; }
@@ -86,8 +86,8 @@ html.is-menu .cm-bg { pointer-events: auto; }
 .cm-close { position: absolute; right: 5.556vw; top: 50%; transform: translateY(-50%); padding: 0; border: 0; background: none; font: inherit; font-size: 13px; line-height: .85; font-weight: 300; letter-spacing: 0; text-transform: uppercase; }
 @media (hover: hover) and (pointer: fine) { .cm-close:not(:focus-visible) { opacity: 0; } }
 /* Grand logo « cete » en bas à droite (322 × 100 sur la maquette) */
-.cm-logo { position: absolute; right: 5.556vw; bottom: 80px; width: 22.36vw; height: 6.944vw; }
-.cm-logo img, .cm-logo svg { overflow: visible; position: absolute; left: 50%; top: 50%; width: 6.944vw; height: 22.36vw; max-width: none; transform: translate(-50%, -50%) rotate(90deg); }
+.cm-logo { position: absolute; right: 5.556vw; bottom: 80px; width: 97px; height: 30px; }
+.cm-logo img, .cm-logo svg { overflow: visible; position: absolute; left: 50%; top: 50%; width: 30px; height: 97px; max-width: none; transform: translate(-50%, -50%) rotate(90deg); }
 html.is-menu, html.is-menu body { overflow: hidden; }
 html.is-menu .burger-line:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 html.is-menu .burger-line:nth-child(2) { transform: scaleX(0); }
@@ -97,8 +97,7 @@ html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45d
   .cm-main { left: 20px; right: 20px; flex-direction: column; align-items: flex-start; row-gap: 24px; }
   .cm-title { white-space: normal; }
   .cm-close { top: auto; bottom: 30px; right: 20px; transform: none; }
-  .cm-logo { right: 20px; bottom: 90px; width: 50vw; height: 15.5vw; }
-  .cm-logo img, .cm-logo svg { width: 15.5vw; height: 50vw; }
+  .cm-logo { right: 20px; bottom: 90px; }
   .cm-tip { left: 0; top: auto; bottom: 100%; margin: 0 0 10px; transform: translateY(6px); }
   .cm-tip.is-on { transform: none; }
 }

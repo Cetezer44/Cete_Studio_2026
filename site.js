@@ -485,11 +485,13 @@
       return true;
     }
     function sectionMove(dir) {
-      if (zone === 'svc') { if (dir < 0) goBack(); }
+      if (zone === 'svc') { if (dir < 0) goBack(); else if (atSvcEnd()) Menu.open(); }
       else if (dir > 0) goSvc();
       else goTop();
     }
-    function svcNative(up) { return zone === 'svc' && !(up && atSvcTop()); }
+    // bas des services (fin de la page d'accueil) : un geste vers le bas ouvre la modal contact
+    function atSvcEnd() { var el = $('.home-services', container); return !!el && window.scrollY >= secTop('.home-services') + el.offsetHeight - window.innerHeight - 2; }
+    function svcNative(up) { return zone === 'svc' && !(up && atSvcTop()) && !(!up && atSvcEnd()); }
     on(window, 'resize', function () {   // la section noire reste calée
       if (svcCtl && !anchoring && free && zone === 'about') window.scrollTo(0, secTop('.home-about'));
     });
@@ -591,7 +593,7 @@
       if (free && svcCtl && tsY !== null && !anchoring && !blocked()) {
         var dyT = tsY - e.changedTouches[0].clientY;
         tsY = null;
-        if (Math.abs(dyT) > 40 && (zone !== 'svc' || (dyT < 0 && atSvcTop()))) sectionMove(dyT > 0 ? 1 : -1);
+        if (Math.abs(dyT) > 40 && (zone !== 'svc' || (dyT < 0 && atSvcTop()) || (dyT > 0 && atSvcEnd()))) sectionMove(dyT > 0 ? 1 : -1);
         return;
       }
       if (blocked() || free) return;
@@ -2729,8 +2731,6 @@
      ===================================================================== */
   var CONTACT = {
     email: 'cetestudio.pro@gmail.com',
-    phone: '0658026687',
-    phoneLink: '+33658026687',
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
     menu: [['Projets', '/projets'], ['Studio', '/studio']],   // « Services » retiré en attendant la page
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
@@ -2748,7 +2748,6 @@
     var bg = document.createElement('div');
     bg.className = 'cm-bg';
     bg.setAttribute('aria-hidden', 'true');
-    function panelW() { return window.innerWidth; }   // la modal prend toute la largeur
     var box = document.createElement('div');
     box.className = 'cm';
     box.id = 'contact-modal';
@@ -2763,8 +2762,7 @@
           '<a class="cm-coord cm-mail-link" href="mailto:' + CONTACT.email + '" aria-label="Copier l’adresse ' + CONTACT.email + '">' + CONTACT.email +
             '<svg class="cm-copy" viewBox="17 17 15.75 15.75" aria-hidden="true"><path d="M20.7654 20.7905V21.5878H17.7973V31.9527H28.1622V28.9846H28.9595V32.75H17V20.7905H20.7654Z"/><path d="M32.75 17V26.5676H23.1824V17H32.75ZM23.9797 25.7703H31.9527V17.7973H23.9797V25.7703Z"/></svg></a>' +
           '<span class="cm-tip" role="status" aria-live="polite"></span>' +
-        '</div>' +
-        '<a class="cm-coord" href="tel:' + CONTACT.phoneLink + '">' + CONTACT.phone + '</a></div></div>' +
+        '</div></div></div>' +
       '<button type="button" class="cm-close">Fermer</button>' +
       '<div class="cm-logo" aria-hidden="true"><img src="' + LOADER_LOGO + '" alt=""></div>';
     document.body.appendChild(bg);
@@ -2870,10 +2868,10 @@
       prepLogo();
       box.style.visibility = 'visible';
       box.offsetHeight;
-      if (reduce) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.transform = 'none'; }); busy = false; box.focus({ preventScroll: true }); return; }
-      // 1. Le fond noir s'étend depuis le bord droit jusqu'à couvrir tout l'écran
-      bg.style.transition = 'width 1000ms ' + INOUT;
-      bg.style.width = panelW() + 'px';
+      if (reduce) { bg.style.transition = 'none'; bg.style.clipPath = 'inset(0 0 0 0)'; all.forEach(function (el) { el.style.transform = 'none'; }); logo.style.clipPath = 'inset(-2% -2% -2% -2%)'; logoPaths.forEach(function (o) { o.el.style.transform = 'none'; }); busy = false; box.focus({ preventScroll: true }); return; }
+      // 1. Le fond noir monte depuis le bas de l'écran
+      bg.style.transition = 'clip-path 1000ms ' + INOUT;
+      bg.style.clipPath = 'inset(0 0 0 0)';
       // 2. Les textes montent depuis leur masque, colonne par colonne
       reveal(cols, 650, 35, 900);
       reveal([title], 800, 0, 1100);
@@ -2897,8 +2895,8 @@
       return new Promise(function (res) {
         later(out, function () {
           if (!out) box.style.visibility = 'hidden';
-          bg.style.transition = out ? 'width 900ms ' + INOUT : 'none';
-          bg.style.width = '';
+          bg.style.transition = out ? 'clip-path 900ms ' + INOUT : 'none';
+          bg.style.clipPath = '';   // le fond redescend
           root.classList.remove('is-menu');
           later(out ? 950 : 0, function () {
             box.style.visibility = 'hidden';
@@ -2919,24 +2917,19 @@
       if (t.classList.contains('cm-close') || isOpen) shut(); else open();
     }, true);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen) shut(); });
-    window.addEventListener('resize', function () { if (isOpen) { bg.style.transition = 'none'; bg.style.width = panelW() + 'px'; } });
     $$('.side-burger').forEach(function (b) { b.setAttribute('aria-controls', 'contact-modal'); b.setAttribute('aria-expanded', 'false'); });
-    // Vers une page légale : les éléments sortent, puis le fond noir s'étend à tout l'écran (la page légale, noire, prend le relais)
+    // Vers une page légale : les éléments sortent ; le fond noir, déjà plein écran, laisse place à la page légale (noire)
     function expand() {
       if (!isOpen) return Promise.resolve();
       clearLater();
       busy = true;
       tip.classList.remove('is-on');
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // pas de contour de focus qui reste à l'écran
-      if (reduce) { bg.style.transition = 'none'; bg.style.width = window.innerWidth + 'px'; return Promise.resolve(); }
+      if (reduce) return Promise.resolve();
       conceal(all, 0, 15, 450);
       logo.style.transition = 'clip-path 550ms ' + INOUT;
       logo.style.clipPath = 'inset(-2% -2% -2% 102%)';
-      return wait(480).then(function () {
-        bg.style.transition = 'width 900ms ' + INOUT;
-        bg.style.width = window.innerWidth + 'px';
-        return wait(920);
-      });
+      return wait(500);
     }
     // Après le changement de page : la modal est remise à zéro sans animation (cachée par la page noire)
     function reset() {
@@ -2944,7 +2937,7 @@
       isOpen = false; busy = false;
       box.style.visibility = 'hidden';
       bg.style.transition = 'none';
-      bg.style.width = '';
+      bg.style.clipPath = '';
       root.classList.add('is-menu-reset');   // logo, burger : bascule sans animation (pas de saut visible)
       root.classList.remove('is-menu');
       burger(false);
