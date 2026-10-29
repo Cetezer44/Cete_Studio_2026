@@ -254,24 +254,25 @@
     function geo() {
       var W = window.innerWidth, H = window.innerHeight, m = W < 768;
       var k = m ? W / 390 : W / 1440;   // maquette desktop 1440 × 867
+      var Z = m ? 1 : 0.91;             // roulette réduite (maquette : photo active 510 px au lieu de 560)
       g = {
         step: m ? 12.5 : 14,              // écart angulaire entre deux photos
-        R:    m ? 520 * k : 640 * k,      // rayon de la roue
+        R:    m ? 520 * k : 582 * k,      // rayon de la roue
         px:   m ? W * 1.75 : 1880 * k,    // pivot, hors écran à droite
         py:   m ? H * 0.62 : H / 2,
-        sc:   m ? 1.18 : 1.423,           // photo active : 560 px de large sur la maquette
-        n1:   m ? 0.95 : 0.973,           // taille des photos voisines
-        fall: m ? 0.12 : 0.157,           // réduction de taille par cran supplémentaire
-        sh:   m ? 0 : -135 * k,           // décalage vers la gauche de la photo active (roue un peu plus à droite)
-        bx:   m ? 0 : 60 * k,             // photos de derrière poussées vers la droite (pas de vide sur le bord droit)
-        gap:  m ? 20 : 40 * k,
+        sc:   m ? 1.18 : 1.423 * Z,       // photo active : 510 px de large sur la maquette
+        n1:   m ? 0.95 : 0.973 * Z,       // taille des photos voisines
+        fall: m ? 0.12 : 0.157 * Z,       // réduction de taille par cran supplémentaire
+        sh:   m ? 0 : -167 * k,           // décalage vers la gauche de la photo active (centre à x = 1131 sur la maquette)
+        bx:   m ? 0 : 55 * k,             // photos de derrière poussées vers la droite (pas de vide sur le bord droit)
+        gap:  m ? 20 : 40 * k * Z,
         k:    m ? Math.max(0.6, k * 0.6) : k,
         w: cards[0].offsetWidth,
         h: cards[0].offsetHeight
       };
       INTRO_FROM = START - INTRO_DEG / g.step;
       // la photo au premier plan est agrandie (× sc) : la légende est dimensionnée pour retomber sur la maquette
-      wheel.style.setProperty('--cap-pad', (40 * k / g.sc).toFixed(2) + 'px');
+      wheel.style.setProperty('--cap-pad', (40 * k * Z / g.sc).toFixed(2) + 'px');
       wheel.style.setProperty('--cap-s', (1 / g.sc).toFixed(4));
       if (intro && !introGo) cur = INTRO_FROM;
       dirty = true;
@@ -345,7 +346,7 @@
         c.classList.toggle('is-front', ad < 0.5);   // dégradé + curseur « Voir » sur la photo au premier plan
       }
       // numéro + titre en blanc, posés en bas à gauche de la photo au premier plan (40 px de marge sur la maquette)
-      var aw = g.w * g.sc, ah = g.h * g.sc, pad = g.k * 40;
+      var aw = g.w * g.sc, ah = g.h * g.sc, pad = g.k * 40 * (window.innerWidth < 768 ? 1 : 0.91);
       info.style.left = (g.px - g.R + g.sh - aw / 2 + pad) + 'px';
       info.style.top = (g.py + ah / 2 - pad - info.offsetHeight) + 'px';
       if (intro) return;
