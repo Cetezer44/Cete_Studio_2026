@@ -400,6 +400,7 @@
       if (!sec || anchoring) return;
       setFree(true);
       anchoring = true;
+      zone = 'about';
       var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : ABOUT_MS;
       var stepA = function (now) {
         if (t0a === null) t0a = now;
@@ -430,11 +431,64 @@
         if (k < 1 && alive) { aRaf = requestAnimationFrame(stepT); return; }
         aRaf = null;
         anchoring = false;
+        zone = 'hero';
         setFree(false);
       };
       aRaf = requestAnimationFrame(stepT);
     }
     ac.signal.addEventListener('abort', function () { if (aRaf) cancelAnimationFrame(aRaf); });
+
+    // Section noire ↔ section services : deux écrans de 100vh bloqués. Un geste vers le bas
+    // ancre la page sur les services pendant que le fond passe du noir au clair (et inversement).
+    var svcCtl = null, zone = 'hero', svcOn = false, SVC_MS = 1300;
+    function anchorTo(y1, d, done) {
+      anchoring = true;
+      var y0 = window.scrollY, t0a = null, D = reduce ? 0 : d;
+      var stepS = function (now) {
+        if (t0a === null) t0a = now;
+        var k = D ? Math.min(1, (now - t0a) / D) : 1;
+        window.scrollTo(0, y0 + (y1 - y0) * easeInOut(k));
+        if (k < 1 && alive) { aRaf = requestAnimationFrame(stepS); return; }
+        aRaf = null; anchoring = false;
+        if (done) done();
+      };
+      aRaf = requestAnimationFrame(stepS);
+    }
+    function secTop(sel) { var el = $(sel, container); return el ? el.getBoundingClientRect().top + window.scrollY : 0; }
+    function goSvc() {
+      if (anchoring || !svcCtl) return;
+      zone = 'svc'; svcOn = true;
+      container.classList.remove('is-dark');
+      anchorTo(secTop('.home-services'), SVC_MS, function () { svcCtl.nav(); });
+      setTimeout(function () { if (alive && zone === 'svc') svcCtl.enter(); }, reduce ? 0 : SVC_MS * 0.45);
+    }
+    function goBack() {
+      if (anchoring || !svcCtl) return;
+      zone = 'about'; svcOn = false;
+      svcCtl.leave();
+      container.classList.add('is-dark');
+      anchorTo(secTop('.home-about'), SVC_MS, function () { svcCtl.nav(); });
+    }
+    function svcStep(dir) { if (!svcCtl.step(dir)) goBack(); }
+    // un geste = un cran : la traîne d'inertie du trackpad est ignorée jusqu'à une pause de 180 ms
+    var wLast = 0, wUsed = false;
+    function gesture(dy) {
+      var now = performance.now(), fresh = now - wLast > 180;
+      wLast = now;
+      if (fresh) wUsed = false;
+      if (wUsed || Math.abs(dy) < 3) return false;
+      wUsed = true;
+      return true;
+    }
+    function sectionMove(dir) {
+      if (dir > 0) { if (zone === 'svc') svcCtl.step(1); else goSvc(); }
+      else if (zone === 'svc') svcStep(-1);
+      else goTop();
+    }
+    on(window, 'resize', function () {   // reste calé sur la section courante
+      if (!svcCtl || anchoring || !free) return;
+      window.scrollTo(0, secTop(zone === 'svc' ? '.home-services' : '.home-about'));
+    });
     function stepBy(n) {
       target = Math.round(target) + n;
       clampT();
@@ -482,7 +536,13 @@
 
     on(window, 'wheel', function (e) {
       var dy0 = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-      if (anchoring || pendingAbout) { e.preventDefault(); return; }   // la roue rejoint le 01 / l'ancre est en cours
+      if (anchoring || pendingAbout) { e.preventDefault(); wLast = performance.now(); wUsed = true; return; }   // la roue rejoint le 01 / l'ancre est en cours
+      if (free && svcCtl) {
+        e.preventDefault();
+        if (blocked()) return;
+        if (gesture(dy0)) sectionMove(dy0 > 0 ? 1 : -1);
+        return;
+      }
       if (free) {
         // page libre : défilement natif, sauf tout en haut vers le haut → la roue reprend la main
         if (dy0 >= 0 || blocked()) return;
@@ -510,11 +570,13 @@
     }, { passive: false });
 
     var ty = null;
-    on(window, 'touchstart', function (e) { ty = e.touches[0].clientY; }, { passive: true });
+    var tsY = null;
+    on(window, 'touchstart', function (e) { ty = tsY = e.touches[0].clientY; }, { passive: true });
     on(window, 'touchmove', function (e) {
       if (ty === null) return;
       var y = e.touches[0].clientY;
       if (anchoring || pendingAbout) { e.preventDefault(); ty = y; return; }
+      if (free && svcCtl) { e.preventDefault(); ty = y; return; }   // le geste est lu au relâchement
       if (free) {
         if (y <= ty || blocked()) { ty = y; return; }
         if (window.scrollY > 0) { if (nearAbout()) { e.preventDefault(); goTop(); } ty = y; return; }
@@ -532,8 +594,14 @@
       tween = null;
       autoNext();
     }, { passive: false });
-    on(window, 'touchend', function () {
+    on(window, 'touchend', function (e) {
       ty = null;
+      if (free && svcCtl && tsY !== null && !anchoring && !blocked()) {
+        var dyT = tsY - e.changedTouches[0].clientY;
+        tsY = null;
+        if (Math.abs(dyT) > 40) sectionMove(dyT > 0 ? 1 : -1);
+        return;
+      }
       if (blocked() || free) return;
       target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
       clampT();
@@ -543,6 +611,10 @@
       if (t === 'INPUT' || t === 'TEXTAREA' || blocked()) return;
       if (pendingAbout || anchoring) { e.preventDefault(); return; }
       var down = e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ', up = e.key === 'ArrowUp' || e.key === 'PageUp';
+      if (free && svcCtl) {
+        if (down || up) { e.preventDefault(); sectionMove(down ? 1 : -1); }
+        return;
+      }
       if (free) {
         if (up && window.scrollY <= 0) { setFree(false); e.preventDefault(); stepBy(-1); }
         else if (up && nearAbout()) { e.preventDefault(); goTop(); }
@@ -615,8 +687,7 @@
         var r = aboutText.getBoundingClientRect(), vh = window.innerHeight;
         // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran,
         // retour au clair quand la section services (fond clair) prend le relais
-        var svcS = $('.home-services', container), sTop = svcS ? svcS.getBoundingClientRect().top : Infinity;
-        container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5 && sTop >= vh * 0.5);
+        container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5 && !svcOn);
 
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
         litGoal = Math.round(p * aboutWords.length);
@@ -638,11 +709,12 @@
       aboutUpdate();
     }
 
-    /* ---- Section services : slider piloté au scroll (collection CMS « Services ») ----
-       Chaque service se construit à partir d'un carré : horizontale = largeur puis hauteur,
-       verticale = hauteur puis largeur, losange = carré tourné à 45° qui grandit.
-       Le titre apparaît au-dessus du centre puis se recentre ; la sortie replie la forme en carré,
-       l'image change dans le carré, puis le service suivant se construit. */
+    /* ---- Section services : slider plein écran (collection CMS « Services ») ----
+       La section fait 100vh et reste bloquée : chaque geste (molette, swipe, flèches, clic
+       « Suivant » / « Précédent ») fait passer d'un service à l'autre.
+       Construction depuis un carré : horizontale = largeur puis hauteur, verticale = hauteur puis
+       largeur, losange = carré tourné à 45° qui grandit. Les deux temps se chevauchent pour un
+       mouvement continu ; le changement d'image se fait en fondu dans le petit carré. */
     var svcSec = $('.home-services', container);
     if (svcSec) (function () {
       var stage = $('.hs-stage', svcSec), dotsBox = $('.hs-dots', svcSec);
@@ -671,17 +743,14 @@
         });
       var N = data.length;
       if (!N || !stage) return;
-      var SEG = 0.8;   // défilement (en hauteur d'écran) consacré à chaque service
-      svcSec.style.height = 'calc(' + Math.round((1 + (N - 1) * SEG + 0.4) * 100) + 'vh)';
       // courbes rythmées : départ franc, arrivée sèche (légère surcourse à l'agrandissement)
-      var GROW = 'cubic-bezier(.83,0,.17,1.06)', SNAP = 'cubic-bezier(.76,0,.24,1)', TURN = 'cubic-bezier(.65,0,.35,1)';
+      var GROW = 'cubic-bezier(.76,0,.2,1.08)', SNAP = 'cubic-bezier(.7,0,.25,1)', TURN = 'cubic-bezier(.65,0,.35,1)';
       var W, H, S0, D, LIFT;
       function dims() {
         W = Math.min(700, window.innerWidth - 40); H = Math.round(W * 360 / 700);
         S0 = Math.max(32, Math.round(50 * W / 700)); D = Math.round(247 * W / 700); LIFT = Math.round(100 * W / 700);
         data.forEach(function (d) { d.img.style.width = W + 'px'; d.img.style.height = H + 'px'; });
       }
-      // dots
       var dots = [];
       if (dotsBox) {
         dotsBox.textContent = '';
@@ -691,33 +760,39 @@
 
       function imgT(r) { return 'translate(-50%, -50%) rotate(' + (-r) + 'deg)'; }
       function put(d, s) {
-        d.cur = s;
+        d.cur = { w: s.w, h: s.h, r: s.r };
         d.sh.style.width = s.w + 'px'; d.sh.style.height = s.h + 'px'; d.sh.style.rotate = s.r + 'deg';
         d.img.style.transform = imgT(s.r);
       }
-      function morph(d, s, dur, ease) {
-        var f = d.cur;
-        put(d, s);
-        if (reduce || !alive) return Promise.resolve();
-        var a = d.sh.animate([{ width: f.w + 'px', height: f.h + 'px', rotate: f.r + 'deg' },
-          { width: s.w + 'px', height: s.h + 'px', rotate: s.r + 'deg' }], { duration: dur, easing: ease });
-        if (f.r !== s.r) d.img.animate([{ transform: imgT(f.r) }, { transform: imgT(s.r) }], { duration: dur, easing: ease });
+      // anime une seule dimension (w, h ou r) : plusieurs appels peuvent se chevaucher sans à-coup
+      function tw(d, key, to, dur, ease, delay) {
+        var from = d.cur[key];
+        d.cur[key] = to;
+        var css = key === 'w' ? 'width' : key === 'h' ? 'height' : 'rotate', unit = key === 'r' ? 'deg' : 'px';
+        d.sh.style[css] = to + unit;
+        if (key === 'r') d.img.style.transform = imgT(to);
+        if (reduce || !alive || from === to) return Promise.resolve();
+        var o = { duration: dur, easing: ease, delay: delay || 0, fill: 'backwards' }, k0 = {}, k1 = {};
+        k0[css] = from + unit; k1[css] = to + unit;
+        var a = d.sh.animate([k0, k1], o);
+        if (key === 'r') d.img.animate([{ transform: imgT(from) }, { transform: imgT(to) }], o);
         return a.finished.catch(function () {});
       }
-      function lift(d, y, dur, ease) {
+      function all(list) { return Promise.all(list); }
+      function lift(d, y, dur, ease, delay) {
         var from = d.t.style.translate || '0px 0px', to = '0px ' + y + 'px';
         d.t.style.translate = to;
-        if (!reduce && dur) d.t.animate([{ translate: from }, { translate: to }], { duration: dur, easing: ease });
+        if (!reduce && dur) d.t.animate([{ translate: from }, { translate: to }], { duration: dur, easing: ease, delay: delay || 0, fill: 'backwards' });
       }
       function titleIn(d, delay) {
         d.lines.forEach(function (s, i) {
-          s.style.transition = reduce ? 'none' : 'transform 850ms ' + EASE + ' ' + (delay + i * 70) + 'ms';
+          s.style.transition = reduce ? 'none' : 'transform 800ms ' + EASE + ' ' + (delay + i * 70) + 'ms';
           s.style.transform = 'translateY(0)';
         });
       }
       function titleOut(d) {
         d.lines.forEach(function (s, i) {
-          s.style.transition = reduce ? 'none' : 'transform 420ms ' + SNAP + ' ' + (i * 40) + 'ms';
+          s.style.transition = reduce ? 'none' : 'transform 450ms ' + SNAP + ' ' + (i * 40) + 'ms';
           s.style.transform = 'translateY(-115%)';
         });
       }
@@ -725,36 +800,39 @@
         d.lines.forEach(function (s) { s.style.transition = 'none'; s.style.transform = 'translateY(115%)'; });
         d.t.style.translate = '0px 0px';
       }
-      function pause(ms) { return reduce ? Promise.resolve() : wait(ms); }
 
       function enter(d) {
         titleReset(d);
         if (d.type === 'd') {
-          return morph(d, { w: Math.round(S0 * 0.95), h: Math.round(S0 * 0.95), r: 45 }, 420, TURN)
-            .then(function () { titleIn(d, 160); return morph(d, { w: D, h: D, r: 45 }, 760, GROW); });
+          // rotation puis agrandissement, enchaînés sans arrêt
+          titleIn(d, 420);
+          return all([tw(d, 'r', 45, 480, TURN), tw(d, 'w', D, 820, GROW, 300), tw(d, 'h', D, 820, GROW, 300)]);
         }
-        var first = d.type === 'h' ? { w: W, h: S0, r: 0 } : { w: S0, h: H, r: 0 };
+        var a = d.type === 'h' ? 'w' : 'h', b = d.type === 'h' ? 'h' : 'w';
+        var A = a === 'w' ? W : H, B = b === 'w' ? W : H;
         lift(d, -LIFT, 0);
-        return morph(d, first, 640, GROW).then(function () {
-          titleIn(d, 0);
-          return pause(240);
-        }).then(function () {
-          lift(d, 0, 700, GROW);
-          return morph(d, { w: W, h: H, r: 0 }, 700, GROW);
-        });
+        titleIn(d, 420);
+        lift(d, 0, 760, GROW, 760);
+        return all([tw(d, a, A, 700, GROW), tw(d, b, B, 760, GROW, 760)]);
       }
       function exit(d) {
         titleOut(d);
-        var c = d.cur;
-        return pause(140).then(function () {
-          if (d.type === 'd') return morph(d, { w: S0, h: S0, r: 0 }, 620, SNAP);
-          var mid = d.type === 'h' ? { w: S0, h: c.h, r: 0 } : { w: c.w, h: S0, r: 0 };
-          return morph(d, mid, 520, SNAP).then(function () { return morph(d, { w: S0, h: S0, r: 0 }, 440, SNAP); });
-        });
+        if (d.type === 'd') return all([tw(d, 'w', S0, 620, SNAP, 120), tw(d, 'h', S0, 620, SNAP, 120), tw(d, 'r', 0, 620, SNAP, 120)]);
+        var a = d.type === 'h' ? 'w' : 'h', b = d.type === 'h' ? 'h' : 'w';
+        return all([tw(d, a, S0, 560, SNAP, 120), tw(d, b, S0, 520, SNAP, 520)]);
       }
-      function show(i) { data.forEach(function (d, j) { d.el.style.visibility = j === i ? '' : 'hidden'; }); }
+      function show(i) { data.forEach(function (d, j) { d.el.style.visibility = j === i ? '' : 'hidden'; d.el.style.opacity = ''; d.el.style.zIndex = ''; }); }
+      // nouveau service : apparaît en fondu par-dessus l'ancien carré, puis l'ancien est masqué
+      function swap(from, to) {
+        var o = data[from], n = data[to];
+        put(n, { w: S0, h: S0, r: 0 });
+        n.el.style.visibility = ''; n.el.style.zIndex = '1';
+        if (reduce) { show(to); return Promise.resolve(); }
+        var a = n.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 380, easing: 'ease' });
+        return a.finished.catch(function () {}).then(function () { o.el.style.visibility = 'hidden'; n.el.style.zIndex = ''; });
+      }
 
-      // file d'attente : on termine toujours l'étape en cours, puis on va directement vers la cible
+      // file d'attente : l'étape en cours se termine, puis on va directement vers la cible
       var shown = -1, phase = 'none', target = -1, busy = false;   // phase : none | square | open
       function pump() {
         if (busy || !alive) return;
@@ -764,68 +842,66 @@
           p = exit(data[shown]).then(function () { phase = 'square'; });
         } else if (target < 0) {
           if (phase === 'none') return;
-          p = morph(data[shown], { w: 0, h: 0, r: 0 }, 320, SNAP).then(function () { phase = 'none'; show(-1); shown = -1; setDot(-1); });
+          var dd = data[shown];
+          p = all([tw(dd, 'w', 0, 320, SNAP), tw(dd, 'h', 0, 320, SNAP)]).then(function () { phase = 'none'; show(-1); shown = -1; setDot(-1); });
         } else if (phase === 'none') {
           shown = target; show(shown); put(data[shown], { w: 0, h: 0, r: 0 });
-          p = morph(data[shown], { w: S0, h: S0, r: 0 }, 380, GROW).then(function () { phase = 'square'; });
+          p = all([tw(data[shown], 'w', S0, 380, GROW), tw(data[shown], 'h', S0, 380, GROW)]).then(function () { phase = 'square'; });
         } else {
-          if (shown !== target) {   // l'image change pendant que la forme est un petit carré
-            var nd = data[target];
-            put(nd, { w: S0, h: S0, r: 0 });
-            shown = target; show(shown);
-          }
+          var from = shown;
+          shown = target;
           setDot(shown);
-          p = enter(data[shown]).then(function () { phase = 'open'; });
+          // le fondu d'image et la construction démarrent ensemble : pas de temps mort
+          p = all([from !== shown ? swap(from, shown) : Promise.resolve(), enter(data[shown])]).then(function () { phase = 'open'; });
         }
         busy = true;
-        p.then(function () { busy = false; pump(); });
+        p.then(function () { busy = false; pump(); navUpdate(); });
       }
+      function go(i) { target = i; pump(); navUpdate(); }
 
-      function measure() {
-        var r = svcSec.getBoundingClientRect(), vh = window.innerHeight;
-        var t = r.top > vh * 0.45 ? -1 : Math.max(0, Math.min(N - 1, Math.round(Math.max(0, -r.top) / (vh * SEG))));
-        if (t !== target) { target = t; pump(); navUpdate(); }
-      }
-      function goTo(i) {
-        if (i < 0 || i >= N) return;
-        var y = svcSec.getBoundingClientRect().top + window.scrollY + i * SEG * window.innerHeight;
-        window.scrollTo({ top: Math.round(y) + (i ? 2 : 0), behavior: reduce ? 'auto' : 'smooth' });
-      }
-
-      // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) ; clic = service voisin
-      var mx = -1, my = -1, navDir = 0;
+      // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) ; clic = service voisin,
+      // « Précédent » sur le premier service ramène à la section noire
+      var mx = -1, my = -1;
       function navAt(x, y) {
-        if (target < 0 || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return 0;
+        if (target < 0 || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return 0;
         var el = document.elementFromPoint(x, y);
         if (!el || !el.closest('.hs-stage') || el.closest('a, button')) return 0;
         var dir = x >= window.innerWidth / 2 ? 1 : -1;
-        return (target + dir < 0 || target + dir >= N) ? 0 : dir;
+        return target + dir >= N ? 0 : dir;
       }
       function navUpdate() {
-        navDir = mx < 0 ? 0 : navAt(mx, my);
-        root.classList.toggle('is-svc-next', navDir > 0);
-        root.classList.toggle('is-svc-prev', navDir < 0);
+        var dir = mx < 0 ? 0 : navAt(mx, my);
+        root.classList.toggle('is-svc-next', dir > 0);
+        root.classList.toggle('is-svc-prev', dir < 0);
       }
       on(window, 'mousemove', function (e) { mx = e.clientX; my = e.clientY; navUpdate(); }, { passive: true });
       on(document, 'mouseleave', function () { mx = -1; navUpdate(); });
       on(stage, 'click', function (e) {
         if (e.target.closest('a, button')) return;
         var dir = navAt(e.clientX, e.clientY);
-        if (dir) goTo(target + dir);
+        if (dir) svcStep(dir);
       });
       ac.signal.addEventListener('abort', function () { root.classList.remove('is-svc-next', 'is-svc-prev'); });
-
-      on(window, 'scroll', function () { measure(); if (mx >= 0) navUpdate(); }, { passive: true });
       on(window, 'resize', function () {
         dims();
         if (shown >= 0 && !busy) {
           var d = data[shown];
           put(d, phase === 'open' ? (d.type === 'd' ? { w: D, h: D, r: 45 } : { w: W, h: H, r: 0 }) : { w: S0, h: S0, r: 0 });
         }
-        measure();
       });
       dims();
-      measure();
+      svcCtl = {
+        enter: function () { go(Math.max(0, target)); },
+        leave: function () { go(-1); },
+        // un cran ; renvoie false si on sort de la section par le haut
+        step: function (dir) {
+          var t = target + dir;
+          if (t < 0) return false;
+          if (t < N) go(t);
+          return true;
+        },
+        nav: navUpdate
+      };
     })();
 
     // Curseur « Scroll » sur le hero (hors liens, photos, showreel, menu) tant que la roue a la main
