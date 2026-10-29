@@ -3125,9 +3125,8 @@
       // 3. Le grand logo se construit lettre par lettre
       buildLogo(850);
       later(1000, function () { busy = false; box.focus({ preventScroll: true }); });
-      // instant où tout est affiché (fond, textes, logo) : avant, un geste de défilement ne referme pas la modal
-      shownAt = performance.now() + Math.max(650 + 35 * Math.max(0, cols.length - 1) + 900, 1900,
-        900 + 80 * Math.max(0, coords.length - 1) + 1000, 850 + (logoPaths.length ? (logoPaths.length - 1) * 110 + 1300 : 1400));
+      // pendant 1,8 s après l'ouverture, un geste de défilement ne referme pas la modal
+      shownAt = performance.now() + 1800;
     }
     function shut(fast) {
       if (!isOpen) return Promise.resolve();
