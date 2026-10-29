@@ -735,7 +735,7 @@
               var m = document.createElement('span'), s = document.createElement('span');
               m.setAttribute('aria-hidden', 'true');
               m.style.cssText = 'display:block;overflow:hidden;padding:.06em 0 .12em;margin:-.06em 0 -.12em';
-              s.style.cssText = 'display:block;transform:translateY(115%)';
+              s.style.cssText = 'display:block;transform:translateY(130%)';
               s.textContent = l.trim();
               m.appendChild(s); t.appendChild(m); lines.push(s);
             });
@@ -849,7 +849,7 @@
       }
       function titleIn(s, fromBelow) {
         s.lines.forEach(function (l, i) {
-          l.style.transition = 'none'; l.style.transform = 'translateY(' + (fromBelow ? 115 : -115) + '%)';
+          l.style.transition = 'none'; l.style.transform = 'translateY(' + (fromBelow ? 130 : -130) + '%)';
         });
         void s.t.offsetWidth;
         s.lines.forEach(function (l, i) {
@@ -860,7 +860,7 @@
       function titleOut(s, up) {
         s.lines.forEach(function (l, i) {
           l.style.transition = reduce ? 'none' : 'transform 450ms ' + INOUT + ' ' + (i * 40) + 'ms';
-          l.style.transform = 'translateY(' + (up ? -115 : 115) + '%)';
+          l.style.transform = 'translateY(' + (up ? -130 : 130) + '%)';
         });
       }
 
