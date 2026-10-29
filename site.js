@@ -463,12 +463,13 @@
       zone = 'svc'; svcOn = true;
       container.classList.remove('is-dark');
       anchorTo(secTop('.home-services'), SVC_MS, function () { svcCtl.nav(); });
+      setTimeout(function () { if (alive && zone === 'svc') svcCtl.enter(); }, reduce ? 0 : SVC_MS * 0.35);
     }
     function goBack() {
       if (anchoring || !svcCtl) return;
       zone = 'about'; svcOn = false;
       container.classList.add('is-dark');
-      anchorTo(secTop('.home-about'), SVC_MS, function () { svcCtl.nav(); });
+      anchorTo(secTop('.home-about'), SVC_MS, function () { svcCtl.nav(); if (zone === 'about') svcCtl.leave(); });
     }
     // un geste = un passage : la traîne d'inertie du trackpad est ignorée jusqu'à une pause de 180 ms
     var wLast = 0, wUsed = false;
@@ -720,7 +721,8 @@
        Scène collante de 100vh. Le défilement (lissé) fait tourner un cylindre vu de l'intérieur (les images
        des côtés viennent vers nous) : l'image de chaque service arrive par la droite, passe sous le titre
        (centre), repart à gauche ; le titre change à mi-chemin entre deux images. Les voisines restent
-       visibles sur les côtés.
+       visibles sur les côtés, plus petites ; l'image au centre est agrandie. Les images flottent
+       légèrement avec le curseur. En arrivant sur la section, la première image glisse sous son titre.
        Rendu WebGL (photo plaquée sur une portion de cylindre, inclinée) ; à défaut, cartes HTML en 3D. */
     var svcSec = $('.home-services', container);
     if (svcSec) (function () {
@@ -748,8 +750,8 @@
         });
       var N = data.length;
       if (!N || !stage) return;
-      var SEG = 0.75, TILT = 0.19, DPR = Math.min(2, window.devicePixelRatio || 1), MESH = 64;
-      svcSec.style.height = 'calc(' + Math.round((1 + N * SEG) * 100) + 'vh)';   // u : 0 → N (service i centré en u = i + 1)
+      var SEG = 0.75, TILT = 0.14, SLOPE = 0.06, DPR = Math.min(2, window.devicePixelRatio || 1), MESH = 64;
+      svcSec.style.height = 'calc(' + Math.round((1.3 + (N - 1) * SEG) * 100) + 'vh)';   // u : 1 → N (service i centré en u = i + 1)
       function bestSrc(img) {
         var set = (img.getAttribute('srcset') || '').split(',').map(function (c) {
           var p = c.trim().split(/\s+/); return { u: p[0], w: parseInt(p[1], 10) || 0 };
@@ -775,10 +777,10 @@
         var o = { premultipliedAlpha: true, antialias: true, alpha: true };
         gl = cv.getContext('webgl2', o) || cv.getContext('webgl', o);
         if (!gl) { cv.remove(); cv = null; return; }
-        var vs = 'attribute vec2 aUV;uniform float uTh,uW,uH,uY,uR,uP,uRot,uSl;uniform vec2 uView;varying vec2 vUV;varying float vCos;' +
+        var vs = 'attribute vec2 aUV;uniform float uTh,uW,uH,uY,uR,uP,uRot,uSl;uniform vec2 uView,uOff;varying vec2 vUV;varying float vCos;' +
           'vec2 pj(float a,float y){float X=uR*sin(a);float Z=uR-uR*cos(a);float s=uP/(uP-Z);return vec2(uView.x*0.5+X*s,uView.y*0.5+(y-uView.y*0.5)*s);}' +
           'void main(){float ang=uTh+(aUV.x-0.5)*uW/uR;float yc=uY+uR*sin(uTh)*uSl;vec2 p=pj(ang,yc-uH*0.5+aUV.y*uH);vec2 c=pj(uTh,yc);' +
-          'vec2 d=p-c;float cs=cos(uRot),sn=sin(uRot);p=c+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);' +
+          'vec2 d=p-c;float cs=cos(uRot),sn=sin(uRot);p=c+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs)+uOff;' +
           'vUV=aUV;vCos=cos(ang);gl_Position=vec4(p.x/uView.x*2.0-1.0,1.0-p.y/uView.y*2.0,0.0,1.0);}';
         var fs = 'precision highp float;uniform sampler2D uTex;uniform vec3 uImg;uniform float uW,uH,uAlpha,uReady,uRad;varying vec2 vUV;varying float vCos;' +
           'void main(){if(vCos<0.0)discard;vec2 l=vec2(vUV.x*uW,vUV.y*uH);float B=1.16;float Bw=B*uW;float bx=l.x+(B-1.0)*0.5*uW-uImg.z;' +
@@ -798,7 +800,7 @@
         var loc = gl.getAttribLocation(prog, 'aUV');
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-        ['uTh', 'uW', 'uH', 'uY', 'uR', 'uP', 'uRot', 'uSl', 'uView', 'uTex', 'uImg', 'uAlpha', 'uReady', 'uRad'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+        ['uTh', 'uW', 'uH', 'uY', 'uR', 'uP', 'uRot', 'uSl', 'uView', 'uOff', 'uTex', 'uImg', 'uAlpha', 'uReady', 'uRad'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
         gl.uniform1i(U.uTex, 0);
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -841,11 +843,11 @@
       function geo() {
         var vw = stage.clientWidth || window.innerWidth, vh = stage.clientHeight || window.innerHeight, k = Math.min(1, vw / 1440);
         G.vw = vw; G.vh = vh;
-        G.W = Math.min(472, vw * 0.72); G.H = G.W * 281 / 472;
+        G.W = Math.min(577, vw * 0.8); G.H = G.W * 358 / 577;   // image au centre (les voisines à 60 %)
         G.P = Math.max(1400, 2200 * k);
         var hw = vw / 2;
         G.R = 1.25 * hw;                      // cylindre vu de l'intérieur : courbure douce
-        G.D = G.W * 1.32;                     // écart entre deux services : les voisines restent sur les côtés
+        G.D = G.W * 1.11;                     // écart entre deux services : les voisines restent sur les côtés
         if (gl) { cv.width = Math.round(vw * DPR); cv.height = Math.round(vh * DPR); gl.viewport(0, 0, cv.width, cv.height); }
         if (!gl) data.forEach(function (s) { if (s.sh) { s.sh.style.width = G.W + 'px'; s.sh.style.height = G.H + 'px'; } });
       }
@@ -866,9 +868,13 @@
         });
       }
 
-      var tT = 0, tC = 0, raf = null, titled = -1;
+      var tT = 1, tC = 1, raf = null, titled = -1;
+      // entrée : décalage de -1 (première image à droite) ramené à 0 quand on arrive sur la section
+      var intro = reduce ? 0 : -1, introTw = null;
+      // flottement au curseur : position de la souris lissée, de -1 à 1 autour du centre
+      var fx = 0, fy = 0, cx = 0, cy = 0;
       function draw() {
-        var u = tC, list = [];
+        var u = tC + intro, list = [];
         // titre du service courant : il change quand l'image précédente est sortie à gauche
         var ti = Math.max(0, Math.min(N - 1, Math.round(u - 1)));
         if (ti !== titled) {
@@ -879,48 +885,63 @@
         data.forEach(function (s, i) {
           var off = (i + 1 - u) * G.D, th = off / G.R;
           var a = Math.max(0, Math.min(1, (1.2 - Math.abs(th)) / 0.3));
+          var e = Math.max(0, 1 - Math.abs(off) / G.D); e = e * e * (3 - 2 * e);
+          var sc = 0.6 + 0.4 * e, dep = 1 + 0.7 * (1 - e);   // les images des côtés flottent un peu plus
+          var ox = cx * 18 * dep, oy = cy * 14 * dep, rot = TILT + cx * 0.02;
           if (s.t) s.t.style.opacity = i === ti ? (0.3 + 0.7 * Math.max(0, 1 - Math.abs(off) / (G.W * 0.75))).toFixed(3) : '0.3';
-          if (gl) { if (a > 0) list.push({ s: s, th: th, a: a }); return; }
+          if (gl) { if (a > 0) list.push({ s: s, th: th, a: a, sc: sc, ox: ox, oy: oy, rot: rot }); return; }
           // repli sans WebGL : carte HTML plate posée sur le cylindre
           if (!s.sh) return;
           s.sh.style.opacity = a.toFixed(3);
           s.sh.style.visibility = a > 0 ? 'visible' : 'hidden';
-          var x = G.R * Math.sin(th), z = G.R - G.R * Math.cos(th), y = x * TILT;
-          s.sh.style.transform = 'perspective(' + Math.round(G.P) + 'px) translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + z.toFixed(1) +
-            'px) rotateY(' + (-th * 57.2958).toFixed(2) + 'deg) rotate(' + (TILT * 57.2958).toFixed(2) + 'deg)';
+          var x = G.R * Math.sin(th), z = G.R - G.R * Math.cos(th), y = x * SLOPE;
+          s.sh.style.transform = 'translate(' + ox.toFixed(1) + 'px,' + oy.toFixed(1) + 'px) perspective(' + Math.round(G.P) + 'px) translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + z.toFixed(1) +
+            'px) rotateY(' + (-th * 57.2958).toFixed(2) + 'deg) rotate(' + (rot * 57.2958).toFixed(2) + 'deg) scale(' + sc.toFixed(3) + ')';
         });
         if (!gl) return;
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.uniform1f(U.uP, G.P); gl.uniform1f(U.uR, G.R);
         gl.uniform2f(U.uView, G.vw, G.vh);
-        gl.uniform1f(U.uW, G.W); gl.uniform1f(U.uH, G.H); gl.uniform1f(U.uY, G.vh / 2);
-        gl.uniform1f(U.uRot, TILT); gl.uniform1f(U.uSl, TILT); gl.uniform1f(U.uRad, 5);
+        gl.uniform1f(U.uY, G.vh / 2);
+        gl.uniform1f(U.uSl, SLOPE); gl.uniform1f(U.uRad, 5);
         list.sort(function (a, b) { return Math.abs(a.th) - Math.abs(b.th); });   // le centre (le plus loin) d'abord, les côtés par-dessus
         list.forEach(function (d) {
           var px = -Math.max(-1, Math.min(1, d.th / 2)) * 8;   // parallaxe horizontale dans la photo (%)
+          var w = G.W * d.sc;
           gl.uniform1f(U.uTh, d.th);
-          gl.uniform3f(U.uImg, d.s.iw, d.s.ih, px / 100 * 1.16 * G.W);
+          gl.uniform1f(U.uW, w); gl.uniform1f(U.uH, G.H * d.sc);
+          gl.uniform1f(U.uRot, d.rot); gl.uniform2f(U.uOff, d.ox, d.oy);
+          gl.uniform3f(U.uImg, d.s.iw, d.s.ih, px / 100 * 1.16 * w);
           gl.uniform1f(U.uAlpha, d.a);
           gl.uniform1f(U.uReady, d.s.ready ? 1 : 0);
           gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, d.s.tex);
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 2 * (MESH + 1));
         });
       }
-      function loop() {
+      function loop(now) {
         raf = null;
         tC += (tT - tC) * (reduce ? 1 : 0.085);
         if (Math.abs(tT - tC) < 0.0005) tC = tT;
+        cx += (fx - cx) * 0.06; cy += (fy - cy) * 0.06;
+        var still = Math.abs(fx - cx) < 0.001 && Math.abs(fy - cy) < 0.001;
+        if (still) { cx = fx; cy = fy; }
+        if (introTw) {
+          var k = Math.min(1, (now - introTw.t0) / introTw.d);
+          intro = introTw.a + (introTw.b - introTw.a) * (1 - Math.pow(1 - k, 4));   // quart.out : arrivée douce sous le titre
+          if (k >= 1) introTw = null;
+        }
         draw();
-        if (tC !== tT && alive) raf = requestAnimationFrame(loop);
+        if ((tC !== tT || !still || introTw) && alive) raf = requestAnimationFrame(loop);
       }
+      function kick() { if (!raf) raf = requestAnimationFrame(loop); }
       ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
       function secY() { return svcSec.getBoundingClientRect().top + window.scrollY; }
       function update() {
-        tT = Math.max(0, Math.min(N, (window.scrollY - secY()) / (window.innerHeight * SEG)));
-        if (!raf) raf = requestAnimationFrame(loop);
+        tT = 1 + Math.max(0, Math.min(N - 1, (window.scrollY - secY()) / (window.innerHeight * SEG)));
+        kick();
       }
-      function scrollToU(v) { window.scrollTo({ top: Math.round(secY() + v * window.innerHeight * SEG), behavior: reduce ? 'auto' : 'smooth' }); }
+      function scrollToU(v) { window.scrollTo({ top: Math.round(secY() + (v - 1) * window.innerHeight * SEG), behavior: reduce ? 'auto' : 'smooth' }); }
 
       // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) : clic = service voisin centré
       // sous le titre ; « Précédent » avant le premier service ramène à la section noire
@@ -939,7 +960,13 @@
         root.classList.toggle('is-svc-next', dir > 0);
         root.classList.toggle('is-svc-prev', dir < 0);
       }
-      on(window, 'mousemove', function (e) { mx = e.clientX; my = e.clientY; navUpdate(); }, { passive: true });
+      on(window, 'mousemove', function (e) {
+        mx = e.clientX; my = e.clientY; navUpdate();
+        if (reduce || zone !== 'svc') return;
+        fx = Math.max(-1, Math.min(1, (mx / window.innerWidth - 0.5) * 2));
+        fy = Math.max(-1, Math.min(1, (my / window.innerHeight - 0.5) * 2));
+        kick();
+      }, { passive: true });
       on(document, 'mouseleave', function () { mx = -1; navUpdate(); });
       on(stage, 'click', function (e) {
         if (e.target.closest('a, button')) return;
@@ -954,7 +981,17 @@
       update();
       tC = tT;
       draw();
-      svcCtl = { nav: navUpdate };
+      svcCtl = {
+        nav: navUpdate,
+        // arrivée sur la section : la première image glisse depuis la droite jusque sous son titre
+        enter: function () {
+          if (reduce) { intro = 0; draw(); return; }
+          introTw = { a: intro, b: 0, t0: performance.now(), d: 1800 };
+          kick();
+        },
+        // retour à la section noire : la scène est hors écran, on la remet en position de départ
+        leave: function () { introTw = null; intro = reduce ? 0 : -1; fx = fy = cx = cy = 0; draw(); }
+      };
     })();
 
     // Curseur « Scroll » sur le hero (hors liens, photos, showreel, menu) tant que la roue a la main
