@@ -1014,7 +1014,33 @@
         fy = Math.max(-1, Math.min(1, (e.clientY / window.innerHeight - 0.5) * 2));
         kick();
       }, { passive: true });
-      on(window, 'scroll', update, { passive: true });
+      on(window, 'scroll', function () { update(); snapLater(); }, { passive: true });
+      // Aimantation : 2 s sans défilement → la page glisse doucement vers le service le plus proche (centré
+      // sous son titre). Le moindre geste de l'utilisateur interrompt le glissement.
+      var snapT = null, snapRaf = null;
+      function snapStop() { if (snapRaf) { cancelAnimationFrame(snapRaf); snapRaf = null; } }
+      function snapLater() {
+        clearTimeout(snapT);
+        if (snapRaf) return;
+        snapT = setTimeout(snapNow, 2000);
+      }
+      function snapNow() {
+        if (!alive || zone !== 'svc' || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return;
+        var k = Math.max(1, Math.min(N, Math.round(tT)));
+        var y0 = window.scrollY, y1 = Math.round(secY() + (k - 1) * window.innerHeight * SEG);
+        if (Math.abs(y1 - y0) < 2) return;
+        if (reduce) { window.scrollTo(0, y1); return; }
+        var t0 = null, D = Math.min(1200, 500 + Math.abs(y1 - y0) * 0.8);
+        var step = function (now) {
+          if (t0 === null) t0 = now;
+          var p = Math.min(1, (now - t0) / D), e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+          window.scrollTo(0, y0 + (y1 - y0) * e);
+          snapRaf = p < 1 && alive ? requestAnimationFrame(step) : null;
+        };
+        snapRaf = requestAnimationFrame(step);
+      }
+      ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (t) { on(window, t, snapStop, { passive: true }); });
+      ac.signal.addEventListener('abort', function () { clearTimeout(snapT); snapStop(); });
       on(window, 'resize', function () { geo(); update(); draw(); });
       geo();
       update();
