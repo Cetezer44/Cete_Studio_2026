@@ -14,8 +14,6 @@
     '<div class="c-cursor__disc"><span class="c-cursor__disc-in">Découvrir</span></div>' +
     // Modal contact : « Fermer » partout où il n'y a pas de lien
     '<div class="c-cursor__close"><span class="c-cursor__close-in">Fermer</span></div>' +
-    // Section services de l'accueil : « Suivant » (moitié droite) / « Précédent » (moitié gauche)
-    '<div class="c-cursor__nav"><span class="c-cursor__nav-in c-cursor__nav-next">Suivant</span><span class="c-cursor__nav-in c-cursor__nav-prev">Précédent</span></div>' +
     // Hero de l'accueil : invitation au scroll (trait qui s'efface, puis « Scroll », en boucle)
     '<div class="c-cursor__cue"><span class="c-cursor__cue-in"><i class="c-cursor__cue-line"></i><span class="c-cursor__cue-txt">Scroll</span></span></div>' +
     // Lecture / pause au survol de la vidéo du showreel (maquette Figma « Play/Pause »)
@@ -37,7 +35,6 @@
   var disc = c.querySelector('.c-cursor__disc');
   var cue = c.querySelector('.c-cursor__cue');
   var closer = c.querySelector('.c-cursor__close');
-  var nav = c.querySelector('.c-cursor__nav');
   var mx = -100, my = -100, rx = mx, ry = my;
   var LINKS = 'a, button, [role="button"], input[type="submit"], label, select';
 
@@ -80,7 +77,6 @@
     disc.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     cue.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     closer.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
-    nav.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     requestAnimationFrame(loop);
   })();
 })();
@@ -469,14 +465,14 @@
       if (anchoring || !svcCtl) return;
       zone = 'svc'; svcOn = true;
       container.classList.remove('is-dark');
-      anchorTo(secTop('.home-services'), SVC_MS, function () { svcCtl.nav(); });
+      anchorTo(secTop('.home-services'), SVC_MS);
       setTimeout(function () { if (alive && zone === 'svc') svcCtl.enter(); }, reduce ? 0 : SVC_MS * 0.35);
     }
     function goBack() {
       if (anchoring || !svcCtl) return;
       zone = 'about'; svcOn = false;
       container.classList.add('is-dark');
-      anchorTo(secTop('.home-about'), SVC_MS, function () { svcCtl.nav(); if (zone === 'about') svcCtl.leave(); });
+      anchorTo(secTop('.home-about'), SVC_MS, function () { if (zone === 'about') svcCtl.leave(); });
     }
     // un geste = un passage : la traîne d'inertie du trackpad est ignorée jusqu'à une pause de 180 ms
     var wLast = 0, wUsed = false;
@@ -506,23 +502,6 @@
       tween = !reduce ? { a: cur, b: target, t0: performance.now(), d: SLIDE_MS } : null;
       if (n > 0 && target >= END) { if (tween) tween.d = ABOUT_MS; goAbout(); }
     }
-
-    // Passage automatique au projet suivant toutes les 5 s.
-    // Le compte à rebours repart à chaque scroll/geste/touche ; pause au survol d'une vignette,
-    // modal ouverte, onglet caché ou mouvements réduits.
-    var AUTO_MS = 5000, autoTimer = null, hovering = false;
-    function autoNext() {
-      clearTimeout(autoTimer);
-      return;   // lecture automatique désactivée : la roulette ne tourne qu'au scroll / geste / clavier
-      if (reduce || !alive) return;
-      autoTimer = setTimeout(function () {
-        if (!alive || leaving) return;
-        if (!blocked() && !hovering && !document.hidden) stepBy(1);
-        autoNext();
-      }, AUTO_MS);
-    }
-    on(wheel, 'mouseover', function (e) { hovering = !!(e.target.closest && e.target.closest('.wheel-card')); });
-    on(wheel, 'mouseleave', function () { hovering = false; });
 
     // Flèche sous le titre : au survol de la photo active ou du titre, elle sort à droite dans son masque
     // et revient par la gauche (animation CSS « is-nudge » sur la propriété translate, indépendante du transform
@@ -573,7 +552,6 @@
       dy = Math.max(-120, Math.min(120, dy));
       if (dy) dir = dy > 0 ? 1 : -1;
       tween = null;
-      autoNext();
       if (dy > 0 && passLast()) return;
       target += dy / 700;   // sensibilité de la molette (plus grand = moins sensible)
       clampT();
@@ -607,7 +585,6 @@
       if (ty - y > 0) holdLast();
       ty = y;
       tween = null;
-      autoNext();
     }, { passive: false });
     on(window, 'touchend', function (e) {
       ty = null;
@@ -637,8 +614,8 @@
         return;   // défilement natif de la page
       }
       if (down && atEnd()) { e.preventDefault(); goAbout(); return; }
-      if (down) { e.preventDefault(); stepBy(1); autoNext(); }
-      if (up) { e.preventDefault(); stepBy(-1); autoNext(); }
+      if (down) { e.preventDefault(); stepBy(1); }
+      if (up) { e.preventDefault(); stepBy(-1); }
     });
     base.forEach(function (c, i) {
       on(c, 'focus', function () {
@@ -662,7 +639,7 @@
             apply(active);
             showInfo();
           }
-          if (p >= 1) { intro = false; cur = target = START; autoNext(); }
+          if (p >= 1) { intro = false; cur = target = START; }
         }
       } else if (reduce) {
         if (cur !== target) { cur = target; dirty = true; }
@@ -959,48 +936,20 @@
         tT = 1 + Math.max(0, Math.min(N - 1, (window.scrollY - secY()) / (window.innerHeight * SEG)));
         kick();
       }
-      function scrollToU(v) { window.scrollTo({ top: Math.round(secY() + (v - 1) * window.innerHeight * SEG), behavior: reduce ? 'auto' : 'smooth' }); }
-
-      // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) : clic = service voisin centré
-      // sous le titre ; « Précédent » avant le premier service ramène à la section noire
-      var mx = -1, my = -1;
-      function nextU() { for (var k = 1; k <= N; k++) if (k > tT + 0.05) return k; return -1; }
-      function prevU() { for (var k = N; k >= 1; k--) if (k < tT - 0.05) return k; return -1; }
-      function navAt(x, y) {
-        if (zone !== 'svc' || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return 0;
-        var el = document.elementFromPoint(x, y);
-        if (!el || !el.closest('.hs-stage') || el.closest('a, button')) return 0;
-        var dir = x >= window.innerWidth / 2 ? 1 : -1;
-        return (dir > 0 && nextU() < 0) ? 0 : dir;
-      }
-      function navUpdate() {
-        var dir = mx < 0 ? 0 : navAt(mx, my);
-        root.classList.toggle('is-svc-next', dir > 0);
-        root.classList.toggle('is-svc-prev', dir < 0);
-      }
+      // flottement des images au mouvement du curseur
       on(window, 'mousemove', function (e) {
-        mx = e.clientX; my = e.clientY; navUpdate();
         if (reduce || zone !== 'svc') return;
-        fx = Math.max(-1, Math.min(1, (mx / window.innerWidth - 0.5) * 2));
-        fy = Math.max(-1, Math.min(1, (my / window.innerHeight - 0.5) * 2));
+        fx = Math.max(-1, Math.min(1, (e.clientX / window.innerWidth - 0.5) * 2));
+        fy = Math.max(-1, Math.min(1, (e.clientY / window.innerHeight - 0.5) * 2));
         kick();
       }, { passive: true });
-      on(document, 'mouseleave', function () { mx = -1; navUpdate(); });
-      on(stage, 'click', function (e) {
-        if (e.target.closest('a, button')) return;
-        var dir = navAt(e.clientX, e.clientY);
-        if (dir > 0) { var n = nextU(); if (n >= 0) scrollToU(n); }
-        else if (dir < 0) { var p = prevU(); if (p >= 0) scrollToU(p); else goBack(); }
-      });
-      ac.signal.addEventListener('abort', function () { root.classList.remove('is-svc-next', 'is-svc-prev'); });
-      on(window, 'scroll', function () { update(); if (mx >= 0) navUpdate(); }, { passive: true });
+      on(window, 'scroll', update, { passive: true });
       on(window, 'resize', function () { geo(); update(); draw(); });
       geo();
       update();
       tC = tT;
       draw();
       svcCtl = {
-        nav: navUpdate,
         // arrivée sur la section : la première image glisse depuis la droite jusque sous son titre
         enter: function () {
           if (reduce) { intro = 0; draw(); return; }
@@ -1068,7 +1017,7 @@
     }
 
     var api = {
-      destroy: function () { alive = false; ac.abort(); clearTimeout(timer); clearTimeout(snapTimer); clearTimeout(autoTimer); },
+      destroy: function () { alive = false; ac.abort(); clearTimeout(timer); clearTimeout(snapTimer); },
       leaveTo: leaveTo
     };
     if (reduce) { root.classList.remove('is-loading'); intro = false; return api; }
@@ -1460,7 +1409,7 @@
         });
       }
 
-      var G = {}, pinTop = 0, LOOP = 0;
+      var G = {}, LOOP = 0;
       function mod(a, b) { return ((a % b) + b) % b; }
       function geo() {
         var vw = root.clientWidth, k = vw / 1440;
@@ -1489,7 +1438,6 @@
         pin.style.marginTop = '0px';
         var natural = pin.getBoundingClientRect().top + window.scrollY;
         pin.style.marginTop = (-natural) + 'px';
-        pinTop = 0;
         var hb = head ? head.getBoundingClientRect().bottom + window.scrollY : natural;
         G.Y0 = hb + 20 * G.k;   // cylindre remonté : le nom du projet central reste bien visible
       }
@@ -3012,7 +2960,7 @@
      ===================================================================== */
   var REEL_SRC = 'https://cetestudio.b-cdn.net/Cete/Showreel_2026.mp4';
   var Reel = (function () {
-    var isOpen = false, busy = false, lastFocus = null, timers = [], shown = false;
+    var isOpen = false, busy = false, lastFocus = null, timers = [];
     function later(ms, fn) { timers.push(setTimeout(fn, ms)); }
     function clearLater() { timers.forEach(clearTimeout); timers = []; }
 
@@ -3074,7 +3022,7 @@
 
     function open() {
       if (isOpen || busy) return;
-      isOpen = true; busy = true; shown = false; clearLater();
+      isOpen = true; busy = true; clearLater();
       lastFocus = document.activeElement;
       root.classList.add('is-reel');
       links = fillChrome();
@@ -3097,7 +3045,7 @@
         bg.style.clipPath = 'inset(0)'; frame.style.opacity = '1'; mark.style.opacity = '1';
         links.concat(texts).forEach(function (el) { el.style.transform = 'none'; });
         closeBtn.classList.add('is-in');
-        shown = true; video.currentTime = 0; toggle(); sync();
+        video.currentTime = 0; toggle(); sync();
         busy = false; closeBtn.focus({ preventScroll: true });
         return;
       }
@@ -3106,7 +3054,6 @@
       bg.style.clipPath = 'inset(0 0 0 0)';
       // 2. Une fois le fond en place : la vidéo apparaît en fondu et démarre
       later(1000, function () {
-        shown = true;
         try { video.currentTime = 0; } catch (e) {}
         if (video.paused) toggle();
         frame.style.transition = 'opacity 900ms ease';
