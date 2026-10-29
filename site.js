@@ -850,11 +850,13 @@
       function geo() {
         var vw = stage.clientWidth || window.innerWidth, vh = stage.clientHeight || window.innerHeight, k = Math.min(1, vw / 1440);
         G.vw = vw; G.vh = vh;
-        G.W = Math.min(577, vw * 0.8); G.H = G.W * 358 / 577;   // image au centre (les voisines à 60 %)
+        var base = Math.min(577, vw * 0.8);
+        G.W = Math.min(680, vw * 0.86); G.H = G.W * 358 / 577;   // image au centre, agrandie
+        G.MIN = base * 0.6 / G.W;                               // les voisines gardent leur taille (≈ 346 px)
         G.P = Math.max(1400, 2200 * k);
         var hw = vw / 2;
         G.R = 1.25 * hw;                      // cylindre vu de l'intérieur : courbure douce
-        G.D = G.W * 1.11;                     // écart entre deux services : les voisines restent sur les côtés
+        G.D = base * 1.11;                     // écart entre deux services : les voisines restent sur les côtés
         if (gl) { cv.width = Math.round(vw * DPR); cv.height = Math.round(vh * DPR); gl.viewport(0, 0, cv.width, cv.height); }
         if (!gl) data.forEach(function (s) { if (s.sh) { s.sh.style.width = G.W + 'px'; s.sh.style.height = G.H + 'px'; } });
       }
@@ -899,7 +901,7 @@
           var off = (i + 1 - u) * G.D, th = off / G.R;
           var a = Math.max(0, Math.min(1, (1.2 - Math.abs(th)) / 0.3));
           var e = Math.max(0, 1 - Math.abs(off) / G.D); e = e * e * (3 - 2 * e);
-          var sc = 0.6 + 0.4 * e, dep = 1 + 0.7 * (1 - e);   // les images des côtés flottent un peu plus
+          var sc = G.MIN + (1 - G.MIN) * e, dep = 1 + 0.7 * (1 - e);   // les images des côtés flottent un peu plus
           var ox = cx * 18 * dep, oy = cy * 14 * dep, rot = TILT + cx * 0.02;
           if (s.t) s.t.style.opacity = i === ti ? (0.3 + 0.7 * Math.max(0, 1 - Math.abs(off) / (G.W * 0.75))).toFixed(3) : '0.3';
           if (gl) { if (a > 0) list.push({ s: s, th: th, a: a, sc: sc, ox: ox, oy: oy, rot: rot }); return; }
