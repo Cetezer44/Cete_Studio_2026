@@ -14,6 +14,8 @@
     '<div class="c-cursor__disc"><span class="c-cursor__disc-in">Découvrir</span></div>' +
     // Modal contact : « Fermer » partout où il n'y a pas de lien
     '<div class="c-cursor__close"><span class="c-cursor__close-in">Fermer</span></div>' +
+    // Section services de l'accueil : « Suivant » (moitié droite) / « Précédent » (moitié gauche)
+    '<div class="c-cursor__nav"><span class="c-cursor__nav-in c-cursor__nav-next">Suivant</span><span class="c-cursor__nav-in c-cursor__nav-prev">Précédent</span></div>' +
     // Hero de l'accueil : invitation au scroll (trait qui s'efface, puis « Scroll », en boucle)
     '<div class="c-cursor__cue"><span class="c-cursor__cue-in"><i class="c-cursor__cue-line"></i><span class="c-cursor__cue-txt">Scroll</span></span></div>' +
     // Lecture / pause au survol de la vidéo du showreel (maquette Figma « Play/Pause »)
@@ -35,6 +37,7 @@
   var disc = c.querySelector('.c-cursor__disc');
   var cue = c.querySelector('.c-cursor__cue');
   var closer = c.querySelector('.c-cursor__close');
+  var nav = c.querySelector('.c-cursor__nav');
   var mx = -100, my = -100, rx = mx, ry = my;
   var LINKS = 'a, button, [role="button"], input[type="submit"], label, select';
 
@@ -77,6 +80,7 @@
     disc.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     cue.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     closer.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
+    nav.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
     requestAnimationFrame(loop);
   })();
 })();
@@ -609,8 +613,10 @@
       var aboutSec = aboutText.closest('.home-about') || aboutText;
       var aboutUpdate = function () {
         var r = aboutText.getBoundingClientRect(), vh = window.innerHeight;
-        // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran
-        container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5);
+        // fond noir en fondu (comme sur le Studio) dès que la section arrive à mi-écran,
+        // retour au clair quand la section services (fond clair) prend le relais
+        var svcS = $('.home-services', container), sTop = svcS ? svcS.getBoundingClientRect().top : Infinity;
+        container.classList.toggle('is-dark', aboutSec.getBoundingClientRect().top < vh * 0.5 && sTop >= vh * 0.5);
 
         var p = reduce ? 1 : Math.max(0, Math.min(1, (vh * 0.85 - r.top) / (vh * 0.85 - (vh - r.height) / 2)));
         litGoal = Math.round(p * aboutWords.length);
@@ -631,6 +637,196 @@
       on(window, 'resize', aboutUpdate);
       aboutUpdate();
     }
+
+    /* ---- Section services : slider piloté au scroll (collection CMS « Services ») ----
+       Chaque service se construit à partir d'un carré : horizontale = largeur puis hauteur,
+       verticale = hauteur puis largeur, losange = carré tourné à 45° qui grandit.
+       Le titre apparaît au-dessus du centre puis se recentre ; la sortie replie la forme en carré,
+       l'image change dans le carré, puis le service suivant se construit. */
+    var svcSec = $('.home-services', container);
+    if (svcSec) (function () {
+      var stage = $('.hs-stage', svcSec), dotsBox = $('.hs-dots', svcSec);
+      var SHAPE = { horizontale: 'h', verticale: 'v', losange: 'd',
+        '92e9d865bd415f72ffcc00a157395b0a': 'h', 'c2290e1553648a08dbc40ef43e6ce0b2': 'v', 'f3f53458d865206ec21af1a912ff5baf': 'd' };
+      var data = $$('.hs-item', svcSec).filter(function (it) { return !it.classList.contains('w-condition-invisible'); })
+        .sort(function (a, b) { return (+a.getAttribute('data-order') || 0) - (+b.getAttribute('data-order') || 0); })
+        .map(function (it) {
+          var t = $('.hs-title', it), lines = [];
+          if (t) {
+            var txt = t.textContent.trim();
+            t.setAttribute('aria-label', txt.replace(/\s*\n\s*/g, ' '));
+            t.textContent = '';
+            txt.split(/\n/).forEach(function (l) {
+              var m = document.createElement('span'), s = document.createElement('span');
+              m.setAttribute('aria-hidden', 'true');
+              m.style.cssText = 'display:block;overflow:hidden;padding:.06em 0 .1em;margin:-.06em 0 -.1em';
+              s.style.cssText = 'display:block;transform:translateY(115%)';
+              s.textContent = l.trim();
+              m.appendChild(s); t.appendChild(m); lines.push(s);
+            });
+          }
+          it.style.visibility = 'hidden';
+          return { el: it, sh: $('.hs-shape', it), img: $('.hs-img', it), t: t, lines: lines,
+            type: SHAPE[(it.getAttribute('data-shape') || '').trim().toLowerCase()] || 'h', cur: { w: 0, h: 0, r: 0 } };
+        });
+      var N = data.length;
+      if (!N || !stage) return;
+      var SEG = 0.8;   // défilement (en hauteur d'écran) consacré à chaque service
+      svcSec.style.height = 'calc(' + Math.round((1 + (N - 1) * SEG + 0.4) * 100) + 'vh)';
+      // courbes rythmées : départ franc, arrivée sèche (légère surcourse à l'agrandissement)
+      var GROW = 'cubic-bezier(.83,0,.17,1.06)', SNAP = 'cubic-bezier(.76,0,.24,1)', TURN = 'cubic-bezier(.65,0,.35,1)';
+      var W, H, S0, D, LIFT;
+      function dims() {
+        W = Math.min(700, window.innerWidth - 40); H = Math.round(W * 360 / 700);
+        S0 = Math.max(32, Math.round(50 * W / 700)); D = Math.round(247 * W / 700); LIFT = Math.round(100 * W / 700);
+        data.forEach(function (d) { d.img.style.width = W + 'px'; d.img.style.height = H + 'px'; });
+      }
+      // dots
+      var dots = [];
+      if (dotsBox) {
+        dotsBox.textContent = '';
+        data.forEach(function () { var s = document.createElement('i'); s.className = 'hs-dot'; dotsBox.appendChild(s); dots.push(s); });
+      }
+      function setDot(i) { dots.forEach(function (s, j) { s.classList.toggle('is-on', j === i); }); }
+
+      function imgT(r) { return 'translate(-50%, -50%) rotate(' + (-r) + 'deg)'; }
+      function put(d, s) {
+        d.cur = s;
+        d.sh.style.width = s.w + 'px'; d.sh.style.height = s.h + 'px'; d.sh.style.rotate = s.r + 'deg';
+        d.img.style.transform = imgT(s.r);
+      }
+      function morph(d, s, dur, ease) {
+        var f = d.cur;
+        put(d, s);
+        if (reduce || !alive) return Promise.resolve();
+        var a = d.sh.animate([{ width: f.w + 'px', height: f.h + 'px', rotate: f.r + 'deg' },
+          { width: s.w + 'px', height: s.h + 'px', rotate: s.r + 'deg' }], { duration: dur, easing: ease });
+        if (f.r !== s.r) d.img.animate([{ transform: imgT(f.r) }, { transform: imgT(s.r) }], { duration: dur, easing: ease });
+        return a.finished.catch(function () {});
+      }
+      function lift(d, y, dur, ease) {
+        var from = d.t.style.translate || '0px 0px', to = '0px ' + y + 'px';
+        d.t.style.translate = to;
+        if (!reduce && dur) d.t.animate([{ translate: from }, { translate: to }], { duration: dur, easing: ease });
+      }
+      function titleIn(d, delay) {
+        d.lines.forEach(function (s, i) {
+          s.style.transition = reduce ? 'none' : 'transform 850ms ' + EASE + ' ' + (delay + i * 70) + 'ms';
+          s.style.transform = 'translateY(0)';
+        });
+      }
+      function titleOut(d) {
+        d.lines.forEach(function (s, i) {
+          s.style.transition = reduce ? 'none' : 'transform 420ms ' + SNAP + ' ' + (i * 40) + 'ms';
+          s.style.transform = 'translateY(-115%)';
+        });
+      }
+      function titleReset(d) {
+        d.lines.forEach(function (s) { s.style.transition = 'none'; s.style.transform = 'translateY(115%)'; });
+        d.t.style.translate = '0px 0px';
+      }
+      function pause(ms) { return reduce ? Promise.resolve() : wait(ms); }
+
+      function enter(d) {
+        titleReset(d);
+        if (d.type === 'd') {
+          return morph(d, { w: Math.round(S0 * 0.95), h: Math.round(S0 * 0.95), r: 45 }, 420, TURN)
+            .then(function () { titleIn(d, 160); return morph(d, { w: D, h: D, r: 45 }, 760, GROW); });
+        }
+        var first = d.type === 'h' ? { w: W, h: S0, r: 0 } : { w: S0, h: H, r: 0 };
+        lift(d, -LIFT, 0);
+        return morph(d, first, 640, GROW).then(function () {
+          titleIn(d, 0);
+          return pause(380);
+        }).then(function () {
+          lift(d, 0, 700, GROW);
+          return morph(d, { w: W, h: H, r: 0 }, 700, GROW);
+        });
+      }
+      function exit(d) {
+        titleOut(d);
+        var c = d.cur;
+        return pause(140).then(function () {
+          if (d.type === 'd') return morph(d, { w: S0, h: S0, r: 0 }, 620, SNAP);
+          var mid = d.type === 'h' ? { w: S0, h: c.h, r: 0 } : { w: c.w, h: S0, r: 0 };
+          return morph(d, mid, 520, SNAP).then(function () { return morph(d, { w: S0, h: S0, r: 0 }, 440, SNAP); });
+        });
+      }
+      function show(i) { data.forEach(function (d, j) { d.el.style.visibility = j === i ? '' : 'hidden'; }); }
+
+      // file d'attente : on termine toujours l'étape en cours, puis on va directement vers la cible
+      var shown = -1, phase = 'none', target = -1, busy = false;   // phase : none | square | open
+      function pump() {
+        if (busy || !alive) return;
+        var p;
+        if (phase === 'open') {
+          if (shown === target) return;
+          p = exit(data[shown]).then(function () { phase = 'square'; });
+        } else if (target < 0) {
+          if (phase === 'none') return;
+          p = morph(data[shown], { w: 0, h: 0, r: 0 }, 320, SNAP).then(function () { phase = 'none'; show(-1); shown = -1; setDot(-1); });
+        } else if (phase === 'none') {
+          shown = target; show(shown); put(data[shown], { w: 0, h: 0, r: 0 });
+          p = morph(data[shown], { w: S0, h: S0, r: 0 }, 380, GROW).then(function () { phase = 'square'; });
+        } else {
+          if (shown !== target) {   // l'image change pendant que la forme est un petit carré
+            var nd = data[target];
+            put(nd, { w: S0, h: S0, r: 0 });
+            shown = target; show(shown);
+          }
+          setDot(shown);
+          p = enter(data[shown]).then(function () { phase = 'open'; });
+        }
+        busy = true;
+        p.then(function () { busy = false; pump(); });
+      }
+
+      function measure() {
+        var r = svcSec.getBoundingClientRect(), vh = window.innerHeight;
+        var t = r.top > vh * 0.45 ? -1 : Math.max(0, Math.min(N - 1, Math.round(Math.max(0, -r.top) / (vh * SEG))));
+        if (t !== target) { target = t; pump(); navUpdate(); }
+      }
+      function goTo(i) {
+        if (i < 0 || i >= N) return;
+        var y = svcSec.getBoundingClientRect().top + window.scrollY + i * SEG * window.innerHeight;
+        window.scrollTo({ top: Math.round(y) + (i ? 2 : 0), behavior: reduce ? 'auto' : 'smooth' });
+      }
+
+      // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) ; clic = service voisin
+      var mx = -1, my = -1, navDir = 0;
+      function navAt(x, y) {
+        if (target < 0 || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return 0;
+        var el = document.elementFromPoint(x, y);
+        if (!el || !el.closest('.hs-stage') || el.closest('a, button')) return 0;
+        var dir = x >= window.innerWidth / 2 ? 1 : -1;
+        return (target + dir < 0 || target + dir >= N) ? 0 : dir;
+      }
+      function navUpdate() {
+        navDir = mx < 0 ? 0 : navAt(mx, my);
+        root.classList.toggle('is-svc-next', navDir > 0);
+        root.classList.toggle('is-svc-prev', navDir < 0);
+      }
+      on(window, 'mousemove', function (e) { mx = e.clientX; my = e.clientY; navUpdate(); }, { passive: true });
+      on(document, 'mouseleave', function () { mx = -1; navUpdate(); });
+      on(stage, 'click', function (e) {
+        if (e.target.closest('a, button')) return;
+        var dir = navAt(e.clientX, e.clientY);
+        if (dir) goTo(target + dir);
+      });
+      ac.signal.addEventListener('abort', function () { root.classList.remove('is-svc-next', 'is-svc-prev'); });
+
+      on(window, 'scroll', function () { measure(); if (mx >= 0) navUpdate(); }, { passive: true });
+      on(window, 'resize', function () {
+        dims();
+        if (shown >= 0 && !busy) {
+          var d = data[shown];
+          put(d, phase === 'open' ? (d.type === 'd' ? { w: D, h: D, r: 45 } : { w: W, h: H, r: 0 }) : { w: S0, h: S0, r: 0 });
+        }
+        measure();
+      });
+      dims();
+      measure();
+    })();
 
     // Curseur « Scroll » sur le hero (hors liens, photos, showreel, menu) tant que la roue a la main
     if (root.classList.contains('has-cursor')) {
