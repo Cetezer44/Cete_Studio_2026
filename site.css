@@ -88,7 +88,7 @@ html.is-menu .cm-bg { pointer-events: auto; }
 /* Grand logo « cete » en bas à droite (322 × 100 sur la maquette) */
 .cm-logo { position: absolute; right: 5.556vw; bottom: 80px; width: 97px; height: 30px; }
 .cm-logo img, .cm-logo svg { overflow: visible; position: absolute; left: 50%; top: 50%; width: 30px; height: 97px; max-width: none; transform: translate(-50%, -50%) rotate(90deg); }
-html.is-menu, html.is-menu body { overflow: hidden; }
+html.is-menu { overflow: hidden; }   /* sur <html> seulement : <body> en overflow hidden deviendrait un conteneur de défilement et casserait les éléments collants (scène des services) */
 html.is-menu .burger-line:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 html.is-menu .burger-line:nth-child(2) { transform: scaleX(0); }
 html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
