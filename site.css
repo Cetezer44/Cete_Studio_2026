@@ -42,7 +42,7 @@ html.is-leaving .works-card .works-img, html.is-leaving .works-card:hover .works
 /* ---------- Page projet ---------- */
 /* Lien de la rubrique en cours (WORKS sur une page projet) : barré */
 .nav-link[aria-current="page"] { text-decoration: line-through; text-decoration-thickness: 1px; }
-.work-media { width: 100%; clip-path: inset(0 0 50% 0); }
+.work-media { clip-path: inset(0 0 50% 0); }
 .work-heading > span { display: block; }   /* span du masque, créé par le JS */
 .is-wintro .work-tags, .is-wintro .work-text { visibility: hidden; }
 .is-wintro .work-heading { opacity: 0; }
@@ -200,18 +200,15 @@ html.is-reel, html.is-reel body { overflow: hidden; }
 
 /* Page Studio : fond du body qui change selon la section (JS), services (image au survol, description au clic), équipe en défilement horizontal */
 html[data-page="studio"] body { transition: background-color 800ms ease; }
-.studio-page { overflow-x: clip; transition: color 800ms ease; }
-.st-service { transition: opacity 500ms ease; outline: none; }
+.st-service { outline: none; }
 .st-services-list:hover .st-service:not(:hover):not(.is-open) { opacity: .2; }
 .st-service-media { clip-path: inset(100% 0 0 0); transition: clip-path 700ms cubic-bezier(.65,0,.35,1); }
 @media (hover: hover) { .st-service:hover .st-service-media { clip-path: inset(0 0 0 0); } }
 .st-service.is-open .st-service-media { clip-path: inset(0 0 100% 0); }
-.st-service-desc { transition: height 700ms cubic-bezier(.65,0,.35,1); }
-.st-service-icon { transition: transform 500ms cubic-bezier(.65,0,.35,1); }
 .st-service.is-open .st-service-icon { transform: rotate(45deg); }
 .st-service:focus-visible .st-service-name { text-decoration: underline; }
 @media (max-width: 767px) {
-  .st-team-sticky { position: relative !important; top: auto !important; overflow-x: auto; scrollbar-width: none; }
+  .st-team-sticky { scrollbar-width: none; }
   .st-team-sticky::-webkit-scrollbar { display: none; }
 }
 /* Studio — équipe : cartes déstructurées (décalages verticaux de la maquette, cycle de 6) */
@@ -221,8 +218,6 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 .st-team-list > :nth-child(6n+4) { --dy: -180px; }
 .st-team-list > :nth-child(6n+5) { --dy: 79px; }
 .st-team-list > :nth-child(6n+6) { --dy: 288px; }
-/* Studio — équipe : parallaxe horizontale dans les photos (piloté par site.js) */
-.st-member-media { overflow: hidden; }
 /* Studio — équipe : halo de lumière qui suit le curseur (position --mx / --my pilotée par site.js) */
 .st-member-media::after {
   content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
@@ -243,11 +238,6 @@ html[data-page="studio"] body { transition: background-color 800ms ease; }
 .studio-page[data-theme="dark"] .st-member .hero-tag { background-color: #f0f0f0; color: #000; }
 .studio-page[data-theme="dark"] .st-member-link { color: #f0f0f0; }
 
-/* Studio — hero */
-.st-hero { position: relative; }
-/* Titre et introduction en mode « difference » : noirs sur le fond clair, inversés au-dessus des photos */
-.studio-page .st-title, .studio-page .st-intro { color: #fff; mix-blend-mode: difference; }
-
 /* Studio — services : l'image flotte avec le curseur (décalage piloté en JS) */
 .st-service-media { translate: var(--fx, 0px) var(--fy, 0px); }
 
@@ -260,9 +250,6 @@ html[data-page="legal"], html[data-page="legal"] body { background-color: #000; 
 
 /* Modal contact : remise à zéro sans transition après un changement de page */
 html.is-menu-reset .home-logo, html.is-menu-reset .burger-line { transition: none !important; }
-
-/* Page projet — bandeau des détails (Client, Design, Dev…) */
-@media (max-width: 767px) { .work-details-row { column-gap: 40px; } }
 
 /* Page projet — le rich text (composants insérés depuis le CMS) : pas de pseudo-éléments clearfix dans le flex */
 .work-content.w-richtext::before, .work-content.w-richtext::after { content: none; display: none; }
@@ -282,13 +269,8 @@ html.is-menu-reset .home-logo, html.is-menu-reset .burger-line { transition: non
 .works-tg:hover { color: #000; }
 .works-tg.is-active { color: #000; text-decoration-color: currentColor; cursor: default; }
 
-/* En-tête (maquette 1440 : titre 50 px à x = 200, Grille / Liste à droite) */
+/* En-tête : titre fixe et en-tête dans le Designer ; ici la bascule Grille / Liste, créée par le JS */
 @media (min-width: 768px) {
-  .works-page .works-head { display: flex; align-items: flex-end; justify-content: space-between; margin-left: calc(13.889vw - 30px); margin-right: calc(13.889vw - 30px);
-    padding: 0 0 26px; width: auto; height: 77px; box-sizing: border-box; }
-  /* le titre reste fixe au-dessus des photos, en mode « différence » */
-  .works-page .works-title { position: fixed; top: 230px; left: 13.889vw; z-index: 5; margin: 0; padding: 0; font-size: 50px; line-height: 1; letter-spacing: -0.03em;
-    color: #fff; mix-blend-mode: difference; pointer-events: none; }
   /* Grille / Liste : fixes, même place qu'au chargement ; en mode « différence » pour rester lisibles sur les photos */
   .works-page .works-toggle { position: fixed; top: 270px; right: 13.889vw; z-index: 20; margin: 0; mix-blend-mode: difference; }
   .works-page .works-tg { color: rgba(255,255,255,.28); }
@@ -334,28 +316,19 @@ html.is-menu-reset .home-logo, html.is-menu-reset .burger-line { transition: non
    la roulette n'est plus rognée en bas et passe par-dessus la section noire */
 html[data-page="home"] [data-barba-namespace="home"] { background-color: #f0f0f0; transition: background-color 1500ms ease; }
 html[data-page="home"] [data-barba-namespace="home"].is-dark { background-color: #000; }
-html[data-page="home"] .home-track, html[data-page="home"] .home-sticky { background-color: transparent; overflow-x: clip; overflow-y: visible; }
-html[data-page="home"] .home-track { position: relative; z-index: 2; }
-html[data-page="home"] .home-about { position: relative; z-index: 1; background-color: transparent; }
 [data-barba-namespace="home"] .hero-title,
 [data-barba-namespace="home"] .home-socials .nav-link { transition: color 900ms ease; }
 [data-barba-namespace="home"].is-dark .hero-title, [data-barba-namespace="home"].is-dark .home-socials .nav-link { color: #f0f0f0; }
 [data-barba-namespace="home"] .hero-tag { transition: background-color 900ms ease, color 900ms ease; }
 [data-barba-namespace="home"].is-dark .hero-tag { background-color: #f0f0f0; color: #000; }
 
-/* Roulette : numéro + titre en blanc sur la photo au premier plan, avec un léger dégradé noir en bas */
-.wheel-info { pointer-events: none; }
-.wheel-info-inner { flex-direction: row !important; align-items: center !important; column-gap: 20px; row-gap: 0 !important; }
-.wheel-num, .wheel-title { color: #fff !important; }
-.wheel-title { font-size: 16px !important; font-weight: 400; letter-spacing: -0.05em; }
-.wheel-arrow { display: none !important; }
+/* Roulette : léger dégradé noir en bas de la photo au premier plan */
 .wheel-card::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
   background: linear-gradient(to bottom, rgba(0,0,0,0) 73.6%, rgba(0,0,0,.7) 100%); mix-blend-mode: darken;
   opacity: 0; transition: opacity 700ms ease; }
 .wheel-card.is-front::after { opacity: 1; }
 
-/* Roulette : la légende est dans chaque photo (elle tourne avec la roue) ; l'ancienne légende fixe est masquée */
-.wheel-info { visibility: hidden !important; }
+/* Roulette : la légende est dans chaque photo (elle tourne avec la roue) */
 .wheel-cap { position: absolute; left: var(--cap-pad, 28px); bottom: var(--cap-pad, 28px); z-index: 2; display: flex; align-items: center;
   column-gap: calc(20px * var(--cap-s, .7)); color: #fff; text-transform: uppercase; white-space: nowrap; pointer-events: none;
   opacity: 0; transform: translateY(6px); transition: opacity 600ms ease, transform 800ms cubic-bezier(.16,1,.3,1); }
@@ -428,28 +401,3 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 .wl-ch > span::after { content: attr(data-c); position: absolute; left: 0; top: 100%; }
 @media (hover: hover) { .wl-row:hover .wl-ch > span, .wg-card:hover .wl-ch > span { transform: translate3d(0, -100%, 0); } }
 .wg-card .works-card-title { line-height: 1.1; white-space: nowrap; }
-
-/* =====================================================================
-   Barre noire de droite supprimée sur tout le site.
-   Desktop : la navigation porte « Contact ». Mobile : seul le burger reste, flottant en haut à droite.
-   ===================================================================== */
-@media (min-width: 768px) {
-  .side-bar { display: none !important; }
-}
-@media (max-width: 767px) {
-  .side-bar { background: transparent !important; width: auto !important; height: auto !important; top: 20px !important; right: 20px !important;
-    bottom: auto !important; left: auto !important; padding: 0 !important; display: block !important; z-index: 60 !important; mix-blend-mode: difference; transform: none !important; }
-  .side-bar .side-burger { position: static !important; margin: 0 !important; padding: 6px 0; }
-  .side-bar .burger-line { background-color: #fff !important; }
-}
-
-/* Accueil (maquette 1440) : titre 80 px à 80 px du bord, photo de la roue décalée vers la droite, réseaux centrés */
-@media (min-width: 992px) {
-  .hero-content, .showreel { left: 5.5556vw !important; }
-  .hero-title { font-size: 5.5556vw !important; letter-spacing: -0.03em !important; line-height: 1 !important; }
-  .hero-title { position: relative; top: -0.694vw; }   /* haut des capitales à 239 px (maquette) */
-  .hero-tags { position: relative; top: -0.347vw; }
-}
-@media (min-width: 768px) {
-  [data-barba-namespace="home"] .home-socials { left: 0 !important; right: 0 !important; justify-content: center; }
-}
