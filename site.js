@@ -987,7 +987,7 @@
       }
       function loop(now) {
         raf = null;
-        if (!snapRaf) tC += (tT - tC) * (reduce ? 1 : 0.085);
+        tC += (tT - tC) * (reduce ? 1 : 0.085);
         if (Math.abs(tT - tC) < 0.0005) tC = tT;
         cx += (fx - cx) * 0.06; cy += (fy - cy) * 0.06;
         var still = Math.abs(fx - cx) < 0.001 && Math.abs(fy - cy) < 0.001;
@@ -1015,14 +1015,14 @@
         kick();
       }, { passive: true });
       on(window, 'scroll', function () { update(); snapLater(); }, { passive: true });
-      // Aimantation : 2 s sans défilement → la page glisse doucement vers le service le plus proche (centré
+      // Aimantation : 0,8 s sans défilement → la page glisse doucement vers le service le plus proche (centré
       // sous son titre). Le moindre geste de l'utilisateur interrompt le glissement.
       var snapT = null, snapRaf = null;
       function snapStop() { if (snapRaf) { cancelAnimationFrame(snapRaf); snapRaf = null; } }
       function snapLater() {
         clearTimeout(snapT);
         if (snapRaf) return;
-        snapT = setTimeout(snapNow, 2000);
+        snapT = setTimeout(snapNow, 800);
       }
       function snapNow() {
         if (!alive || zone !== 'svc' || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return;
@@ -1030,14 +1030,11 @@
         var y0 = window.scrollY, y1 = Math.round(secY() + (k - 1) * window.innerHeight * SEG);
         if (Math.abs(y1 - y0) < 2) return;
         if (reduce) { window.scrollTo(0, y1); return; }
-        // Le visuel (tC) est piloté directement pendant l'aimantation : sans ça, le lissage du cylindre
-        // (≈ 1 s) masquerait la durée choisie.
-        var t0 = null, D = 300, c0 = tC;
+        var t0 = null, D = Math.min(1200, 500 + Math.abs(y1 - y0) * 0.8);
         var step = function (now) {
           if (t0 === null) t0 = now;
           var p = Math.min(1, (now - t0) / D), e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
           window.scrollTo(0, y0 + (y1 - y0) * e);
-          tC = c0 + (k - c0) * e;
           snapRaf = p < 1 && alive ? requestAnimationFrame(step) : null;
         };
         snapRaf = requestAnimationFrame(step);
