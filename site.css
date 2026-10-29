@@ -415,3 +415,9 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   100% { clip-path: inset(100% 0 0 0); }
 }
 @media (prefers-reduced-motion: reduce) { .home-about-line { animation: none; } }
+/* Page service : projets liés — au survol, les lettres du nom roulent (comme la liste Projets), les autres lignes s'estompent */
+@media (hover: hover) {
+  .svc-row:hover .wl-ch > span { transform: translate3d(0, -100%, 0); }
+  .svc-projects:hover .svc-row:not(:hover) { opacity: .15; }
+}
+.svc-media { cursor: pointer; }

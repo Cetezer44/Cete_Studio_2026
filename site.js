@@ -54,9 +54,12 @@
     c.classList.toggle('is-view', see);
     view.classList.toggle('is-on', see);
     c.classList.toggle('is-hover', !video && !over && !see && !!(t && t.closest(LINKS)));
-    c.classList.toggle('is-close', !!(t && document.documentElement.classList.contains('is-menu') && t.closest('.cm, .cm-bg') && !t.closest(LINKS)));
+    c.classList.toggle('is-close', !!(t && ((document.documentElement.classList.contains('is-menu') && t.closest('.cm, .cm-bg') && !t.closest(LINKS)) ||
+      (!document.documentElement.classList.contains('is-menu') && t.closest('[data-cursor="close"]')))));
     mediaState();
   });
+  // « Voir » piloté par le script de la page (ex. image au centre du cylindre des services, rendue en WebGL)
+  window.__cursorView = function (on) { c.classList.toggle('is-view', !!on); view.classList.toggle('is-on', !!on); };
   function mediaState() {
     c.classList.toggle('is-media', !!over);
     c.classList.toggle('is-paused', !!over && over.paused);
@@ -401,6 +404,7 @@
     // par le bas en remontant à la roulette
     function socialsShow(on) {
       var sp = $$('.home-socials .nav-link > span[data-axis]', track), box = $('.home-socials', track);
+      if (on && box) box.style.opacity = '';
       if (!sp.length) { if (box) { box.style.transition = 'opacity 400ms ease'; box.style.opacity = on ? '' : '0'; } return; }
       if (on) { sp.forEach(hide); reveal(sp, 350, 80, 900); }
       else conceal(sp, 0, 50, 450);
@@ -913,6 +917,20 @@
       }
 
       var tT = 1, tC = 1, raf = null, titled = -1;
+      // position d'une image sur le cylindre : angle, taille (agrandie au centre), flottement au curseur, inclinaison
+      function geomOf(off) {
+        var e = Math.max(0, 1 - Math.abs(off) / G.D); e = e * e * (3 - 2 * e);
+        var dep = 1 + 0.7 * (1 - e);   // les images des côtés flottent un peu plus
+        return { th: off / G.R, sc: G.MIN + (1 - G.MIN) * e, ox: cx * 18 * dep, oy: cy * 14 * dep, rot: TILT + cx * 0.02 };
+      }
+      // rectangle à l'écran de l'image i (centre, taille, rotation) — pour le survol « Voir » et la transition
+      function rectOf(i) {
+        var off = (i + 1 - (tC + intro)) * G.D, gm = geomOf(off);
+        var X = G.R * Math.sin(gm.th), Z = G.R - G.R * Math.cos(gm.th), k = G.P / (G.P - Z);
+        var px = X * k, cs = Math.cos(gm.rot), sn = Math.sin(gm.rot), sr = stage.getBoundingClientRect();
+        return { x: sr.left + G.vw / 2 + px * cs + gm.ox, y: sr.top + G.vh / 2 + px * sn + gm.oy,
+          w: G.W * gm.sc * k, h: G.H * gm.sc * k, rot: gm.rot, off: off };
+      }
       // entrée : décalage de -1 (première image à droite) ramené à 0 quand on arrive sur la section
       var intro = reduce ? 0 : -1, introTw = null;
       // flottement au curseur : position de la souris lissée, de -1 à 1 autour du centre
@@ -933,11 +951,8 @@
           titled = ti;
         }
         data.forEach(function (s, i) {
-          var off = (i + 1 - u) * G.D, th = off / G.R;
-          var a = Math.max(0, Math.min(1, (1.2 - Math.abs(th)) / 0.3));
-          var e = Math.max(0, 1 - Math.abs(off) / G.D); e = e * e * (3 - 2 * e);
-          var sc = G.MIN + (1 - G.MIN) * e, dep = 1 + 0.7 * (1 - e);   // les images des côtés flottent un peu plus
-          var ox = cx * 18 * dep, oy = cy * 14 * dep, rot = TILT + cx * 0.02;
+          var off = (i + 1 - u) * G.D, gm = geomOf(off), th = gm.th, sc = gm.sc, ox = gm.ox, oy = gm.oy, rot = gm.rot;
+          var a = s.hidden ? 0 : Math.max(0, Math.min(1, (1.2 - Math.abs(th)) / 0.3));
           if (gl) { if (a > 0) list.push({ s: s, th: th, a: a, sc: sc, ox: ox, oy: oy, rot: rot }); return; }
           // repli sans WebGL : carte HTML plate posée sur le cylindre
           if (!s.sh) return;
@@ -1005,7 +1020,62 @@
       update();
       tC = tT;
       draw();
+      // Survol de l'image centrale : curseur « Voir » ; clic : page du service (transition Barba)
+      var hovered = -1;
+      function cardAt(x, y) {
+        if (zone !== 'svc' || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return -1;
+        var best = -1, bo = Infinity;
+        data.forEach(function (s, i) { var o = Math.abs((i + 1 - (tC + intro)) * G.D); if (o < bo) { bo = o; best = i; } });
+        if (best < 0 || bo > G.W * 0.35 || !data[best].el.getAttribute('data-slug')) return -1;
+        var r = rectOf(best), dx = x - r.x, dy = y - r.y, cs = Math.cos(-r.rot), sn = Math.sin(-r.rot);
+        var lx = dx * cs - dy * sn, ly = dx * sn + dy * cs;
+        return Math.abs(lx) <= r.w / 2 && Math.abs(ly) <= r.h / 2 ? best : -1;
+      }
+      function setHover(i) {
+        if (i === hovered) return;
+        hovered = i;
+        if (window.__cursorView) window.__cursorView(i >= 0);
+        stage.style.cursor = i >= 0 ? 'pointer' : '';
+      }
+      on(window, 'mousemove', function (e) { setHover(cardAt(e.clientX, e.clientY)); }, { passive: true });
+      on(window, 'scroll', function () { if (hovered >= 0) setHover(-1); }, { passive: true });
+      ac.signal.addEventListener('abort', function () { if (hovered >= 0 && window.__cursorView) window.__cursorView(false); });
+      var flyIdx = -1;
+      on(stage, 'click', function (e) {
+        var i = cardAt(e.clientX, e.clientY);
+        if (i < 0) return;
+        var href = '/services/' + data[i].el.getAttribute('data-slug');
+        flyIdx = i;
+        setHover(-1);
+        if (window.barba) barba.go(href); else window.location.href = href;
+      });
       svcCtl = {
+        // transition vers la page du service : l'image centrale (copie HTML posée exactement au même endroit)
+        // grandit jusqu'au panneau image de gauche de la page ; le reste de l'accueil s'efface
+        fly: function () {
+          var i = flyIdx;
+          flyIdx = -1;
+          if (i < 0) return Promise.resolve(null);
+          var s = data[i], r = rectOf(i);
+          var ov = document.createElement('div');
+          ov.className = 'svc-fly';
+          ov.style.cssText = 'position:fixed;z-index:60;overflow:hidden;background:#000;border-radius:5px;pointer-events:none;' +
+            'left:' + (r.x - r.w / 2) + 'px;top:' + (r.y - r.h / 2) + 'px;width:' + r.w + 'px;height:' + r.h + 'px;transform:rotate(' + r.rot + 'rad)';
+          var im = document.createElement('img');
+          im.src = s.src || (s.img && (s.img.currentSrc || s.img.src)) || '';
+          im.alt = '';
+          im.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;max-width:none';
+          ov.appendChild(im);
+          document.body.appendChild(ov);
+          s.hidden = true; draw();
+          var vw = window.innerWidth, vh = window.innerHeight, mob = vw < 768;
+          var to = { left: '0px', top: '0px', width: (mob ? vw : vw * 0.3236) + 'px', height: (mob ? vh * 0.6 : vh) + 'px', transform: 'rotate(0rad)', borderRadius: '0px' };
+          container.style.transition = 'opacity 600ms ease';
+          container.style.opacity = '0';
+          var a = ov.animate([{ left: ov.style.left, top: ov.style.top, width: ov.style.width, height: ov.style.height, transform: ov.style.transform, borderRadius: '5px' }, to],
+            { duration: 1100, easing: INOUT, fill: 'forwards' });
+          return a.finished.then(function () { return { overlay: ov }; }, function () { return { overlay: ov }; });
+        },
         // arrivée sur la section : la première image glisse depuis la droite jusque sous son titre
         enter: function () {
           if (reduce) { intro = 0; draw(); return; }
@@ -1074,8 +1144,20 @@
 
     var api = {
       destroy: function () { alive = false; ac.abort(); clearTimeout(timer); clearTimeout(snapTimer); },
-      leaveTo: leaveTo
+      leaveTo: leaveTo,
+      leaveToService: function () { return svcCtl && svcCtl.fly ? svcCtl.fly() : Promise.resolve(null); }
     };
+    // Retour depuis la page d'un service (clic sur son image, curseur « Fermer ») : on reprend directement
+    // sur la section services
+    var resume = null;
+    try { resume = sessionStorage.getItem('cete-home-at'); sessionStorage.removeItem('cete-home-at'); } catch (e) {}
+    if (resume === 'services' && svcCtl) {
+      setFree(true);
+      zone = 'svc'; svcOn = true;
+      container.classList.remove('is-dark');
+      socialsShow(false);
+      requestAnimationFrame(function () { window.scrollTo(0, secTop('.home-services')); svcCtl.enter(); });
+    }
     if (reduce) { root.classList.remove('is-loading'); intro = false; return api; }
 
     if (tagsBox) { tagsBox.style.overflow = 'hidden'; tagsBox.style.paddingBottom = '2px'; }
@@ -2454,6 +2536,87 @@
      - équipe : la section se fixe et défile horizontalement jusqu'à la dernière personne,
        tuiles dévoilées par un masque de bas en haut
      ===================================================================== */
+  /* =====================================================================
+     PAGE SERVICE (collection « Services ») : image à gauche (curseur « Fermer » : retour à l'accueil, section
+     services), titre, présentation et projets liés. Arrivée depuis l'accueil : l'image du cylindre devient
+     le panneau de gauche, puis les textes montent depuis leur masque.
+     ===================================================================== */
+  function Service(container, opts) {
+    opts = opts || {};
+    var ac = new AbortController();
+    function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
+    root.classList.remove('is-wintro');
+    $$('[data-slug]', container).forEach(function (a) {
+      var slug = a.getAttribute('data-slug');
+      if (slug) a.setAttribute('href', '/projets/' + slug);
+    });
+    var media = $('.svc-media', container), title = $('.svc-title', container), text = $('.svc-text', container);
+    var proj = $('.svc-projects', container), label = $('.svc-label', container), rows = $$('.svc-row', container);
+    if (proj && (!rows.length || !label || !label.textContent.trim())) proj.style.display = 'none';
+    // nom du projet découpé en lettres : au survol, chaque lettre sort par le haut et revient par le bas
+    rows.forEach(function (r) {
+      var nm = $('.svc-name', r);
+      if (!nm) return;
+      var lab = nm.textContent.trim();
+      nm.setAttribute('aria-label', lab);
+      nm.innerHTML = lab.split('').map(function (ch, i) {
+        var c = ch === ' ' ? '&nbsp;' : ch.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        return '<span class="wl-ch" aria-hidden="true" style="--i:' + i + '"><span data-c="' + c + '">' + c + '</span></span>';
+      }).join('');
+    });
+    // clic sur l'image : retour à l'accueil, directement sur la section services
+    if (media) on(media, 'click', function () {
+      try { sessionStorage.setItem('cete-home-at', 'services'); } catch (e) {}
+      if (window.barba) barba.go('/'); else window.location.href = '/';
+    });
+
+    // Textes : titre ligne par ligne, présentation, libellé et lignes de projets dans des masques
+    var lines = [];
+    if (title) {
+      var txt = title.textContent.trim();
+      title.setAttribute('aria-label', txt.replace(/\s*\n\s*/g, ' '));
+      title.textContent = '';
+      txt.split(/\n/).forEach(function (l) {
+        var m = document.createElement('span'), sp = document.createElement('span');
+        m.setAttribute('aria-hidden', 'true');
+        m.style.cssText = 'display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em';
+        sp.style.cssText = 'display:block';
+        sp.textContent = l.trim();
+        m.appendChild(sp); title.appendChild(m); lines.push(sp);
+      });
+    }
+    var fades = [text].concat(rows).filter(Boolean);
+    var lab2 = label ? maskText(label) : null;
+    function prep() {
+      if (reduce) return;
+      lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'translateY(110%)'; });
+      fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(24px)'; });
+    }
+    function play() {
+      if (reduce) { if (lab2) lab2.style.transform = 'none'; return Promise.resolve(); }
+      lines.forEach(function (l, i) { l.style.transition = 'transform 1100ms ' + EASE + ' ' + (i * 90) + 'ms'; l.style.transform = 'translateY(0)'; });
+      fades.forEach(function (el, i) {
+        var d = 350 + (i ? 150 + i * 70 : 0);
+        el.style.transition = 'opacity 900ms ease ' + d + 'ms, transform 1000ms ' + EASE + ' ' + d + 'ms';
+        el.style.opacity = ''; el.style.transform = '';
+      });
+      if (lab2) reveal([lab2], 450, 0, 900);
+      return Promise.resolve();
+    }
+    prep();
+    if (!opts.transition) {
+      // arrivée directe : l'image se dévoile depuis le bas, puis les textes
+      if (media && !reduce) {
+        media.style.clipPath = 'inset(100% 0 0 0)';
+        void media.offsetWidth;
+        media.style.transition = 'clip-path 1100ms ' + INOUT;
+        media.style.clipPath = 'inset(0 0 0 0)';
+      }
+      setTimeout(play, reduce ? 0 : 500);
+    }
+    return { destroy: function () { ac.abort(); }, play: play };
+  }
+
   function Studio(container) {
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
@@ -3211,6 +3374,7 @@
     else if (ns === 'works') page = Works(container, opts);
     else if (ns === 'legal') page = Legal(container, opts);
     else if (ns === 'studio') page = Studio(container, opts);
+    else if (ns === 'service') page = Service(container, opts);
     else page = null;
     return page;
   }
@@ -3248,7 +3412,7 @@
     return;
   }
 
-  var leaveData = null;
+  var leaveData = null, flyData = null;
   var LEGAL_PATH = /^\/(mentions-legales|protection-des-donnees|cookies)\/?$/;
   barba.hooks.before(function (data) {   // un lien d'une modal la ferme avant la transition
     if (Reel.isOpen()) return Promise.resolve(Reel.close(true));
@@ -3299,8 +3463,34 @@
         }
       },
       {
+        name: 'accueil-vers-service',      // l'image au centre du cylindre devient le panneau de gauche de la page service
+        from: { namespace: ['home'] },
+        to: { namespace: ['service'] },
+        leave: function () {
+          flyData = null;
+          if (reduce || !page || !page.leaveToService) return;
+          return page.leaveToService().then(function (res) { flyData = res; });
+        },
+        beforeEnter: function (data) {
+          window.scrollTo(0, 0);
+          runScripts(data.next.container);
+          initPage(data.next.container, { transition: !!flyData });
+        },
+        enter: function (data) {
+          if (!flyData || !flyData.overlay) return;
+          var ov = flyData.overlay, img = $('.svc-img', data.next.container);
+          var ready = img && img.decode ? img.decode().catch(function () {}) : Promise.resolve();
+          // relais invisible : même photo, même cadrage, même position ; puis les textes de la page montent
+          return Promise.race([ready, wait(1500)]).then(function () {
+            ov.remove();
+            flyData = null;
+            return page && page.play ? page.play() : null;
+          });
+        }
+      },
+      {
         name: 'vers-legal',                // depuis la modal contact : ses éléments sortent, son fond noir s'étend à tout l'écran
-        from: { namespace: ['home', 'works', 'work', 'studio', 'legal'] },
+        from: { namespace: ['home', 'works', 'work', 'studio', 'legal', 'service'] },
         to: { namespace: ['legal'] },
         leave: function (data) {
           var c = data.current.container;
@@ -3323,7 +3513,7 @@
       {
         name: 'depuis-legal',              // le fond noir part par le haut et dévoile la page suivante
         from: { namespace: ['legal'] },
-        to: { namespace: ['home', 'works', 'work', 'studio'] },
+        to: { namespace: ['home', 'works', 'work', 'studio', 'service'] },
         leave: function (data) {
           var c = data.current.container;
           if (!reduce) Curtain.show();       // même noir que la page : rien ne bouge à l'écran
