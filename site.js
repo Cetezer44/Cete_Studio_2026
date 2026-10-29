@@ -716,13 +716,13 @@
       aboutUpdate();
     }
 
-    /* ---- Section services : l'image grandit au fil du scroll (collection CMS « Services ») ----
-       Scène collante de 100vh ; le défilement (lissé) pilote la taille de l'image :
-       bandeau 700×50 avec « Services » → 700×360 (1er service) → … → plein écran.
-       À chaque cran l'image change en fondu et le titre passe d'un service à l'autre en masque. */
+    /* ---- Section services : cylindre tournant (même principe que la grille de la page Projets) ----
+       Scène collante de 100vh. Le défilement (lissé) fait tourner un cylindre : l'image de chaque service
+       arrive par la droite, passe sous le titre (centre), repart à gauche, puis le titre change.
+       Rendu WebGL (photo plaquée sur une portion de cylindre, inclinée) ; à défaut, cartes HTML en 3D. */
     var svcSec = $('.home-services', container);
     if (svcSec) (function () {
-      var stage = $('.hs-stage', svcSec), head = $('.hs-head', svcSec);
+      var stage = $('.hs-stage', svcSec);
       var data = $$('.hs-item', svcSec).filter(function (it) { return !it.classList.contains('w-condition-invisible'); })
         .sort(function (a, b) { return (+a.getAttribute('data-order') || 0) - (+b.getAttribute('data-order') || 0); })
         .map(function (it) {
@@ -739,102 +739,197 @@
               s.textContent = l.trim();
               m.appendChild(s); t.appendChild(m); lines.push(s);
             });
+            t.style.opacity = '0.3';
           }
           var sh = $('.hs-shape', it), img = $('.hs-img', it);
-          img.style.width = '100%'; img.style.height = '100%';
-          sh.style.opacity = '0';
-          sh.style.transition = reduce ? 'none' : 'opacity 600ms ease';
-          return { el: it, sh: sh, img: img, t: t, lines: lines };
+          return { el: it, sh: sh, img: img, t: t, lines: lines, src: img ? bestSrc(img) : '', tex: null, iw: 1, ih: 1, ready: false };
         });
       var N = data.length;
       if (!N || !stage) return;
-      var SEG = 0.9;   // défilement (en hauteur d'écran) entre deux étapes
+      var SEG = 1.1, TILT = 0.19, DPR = Math.min(2, window.devicePixelRatio || 1), MESH = 64;
       svcSec.style.height = 'calc(' + Math.round((1 + N * SEG) * 100) + 'vh)';
-
-      var vw, vh, BASE, FULL, S = [];
-      function dims() {
-        vw = window.innerWidth; vh = window.innerHeight;
-        var w = Math.min(700, vw - 40);
-        BASE = { w: w, h: Math.round(w * 360 / 700) }; FULL = { w: vw, h: vh };
-        S = [{ w: w, h: Math.max(30, Math.round(50 * w / 700)) }];
-        for (var i = 1; i <= N; i++) {
-          // maquette : 700×360 → ≈1144×660 → plein écran (le dernier service reste plein écran)
-          var f = N <= 1 ? 0 : N === 2 ? i - 1 : Math.min(1, Math.pow((i - 1) / (N - 2), 0.8));
-          S.push({ w: BASE.w + (FULL.w - BASE.w) * f, h: BASE.h + (FULL.h - BASE.h) * f });
-        }
+      function bestSrc(img) {
+        var set = (img.getAttribute('srcset') || '').split(',').map(function (c) {
+          var p = c.trim().split(/\s+/); return { u: p[0], w: parseInt(p[1], 10) || 0 };
+        }).filter(function (c) { return c.u && c.w; }).sort(function (a, b) { return a.w - b.w; });
+        var want = 1000 * Math.min(DPR, 1.5);
+        for (var i = 0; i < set.length; i++) if (set[i].w >= want) return set[i].u;
+        return set.length ? set[set.length - 1].u : (img.currentSrc || img.src);
       }
-      function ease(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
-      function clamp01(x) { return Math.max(0, Math.min(1, x)); }
-      function secY() { return svcSec.getBoundingClientRect().top + window.scrollY; }
 
-      function titleIn(d) {
-        d.lines.forEach(function (s, i) {
-          s.style.transition = reduce ? 'none' : 'transform 800ms ' + EASE + ' ' + (120 + i * 70) + 'ms';
-          s.style.transform = 'translateY(0)';
+      // ---- WebGL ----
+      var gl = null, cv = null, U = {};
+      function glFail() {
+        gl = null;
+        if (cv) { cv.remove(); cv = null; }
+        stage.classList.remove('has-gl');
+        draw();
+      }
+      (function initGL() {
+        cv = document.createElement('canvas');
+        cv.className = 'hs-gl';
+        cv.setAttribute('aria-hidden', 'true');
+        stage.insertBefore(cv, stage.firstChild);
+        var o = { premultipliedAlpha: true, antialias: true, alpha: true };
+        gl = cv.getContext('webgl2', o) || cv.getContext('webgl', o);
+        if (!gl) { cv.remove(); cv = null; return; }
+        var vs = 'attribute vec2 aUV;uniform float uTh,uW,uH,uY,uR,uP,uRot,uSl;uniform vec2 uView;varying vec2 vUV;varying float vCos;' +
+          'vec2 pj(float a,float y){float X=uR*sin(a);float Z=uR*cos(a)-uR;float s=uP/(uP-Z);return vec2(uView.x*0.5+X*s,uView.y*0.5+(y-uView.y*0.5)*s);}' +
+          'void main(){float ang=uTh+(aUV.x-0.5)*uW/uR;float yc=uY+uR*sin(uTh)*uSl;vec2 p=pj(ang,yc-uH*0.5+aUV.y*uH);vec2 c=pj(uTh,yc);' +
+          'vec2 d=p-c;float cs=cos(uRot),sn=sin(uRot);p=c+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);' +
+          'vUV=aUV;vCos=cos(ang);gl_Position=vec4(p.x/uView.x*2.0-1.0,1.0-p.y/uView.y*2.0,0.0,1.0);}';
+        var fs = 'precision highp float;uniform sampler2D uTex;uniform vec3 uImg;uniform float uW,uH,uAlpha,uReady,uRad;varying vec2 vUV;varying float vCos;' +
+          'void main(){if(vCos<0.0)discard;vec2 l=vec2(vUV.x*uW,vUV.y*uH);float B=1.16;float Bw=B*uW;float bx=l.x+(B-1.0)*0.5*uW-uImg.z;' +
+          'float s=max(Bw/uImg.x,uH/uImg.y);float dw=uImg.x*s,dh=uImg.y*s;vec2 uv=vec2((bx-(Bw-dw)*0.5)/dw,(l.y-(uH-dh)*0.5)/dh);' +
+          'vec3 c=mix(vec3(0.0),texture2D(uTex,uv).rgb,uReady);vec2 q=abs(l-vec2(uW,uH)*0.5)-vec2(uW,uH)*0.5+uRad;' +
+          'float m=clamp(0.5-(length(max(q,0.0))-uRad),0.0,1.0);gl_FragColor=vec4(c,1.0)*uAlpha*m;}';
+        function shd(t, src) { var x = gl.createShader(t); gl.shaderSource(x, src); gl.compileShader(x); return x; }
+        var prog = gl.createProgram();
+        gl.attachShader(prog, shd(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, shd(gl.FRAGMENT_SHADER, fs));
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { glFail(); return; }
+        gl.useProgram(prog);
+        var d = [];
+        for (var i = 0; i <= MESH; i++) { var u = i / MESH; d.push(u, 0, u, 1); }
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(d), gl.STATIC_DRAW);
+        var loc = gl.getAttribLocation(prog, 'aUV');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        ['uTh', 'uW', 'uH', 'uY', 'uR', 'uP', 'uRot', 'uSl', 'uView', 'uTex', 'uImg', 'uAlpha', 'uReady', 'uRad'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+        gl.uniform1i(U.uTex, 0);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        var blank = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, blank);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+        data.forEach(function (s) {
+          s.tex = blank;
+          if (!s.src) return;
+          var im = new Image();
+          im.crossOrigin = 'anonymous';
+          im.onload = function () {
+            if (!gl) return;
+            try {
+              var tx = gl.createTexture();
+              gl.bindTexture(gl.TEXTURE_2D, tx);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, im);
+              var mip = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+              if (mip) gl.generateMipmap(gl.TEXTURE_2D);
+              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+              s.tex = tx; s.iw = im.naturalWidth; s.ih = im.naturalHeight; s.ready = true;
+              draw();
+            } catch (e) { glFail(); }
+          };
+          im.onerror = glFail;
+          im.src = s.src;
+        });
+        cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); glFail(); });
+        stage.classList.add('has-gl');
+      })();
+      ac.signal.addEventListener('abort', function () {
+        if (gl) { var lose = gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); gl = null; }
+      });
+
+      // ---- géométrie ----
+      var G = {};
+      function geo() {
+        var vw = stage.clientWidth || window.innerWidth, vh = stage.clientHeight || window.innerHeight, k = Math.min(1, vw / 1440);
+        G.vw = vw; G.vh = vh;
+        G.W = Math.min(472, vw * 0.72); G.H = G.W * 281 / 472;
+        G.P = Math.max(1400, 2200 * k);
+        var hw = vw / 2;
+        G.R = hw * G.P / (G.P - hw);          // silhouette du cylindre sur les bords de l'écran
+        G.D = 2.9 * G.R;                      // écart entre deux services (un seul passe à la fois)
+        if (gl) { cv.width = Math.round(vw * DPR); cv.height = Math.round(vh * DPR); gl.viewport(0, 0, cv.width, cv.height); }
+        if (!gl) data.forEach(function (s) { if (s.sh) { s.sh.style.width = G.W + 'px'; s.sh.style.height = G.H + 'px'; } });
+      }
+      function titleIn(s, fromBelow) {
+        s.lines.forEach(function (l, i) {
+          l.style.transition = 'none'; l.style.transform = 'translateY(' + (fromBelow ? 115 : -115) + '%)';
+        });
+        void s.t.offsetWidth;
+        s.lines.forEach(function (l, i) {
+          l.style.transition = reduce ? 'none' : 'transform 800ms ' + EASE + ' ' + (80 + i * 70) + 'ms';
+          l.style.transform = 'translateY(0)';
         });
       }
-      function titleOut(d, up) {
-        d.lines.forEach(function (s, i) {
-          s.style.transition = reduce ? 'none' : 'transform 450ms ' + INOUT + ' ' + (i * 40) + 'ms';
-          s.style.transform = 'translateY(' + (up ? -115 : 115) + '%)';
+      function titleOut(s, up) {
+        s.lines.forEach(function (l, i) {
+          l.style.transition = reduce ? 'none' : 'transform 450ms ' + INOUT + ' ' + (i * 40) + 'ms';
+          l.style.transform = 'translateY(' + (up ? -115 : 115) + '%)';
         });
       }
 
-      var tT = 0, tC = 0, raf = null, act = -1, titled = -1;
-      function render() {
-        var s = Math.min(Math.floor(tC), N - 1), f = ease(tC - s), a = S[s], b = S[s + 1];
-        var w = a.w + (b.w - a.w) * f, h = a.h + (b.h - a.h) * f;
-        var r = 4 * (1 - clamp01((w - BASE.w) / ((FULL.w - BASE.w) || 1)));
-        data.forEach(function (d) { d.sh.style.width = w + 'px'; d.sh.style.height = h + 'px'; d.sh.style.borderRadius = r + 'px'; });
-        if (head) {
-          var o = clamp01(1 - tC * 1.6);
-          head.style.opacity = o;
-          head.style.transform = 'translateY(' + (-24 * (1 - o)) + 'px)';
+      var tT = 0, tC = 0, raf = null, titled = -1;
+      function draw() {
+        var u = tC, list = [];
+        // titre du service courant : il change quand l'image précédente est sortie à gauche
+        var ti = Math.max(0, Math.min(N - 1, Math.floor(u + 1e-4)));
+        if (ti !== titled) {
+          if (titled >= 0) titleOut(data[titled], ti > titled);
+          titleIn(data[ti], ti > titled);
+          titled = ti;
         }
-        // service actif : l'image change en fondu, le titre passe en masque
-        var na = Math.max(1, Math.min(N, Math.round(tC))) - 1;
-        if (na !== act) {
-          data.forEach(function (d, j) {
-            d.sh.style.opacity = j === na ? '1' : '0';
-            d.el.style.zIndex = j === na ? '2' : (j === act ? '1' : '');
-          });
-          act = na;
-        }
-        var nt = tC >= 0.5 ? na : -1;
-        if (nt !== titled) {
-          if (titled >= 0) titleOut(data[titled], nt > titled);
-          if (nt >= 0) {
-            var d = data[nt];
-            d.lines.forEach(function (s) { s.style.transition = 'none'; s.style.transform = 'translateY(' + (nt > titled ? 115 : -115) + '%)'; });
-            void d.t.offsetWidth;
-            titleIn(d);
-          }
-          titled = nt;
-        }
+        data.forEach(function (s, i) {
+          var off = (i + 0.5 - u) * G.D, th = off / G.R;
+          var a = Math.max(0, Math.min(1, (1.45 - Math.abs(th)) / 0.35));
+          if (s.t) s.t.style.opacity = i === ti ? (0.3 + 0.7 * Math.max(0, 1 - Math.abs(off) / (G.W * 0.75))).toFixed(3) : '0.3';
+          if (gl) { if (a > 0) list.push({ s: s, th: th, a: a }); return; }
+          // repli sans WebGL : carte HTML plate posée sur le cylindre
+          if (!s.sh) return;
+          s.sh.style.opacity = a.toFixed(3);
+          s.sh.style.visibility = a > 0 ? 'visible' : 'hidden';
+          var x = G.R * Math.sin(th), z = G.R * Math.cos(th) - G.R, y = x * TILT;
+          s.sh.style.transform = 'perspective(' + Math.round(G.P) + 'px) translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + z.toFixed(1) +
+            'px) rotateY(' + (th * 57.2958).toFixed(2) + 'deg) rotate(' + (TILT * 57.2958).toFixed(2) + 'deg)';
+        });
+        if (!gl) return;
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.uniform1f(U.uP, G.P); gl.uniform1f(U.uR, G.R);
+        gl.uniform2f(U.uView, G.vw, G.vh);
+        gl.uniform1f(U.uW, G.W); gl.uniform1f(U.uH, G.H); gl.uniform1f(U.uY, G.vh / 2);
+        gl.uniform1f(U.uRot, TILT); gl.uniform1f(U.uSl, TILT); gl.uniform1f(U.uRad, 5);
+        list.forEach(function (d) {
+          var px = -Math.max(-1, Math.min(1, d.th / 2)) * 8;   // parallaxe horizontale dans la photo (%)
+          gl.uniform1f(U.uTh, d.th);
+          gl.uniform3f(U.uImg, d.s.iw, d.s.ih, px / 100 * 1.16 * G.W);
+          gl.uniform1f(U.uAlpha, d.a);
+          gl.uniform1f(U.uReady, d.s.ready ? 1 : 0);
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, d.s.tex);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 2 * (MESH + 1));
+        });
       }
       function loop() {
         raf = null;
-        tC += (tT - tC) * (reduce ? 1 : 0.11);
-        if (Math.abs(tT - tC) < 0.0008) tC = tT;
-        render();
+        tC += (tT - tC) * (reduce ? 1 : 0.085);
+        if (Math.abs(tT - tC) < 0.0005) tC = tT;
+        draw();
         if (tC !== tT && alive) raf = requestAnimationFrame(loop);
       }
+      ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
+      function secY() { return svcSec.getBoundingClientRect().top + window.scrollY; }
       function update() {
-        tT = Math.max(0, Math.min(N, (window.scrollY - secY()) / (vh * SEG)));
+        tT = Math.max(0, Math.min(N, (window.scrollY - secY()) / (window.innerHeight * SEG)));
         if (!raf) raf = requestAnimationFrame(loop);
       }
-      ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
-      function scrollToStep(i) { window.scrollTo({ top: Math.round(secY() + i * SEG * vh), behavior: reduce ? 'auto' : 'smooth' }); }
+      function scrollToU(v) { window.scrollTo({ top: Math.round(secY() + v * window.innerHeight * SEG), behavior: reduce ? 'auto' : 'smooth' }); }
 
-      // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) : clic = étape voisine ;
-      // « Précédent » sur le premier service ramène à la section noire
+      // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) : clic = service voisin centré
+      // sous le titre ; « Précédent » avant le premier service ramène à la section noire
       var mx = -1, my = -1;
+      function nextU() { for (var k = 0; k < N; k++) if (k + 0.5 > tT + 0.05) return k + 0.5; return -1; }
+      function prevU() { for (var k = N - 1; k >= 0; k--) if (k + 0.5 < tT - 0.05) return k + 0.5; return -1; }
       function navAt(x, y) {
         if (zone !== 'svc' || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return 0;
         var el = document.elementFromPoint(x, y);
         if (!el || !el.closest('.hs-stage') || el.closest('a, button')) return 0;
         var dir = x >= window.innerWidth / 2 ? 1 : -1;
-        return (dir > 0 && Math.round(tT) >= N) ? 0 : dir;
+        return (dir > 0 && nextU() < 0) ? 0 : dir;
       }
       function navUpdate() {
         var dir = mx < 0 ? 0 : navAt(mx, my);
@@ -845,17 +940,17 @@
       on(document, 'mouseleave', function () { mx = -1; navUpdate(); });
       on(stage, 'click', function (e) {
         if (e.target.closest('a, button')) return;
-        var dir = navAt(e.clientX, e.clientY), c = Math.round(tT);
-        if (dir > 0) scrollToStep(Math.max(1, c + 1));
-        else if (dir < 0) { if (c <= 1) goBack(); else scrollToStep(c - 1); }
+        var dir = navAt(e.clientX, e.clientY);
+        if (dir > 0) { var n = nextU(); if (n >= 0) scrollToU(n); }
+        else if (dir < 0) { var p = prevU(); if (p >= 0) scrollToU(p); else goBack(); }
       });
       ac.signal.addEventListener('abort', function () { root.classList.remove('is-svc-next', 'is-svc-prev'); });
       on(window, 'scroll', function () { update(); if (mx >= 0) navUpdate(); }, { passive: true });
-      on(window, 'resize', function () { dims(); update(); render(); });
-      dims();
+      on(window, 'resize', function () { geo(); update(); draw(); });
+      geo();
       update();
       tC = tT;
-      render();
+      draw();
       svcCtl = { nav: navUpdate };
     })();
 
