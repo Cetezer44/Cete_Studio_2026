@@ -1029,7 +1029,7 @@
         if (!alive || zone !== 'svc' || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return;
         var k = Math.max(1, Math.min(N, Math.round(tT)));
         var y0 = window.scrollY, y1 = Math.round(secY() + (k - 1) * window.innerHeight * SEG);
-        if (Math.abs(y1 - y0) < 2) return;
+        if (Math.abs(y1 - y0) < 2 || (k === N && y0 > y1)) return;   // au-delà du dernier service : on laisse le bas de page (accès à la modal contact)
         if (reduce) { window.scrollTo(0, y1); return; }
         var t0 = null, D = Math.min(1200, 500 + Math.abs(y1 - y0) * 0.8);
         var step = function (now) {
