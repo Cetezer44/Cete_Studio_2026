@@ -732,7 +732,7 @@
        Rendu WebGL (photo plaquée sur une portion de cylindre, inclinée) ; à défaut, cartes HTML en 3D. */
     var svcSec = $('.home-services', container);
     if (svcSec) (function () {
-      var stage = $('.hs-stage', svcSec);
+      var stage = $('.hs-stage', svcSec), head = $('.hs-head', svcSec);
       var data = $$('.hs-item', svcSec).filter(function (it) { return !it.classList.contains('w-condition-invisible'); })
         .sort(function (a, b) { return (+a.getAttribute('data-order') || 0) - (+b.getAttribute('data-order') || 0); })
         .map(function (it) {
@@ -756,7 +756,8 @@
         });
       var N = data.length;
       if (!N || !stage) return;
-      var SEG = 0.75, TILT = 0.14, SLOPE = 0.06, DPR = Math.min(2, window.devicePixelRatio || 1), MESH = 64;
+      var SEG = 0.75, TILT = 0.14, SLOPE = 0,   // vignettes alignées sur l'axe horizontal du titre
+        DPR = Math.min(2, window.devicePixelRatio || 1), MESH = 64;
       svcSec.style.height = 'calc(' + Math.round((1.3 + (N - 1) * SEG) * 100) + 'vh)';   // u : 1 → N (service i centré en u = i + 1)
       function bestSrc(img) {
         var set = (img.getAttribute('srcset') || '').split(',').map(function (c) {
@@ -881,6 +882,12 @@
       var fx = 0, fy = 0, cx = 0, cy = 0;
       function draw() {
         var u = tC + intro, list = [];
+        // « Services » et le trait s'effacent dès qu'on commence à défiler dans la section
+        if (head) {
+          var ho = Math.max(0, Math.min(1, 1 - (tC - 1) * 5));
+          head.style.opacity = ho.toFixed(3);
+          head.style.transform = 'translateY(' + (-20 * (1 - ho)).toFixed(1) + 'px)';
+        }
         // titre du service courant : il change quand l'image précédente est sortie à gauche
         var ti = Math.max(0, Math.min(N - 1, Math.round(u - 1)));
         if (ti !== titled) {
