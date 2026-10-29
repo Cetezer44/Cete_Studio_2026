@@ -812,8 +812,8 @@
         var A = a === 'w' ? W : H, B = b === 'w' ? W : H;
         lift(d, -LIFT, 0);
         titleIn(d, 420);
-        lift(d, 0, 760, GROW, 760);
-        return all([tw(d, a, A, 700, GROW), tw(d, b, B, 760, GROW, 760)]);
+        lift(d, 0, 760, GROW, 580);
+        return all([tw(d, a, A, 700, GROW), tw(d, b, B, 760, GROW, 580)]);
       }
       function exit(d) {
         titleOut(d);
