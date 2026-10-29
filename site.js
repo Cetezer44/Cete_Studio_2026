@@ -749,7 +749,7 @@
               s.textContent = l.trim();
               m.appendChild(s); t.appendChild(m); lines.push(s);
             });
-            t.style.opacity = '0.3';
+            t.style.opacity = '1';
           }
           var sh = $('.hs-shape', it), img = $('.hs-img', it);
           return { el: it, sh: sh, img: img, t: t, lines: lines, src: img ? bestSrc(img) : '', tex: null, iw: 1, ih: 1, ready: false };
@@ -903,7 +903,6 @@
           var e = Math.max(0, 1 - Math.abs(off) / G.D); e = e * e * (3 - 2 * e);
           var sc = G.MIN + (1 - G.MIN) * e, dep = 1 + 0.7 * (1 - e);   // les images des côtés flottent un peu plus
           var ox = cx * 18 * dep, oy = cy * 14 * dep, rot = TILT + cx * 0.02;
-          if (s.t) s.t.style.opacity = i === ti ? (0.3 + 0.7 * Math.max(0, 1 - Math.abs(off) / (G.W * 0.75))).toFixed(3) : '0.3';
           if (gl) { if (a > 0) list.push({ s: s, th: th, a: a, sc: sc, ox: ox, oy: oy, rot: rot }); return; }
           // repli sans WebGL : carte HTML plate posée sur le cylindre
           if (!s.sh) return;
