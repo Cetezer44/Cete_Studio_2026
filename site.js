@@ -729,7 +729,7 @@
        (centre), repart à gauche ; le titre change à mi-chemin entre deux images. Les voisines restent
        visibles sur les côtés, plus petites ; l'image au centre est agrandie. Les images flottent
        légèrement avec le curseur. En arrivant sur la section, la première image glisse sous son titre.
-       Rendu WebGL (photo plaquée sur une portion de cylindre, inclinée) ; à défaut, cartes HTML en 3D. */
+       Rendu WebGL (photo plaquée sur une portion de cylindre ; tout le bandeau est incliné de 8° autour du centre) ; à défaut, cartes HTML en 3D. */
     var svcSec = $('.home-services', container);
     if (svcSec) (function () {
       var stage = $('.hs-stage', svcSec), head = $('.hs-head', svcSec);
@@ -786,8 +786,8 @@
         if (!gl) { cv.remove(); cv = null; return; }
         var vs = 'attribute vec2 aUV;uniform float uTh,uW,uH,uY,uR,uP,uRot,uSl;uniform vec2 uView,uOff;varying vec2 vUV;varying float vCos;' +
           'vec2 pj(float a,float y){float X=uR*sin(a);float Z=uR-uR*cos(a);float s=uP/(uP-Z);return vec2(uView.x*0.5+X*s,uView.y*0.5+(y-uView.y*0.5)*s);}' +
-          'void main(){float ang=uTh+(aUV.x-0.5)*uW/uR;float yc=uY+uR*sin(uTh)*uSl;vec2 p=pj(ang,yc-uH*0.5+aUV.y*uH);vec2 c=pj(uTh,yc);' +
-          'vec2 d=p-c;float cs=cos(uRot),sn=sin(uRot);p=c+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs)+uOff;' +
+          'void main(){float ang=uTh+(aUV.x-0.5)*uW/uR;float yc=uY+uR*sin(uTh)*uSl;vec2 p=pj(ang,yc-uH*0.5+aUV.y*uH);' +
+          'vec2 o=uView*0.5;vec2 d=p-o;float cs=cos(uRot),sn=sin(uRot);p=o+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs)+uOff;' +
           'vUV=aUV;vCos=cos(ang);gl_Position=vec4(p.x/uView.x*2.0-1.0,1.0-p.y/uView.y*2.0,0.0,1.0);}';
         var fs = 'precision highp float;uniform sampler2D uTex;uniform vec3 uImg;uniform float uW,uH,uAlpha,uReady,uRad;varying vec2 vUV;varying float vCos;' +
           'void main(){if(vCos<0.0)discard;vec2 l=vec2(vUV.x*uW,vUV.y*uH);float B=1.16;float Bw=B*uW;float bx=l.x+(B-1.0)*0.5*uW-uImg.z;' +
@@ -907,7 +907,9 @@
           if (!s.sh) return;
           s.sh.style.opacity = a.toFixed(3);
           s.sh.style.visibility = a > 0 ? 'visible' : 'hidden';
-          var x = G.R * Math.sin(th), z = G.R - G.R * Math.cos(th), y = x * SLOPE;
+          // tout le bandeau est incliné (rotation autour du centre de l'écran), pas chaque image
+          var x0 = G.R * Math.sin(th), z = G.R - G.R * Math.cos(th);
+          var x = x0 * Math.cos(rot), y = x0 * Math.sin(rot) + x0 * SLOPE;
           s.sh.style.transform = 'translate(' + ox.toFixed(1) + 'px,' + oy.toFixed(1) + 'px) perspective(' + Math.round(G.P) + 'px) translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + z.toFixed(1) +
             'px) rotateY(' + (-th * 57.2958).toFixed(2) + 'deg) rotate(' + (rot * 57.2958).toFixed(2) + 'deg) scale(' + sc.toFixed(3) + ')';
         });
