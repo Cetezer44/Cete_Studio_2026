@@ -397,6 +397,14 @@
       root.classList.toggle('home-free', v);
     }
     ac.signal.addEventListener('abort', function () { root.classList.remove('home-free'); });
+    // Réseaux sociaux du hero : ils sortent dans leur masque en passant à la section noire, et reviennent
+    // par le bas en remontant à la roulette
+    function socialsShow(on) {
+      var sp = $$('.home-socials .nav-link > span[data-axis]', track), box = $('.home-socials', track);
+      if (!sp.length) { if (box) { box.style.transition = 'opacity 400ms ease'; box.style.opacity = on ? '' : '0'; } return; }
+      if (on) { sp.forEach(hide); reveal(sp, 350, 80, 900); }
+      else conceal(sp, 0, 50, 450);
+    }
     // Après le dernier projet : le moindre scroll vers le bas fait une ancre vers la section du dessous
     var aRaf = null;
     function goAbout() {
@@ -405,6 +413,7 @@
       setFree(true);
       anchoring = true;
       zone = 'about';
+      socialsShow(false);
       var y0 = window.scrollY, y1 = sec.getBoundingClientRect().top + y0, t0a = null, D = reduce ? 0 : ABOUT_MS;
       var stepA = function (now) {
         if (t0a === null) t0a = now;
@@ -428,6 +437,7 @@
       // la roue repasse du 01 au dernier projet pendant que la page remonte (même durée)
       target = LAST;
       tween = reduce ? null : { a: cur, b: target, t0: performance.now(), d: ABOUT_MS };
+      socialsShow(true);
       var stepT = function (now) {
         if (t0a === null) t0a = now;
         var k = D ? Math.min(1, (now - t0a) / D) : 1;
