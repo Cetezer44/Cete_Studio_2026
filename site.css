@@ -417,3 +417,11 @@ html.is-svc-next .c-cursor__nav-next, html.is-svc-prev .c-cursor__nav-prev { tra
 [data-barba-namespace="home"].is-dark .hs-stage { background-color: #000; }
 .hs-gl { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .hs-stage.has-gl .hs-shape { display: none; }
+/* Accueil, section noire : le trait se construit puis se déconstruit vers le bas, en boucle (invitation au scroll) */
+.home-about-line { animation: aboutLine 2400ms cubic-bezier(.65,0,.35,1) infinite; }
+@keyframes aboutLine {
+  0% { clip-path: inset(0 0 100% 0); }
+  45%, 55% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(100% 0 0 0); }
+}
+@media (prefers-reduced-motion: reduce) { .home-about-line { animation: none; } }

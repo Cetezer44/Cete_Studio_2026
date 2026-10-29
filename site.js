@@ -379,14 +379,16 @@
     // pendant le passage (le 3e projet reste actif), ou finit son tour si tous les projets sont parcourus.
     var NAV = Math.min(3, N), LAST = START + NAV - 1, END = LAST + (NAV === N ? 1 : 0.45);
     var free = false, anchoring = false, pendingAbout = false;
-    var ABOUT_MS = 2000;   // durée du passage section 1 → section 2 (défilement + rotation 05 → 01)   // fin = retour sur le 01 après le dernier projet
+    var ABOUT_MS = 1600;   // durée du passage section 1 → section 2 (défilement + fin de rotation de la roue)
+    // départ immédiat (cubic.out) : la page part dans le prolongement du geste, sans temps d'arrêt
+    function easeOutC(t) { return 1 - Math.pow(1 - t, 3); }
     // dès que la roue quitte le dernier projet vers le 01, elle termine son tour et l'ancre part vers la section du dessous
     // (la roue doit d'abord s'arrêter sur le dernier projet : un grand geste ne peut pas le sauter)
-    function onLast() { return Math.abs(cur - LAST) < 0.06 && Math.abs(target - LAST) < 0.06; }
     function passLast() {
-      if (!onLast()) return false;
-      // la roue tourne du dernier projet au 01 pendant que la page descend vers la section noire (même durée)
-      target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: ABOUT_MS };
+      // dès que la roue arrive sur le 3e projet, le geste suivant enchaîne directement vers la section noire
+      // (pas besoin que la roue soit arrêtée) ; la roue continue de tourner pendant que la page descend
+      if (target < LAST - 0.001 || cur < LAST - 0.5) return false;
+      target = END; tween = reduce ? null : { a: cur, b: END, t0: performance.now(), d: ABOUT_MS, e: easeOutC };
       goAbout();
       return true;
     }
@@ -410,7 +412,7 @@
       var stepA = function (now) {
         if (t0a === null) t0a = now;
         var k = D ? Math.min(1, (now - t0a) / D) : 1;
-        window.scrollTo(0, y0 + (y1 - y0) * easeInOut(k));
+        window.scrollTo(0, y0 + (y1 - y0) * easeOutC(k));
         if (k < 1 && alive) aRaf = requestAnimationFrame(stepA);
         else { anchoring = false; aRaf = null; }
       };
@@ -666,7 +668,7 @@
         if (cur !== target) { cur = target; dirty = true; }
       } else if (tween) {
         var k = Math.min((now - tween.t0) / tween.d, 1);
-        cur = tween.a + (tween.b - tween.a) * easeInOut(k);
+        cur = tween.a + (tween.b - tween.a) * (tween.e || easeInOut)(k);
         dirty = true;
         if (k >= 1) { cur = target = tween.b; tween = null; }
       } else if (Math.abs(target - cur) > 0.0005) {
@@ -1016,15 +1018,24 @@
       var cueSet = function (v) { if (v === cueOn) return; cueOn = v; root.classList.toggle('is-scrollcue', v); };
       on(window, 'mousemove', function (e) {
         var t = e.target;
-        var inHero = !free && !anchoring && !intro && !root.classList.contains('is-menu') && !root.classList.contains('is-reel') &&
-          t.closest && t.closest('.home-track') &&
+        var open = !anchoring && !intro && !root.classList.contains('is-menu') && !root.classList.contains('is-reel') && t.closest;
+        var inHero = open && !free && t.closest('.home-track') &&
           !t.closest('a, button, .wheel-card, .showreel, .home-nav, .home-logo, .home-socials');
-        cueSet(!!inHero);
+        // même curseur « Scroll » sur la section noire (clic = section services)
+        var inAbout = open && free && zone === 'about' && t.closest('.home-about') && !t.closest('a, button');
+        cueSet(!!(inHero || inAbout));
       }, { passive: true });
-      on(window, 'scroll', function () { if (free) cueSet(false); }, { passive: true });
+      on(window, 'scroll', function () { if (anchoring || zone !== 'about') { if (free) cueSet(false); } }, { passive: true });
       on(document, 'mouseleave', function () { cueSet(false); });
       ac.signal.addEventListener('abort', function () { root.classList.remove('is-scrollcue'); });
     }
+
+    // clic sur la section noire (hors liens) : on descend à la section services
+    var aboutEl = $('.home-about', container);
+    if (aboutEl) on(aboutEl, 'click', function (e) {
+      if (e.target.closest('a, button') || zone !== 'about' || anchoring || blocked()) return;
+      goSvc();
+    });
 
     window.scrollTo(0, 0);
     on(window, 'resize', geo);
