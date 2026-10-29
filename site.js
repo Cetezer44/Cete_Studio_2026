@@ -365,19 +365,24 @@
       snapTimer = setTimeout(function () {
         target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
         clampT();
+        if (!anchoring && !pendingAbout) holdLast();   // jamais d'arrêt entre le 3e projet et le passage
       }, 140);
     }
     // Changement de projet « d'un cran » (lecture auto, clavier) : courbe ease-in-out lente
     // au lieu du suivi exponentiel utilisé pendant le scroll
     var SLIDE_MS = 1800, tween = null;
     function easeInOut(t) { return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2; }   // quart.inOut
-    // La roulette fait un seul tour (START → START + N) ; une fois ce tour fait, le scroll suivant fait
+    // La roulette parcourt les projets START → LAST ; une fois le dernier atteint, le scroll suivant fait
     // défiler la page vers la section du dessous. En revenant en haut, le scroll vers le haut refait tourner la roue.
-    var END = START + N, free = false, anchoring = false, pendingAbout = false;
+    // Seuls les 3 premiers projets se parcourent (les autres photos restent visibles en fond sur la roue) ;
+    // après le 3e, le scroll suivant fait passer à la section noire. La roue avance alors d'un demi-cran
+    // pendant le passage (le 3e projet reste actif), ou finit son tour si tous les projets sont parcourus.
+    var NAV = Math.min(3, N), LAST = START + NAV - 1, END = LAST + (NAV === N ? 1 : 0.45);
+    var free = false, anchoring = false, pendingAbout = false;
     var ABOUT_MS = 2000;   // durée du passage section 1 → section 2 (défilement + rotation 05 → 01)   // fin = retour sur le 01 après le dernier projet
     // dès que la roue quitte le dernier projet vers le 01, elle termine son tour et l'ancre part vers la section du dessous
     // (la roue doit d'abord s'arrêter sur le dernier projet : un grand geste ne peut pas le sauter)
-    function onLast() { return Math.abs(cur - (END - 1)) < 0.06 && Math.abs(target - (END - 1)) < 0.06; }
+    function onLast() { return Math.abs(cur - LAST) < 0.06 && Math.abs(target - LAST) < 0.06; }
     function passLast() {
       if (!onLast()) return false;
       // la roue tourne du dernier projet au 01 pendant que la page descend vers la section noire (même durée)
@@ -385,7 +390,7 @@
       goAbout();
       return true;
     }
-    function holdLast() { if (target > END - 1) target = END - 1; }
+    function holdLast() { if (target > LAST) target = LAST; }
     function clampT() { target = Math.max(START, Math.min(END, target)); }
     function atEnd() { return target >= END - 0.001 && Math.abs(cur - END) < 0.02; }
     function setFree(v) {
@@ -422,7 +427,7 @@
       anchoring = true;
       var y0 = window.scrollY, t0a = null, D = reduce ? 0 : ABOUT_MS;
       // la roue repasse du 01 au dernier projet pendant que la page remonte (même durée)
-      target = END - 1;
+      target = LAST;
       tween = reduce ? null : { a: cur, b: target, t0: performance.now(), d: ABOUT_MS };
       var stepT = function (now) {
         if (t0a === null) t0a = now;
@@ -613,6 +618,7 @@
       if (blocked() || free) return;
       target = dir > 0 ? Math.ceil(target - 0.2) : Math.floor(target + 0.2);
       clampT();
+      if (!anchoring && !pendingAbout) holdLast();
     });
     on(window, 'keydown', function (e) {
       var t = e.target.tagName;
