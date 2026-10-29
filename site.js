@@ -717,8 +717,10 @@
     }
 
     /* ---- Section services : cylindre tournant (même principe que la grille de la page Projets) ----
-       Scène collante de 100vh. Le défilement (lissé) fait tourner un cylindre : l'image de chaque service
-       arrive par la droite, passe sous le titre (centre), repart à gauche, puis le titre change.
+       Scène collante de 100vh. Le défilement (lissé) fait tourner un cylindre vu de l'intérieur (les images
+       des côtés viennent vers nous) : l'image de chaque service arrive par la droite, passe sous le titre
+       (centre), repart à gauche ; le titre change à mi-chemin entre deux images. Les voisines restent
+       visibles sur les côtés.
        Rendu WebGL (photo plaquée sur une portion de cylindre, inclinée) ; à défaut, cartes HTML en 3D. */
     var svcSec = $('.home-services', container);
     if (svcSec) (function () {
@@ -746,8 +748,8 @@
         });
       var N = data.length;
       if (!N || !stage) return;
-      var SEG = 1.1, TILT = 0.19, DPR = Math.min(2, window.devicePixelRatio || 1), MESH = 64;
-      svcSec.style.height = 'calc(' + Math.round((1 + N * SEG) * 100) + 'vh)';
+      var SEG = 0.75, TILT = 0.19, DPR = Math.min(2, window.devicePixelRatio || 1), MESH = 64;
+      svcSec.style.height = 'calc(' + Math.round((1 + N * SEG) * 100) + 'vh)';   // u : 0 → N (service i centré en u = i + 1)
       function bestSrc(img) {
         var set = (img.getAttribute('srcset') || '').split(',').map(function (c) {
           var p = c.trim().split(/\s+/); return { u: p[0], w: parseInt(p[1], 10) || 0 };
@@ -774,7 +776,7 @@
         gl = cv.getContext('webgl2', o) || cv.getContext('webgl', o);
         if (!gl) { cv.remove(); cv = null; return; }
         var vs = 'attribute vec2 aUV;uniform float uTh,uW,uH,uY,uR,uP,uRot,uSl;uniform vec2 uView;varying vec2 vUV;varying float vCos;' +
-          'vec2 pj(float a,float y){float X=uR*sin(a);float Z=uR*cos(a)-uR;float s=uP/(uP-Z);return vec2(uView.x*0.5+X*s,uView.y*0.5+(y-uView.y*0.5)*s);}' +
+          'vec2 pj(float a,float y){float X=uR*sin(a);float Z=uR-uR*cos(a);float s=uP/(uP-Z);return vec2(uView.x*0.5+X*s,uView.y*0.5+(y-uView.y*0.5)*s);}' +
           'void main(){float ang=uTh+(aUV.x-0.5)*uW/uR;float yc=uY+uR*sin(uTh)*uSl;vec2 p=pj(ang,yc-uH*0.5+aUV.y*uH);vec2 c=pj(uTh,yc);' +
           'vec2 d=p-c;float cs=cos(uRot),sn=sin(uRot);p=c+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);' +
           'vUV=aUV;vCos=cos(ang);gl_Position=vec4(p.x/uView.x*2.0-1.0,1.0-p.y/uView.y*2.0,0.0,1.0);}';
@@ -842,8 +844,8 @@
         G.W = Math.min(472, vw * 0.72); G.H = G.W * 281 / 472;
         G.P = Math.max(1400, 2200 * k);
         var hw = vw / 2;
-        G.R = hw * G.P / (G.P - hw);          // silhouette du cylindre sur les bords de l'écran
-        G.D = 2.9 * G.R;                      // écart entre deux services (un seul passe à la fois)
+        G.R = 1.25 * hw;                      // cylindre vu de l'intérieur : courbure douce
+        G.D = G.W * 1.32;                     // écart entre deux services : les voisines restent sur les côtés
         if (gl) { cv.width = Math.round(vw * DPR); cv.height = Math.round(vh * DPR); gl.viewport(0, 0, cv.width, cv.height); }
         if (!gl) data.forEach(function (s) { if (s.sh) { s.sh.style.width = G.W + 'px'; s.sh.style.height = G.H + 'px'; } });
       }
@@ -868,24 +870,24 @@
       function draw() {
         var u = tC, list = [];
         // titre du service courant : il change quand l'image précédente est sortie à gauche
-        var ti = Math.max(0, Math.min(N - 1, Math.floor(u + 1e-4)));
+        var ti = Math.max(0, Math.min(N - 1, Math.round(u - 1)));
         if (ti !== titled) {
           if (titled >= 0) titleOut(data[titled], ti > titled);
           titleIn(data[ti], ti > titled);
           titled = ti;
         }
         data.forEach(function (s, i) {
-          var off = (i + 0.5 - u) * G.D, th = off / G.R;
-          var a = Math.max(0, Math.min(1, (1.45 - Math.abs(th)) / 0.35));
+          var off = (i + 1 - u) * G.D, th = off / G.R;
+          var a = Math.max(0, Math.min(1, (1.2 - Math.abs(th)) / 0.3));
           if (s.t) s.t.style.opacity = i === ti ? (0.3 + 0.7 * Math.max(0, 1 - Math.abs(off) / (G.W * 0.75))).toFixed(3) : '0.3';
           if (gl) { if (a > 0) list.push({ s: s, th: th, a: a }); return; }
           // repli sans WebGL : carte HTML plate posée sur le cylindre
           if (!s.sh) return;
           s.sh.style.opacity = a.toFixed(3);
           s.sh.style.visibility = a > 0 ? 'visible' : 'hidden';
-          var x = G.R * Math.sin(th), z = G.R * Math.cos(th) - G.R, y = x * TILT;
+          var x = G.R * Math.sin(th), z = G.R - G.R * Math.cos(th), y = x * TILT;
           s.sh.style.transform = 'perspective(' + Math.round(G.P) + 'px) translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + z.toFixed(1) +
-            'px) rotateY(' + (th * 57.2958).toFixed(2) + 'deg) rotate(' + (TILT * 57.2958).toFixed(2) + 'deg)';
+            'px) rotateY(' + (-th * 57.2958).toFixed(2) + 'deg) rotate(' + (TILT * 57.2958).toFixed(2) + 'deg)';
         });
         if (!gl) return;
         gl.clearColor(0, 0, 0, 0);
@@ -894,6 +896,7 @@
         gl.uniform2f(U.uView, G.vw, G.vh);
         gl.uniform1f(U.uW, G.W); gl.uniform1f(U.uH, G.H); gl.uniform1f(U.uY, G.vh / 2);
         gl.uniform1f(U.uRot, TILT); gl.uniform1f(U.uSl, TILT); gl.uniform1f(U.uRad, 5);
+        list.sort(function (a, b) { return Math.abs(a.th) - Math.abs(b.th); });   // le centre (le plus loin) d'abord, les côtés par-dessus
         list.forEach(function (d) {
           var px = -Math.max(-1, Math.min(1, d.th / 2)) * 8;   // parallaxe horizontale dans la photo (%)
           gl.uniform1f(U.uTh, d.th);
@@ -922,8 +925,8 @@
       // Curseur « Suivant » (moitié droite) / « Précédent » (moitié gauche) : clic = service voisin centré
       // sous le titre ; « Précédent » avant le premier service ramène à la section noire
       var mx = -1, my = -1;
-      function nextU() { for (var k = 0; k < N; k++) if (k + 0.5 > tT + 0.05) return k + 0.5; return -1; }
-      function prevU() { for (var k = N - 1; k >= 0; k--) if (k + 0.5 < tT - 0.05) return k + 0.5; return -1; }
+      function nextU() { for (var k = 1; k <= N; k++) if (k > tT + 0.05) return k; return -1; }
+      function prevU() { for (var k = N; k >= 1; k--) if (k < tT - 0.05) return k; return -1; }
       function navAt(x, y) {
         if (zone !== 'svc' || anchoring || root.classList.contains('is-menu') || root.classList.contains('is-reel')) return 0;
         var el = document.elementFromPoint(x, y);
