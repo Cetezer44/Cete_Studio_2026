@@ -737,7 +737,7 @@
         lift(d, -LIFT, 0);
         return morph(d, first, 640, GROW).then(function () {
           titleIn(d, 0);
-          return pause(380);
+          return pause(240);
         }).then(function () {
           lift(d, 0, 700, GROW);
           return morph(d, { w: W, h: H, r: 0 }, 700, GROW);
