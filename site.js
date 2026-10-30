@@ -2734,6 +2734,12 @@
       return Promise.resolve();
     }
 
+    // Image secondaire : la photo ondule au passage de la souris (même effet que l'aura de la modal contact)
+    if (aside && aside.style.display !== 'none' && root.classList.contains('has-cursor')) {
+      var warp = imgWarp(aside, $('img', aside));
+      if (warp) ac.signal.addEventListener('abort', warp.destroy);
+    }
+
     // Paragraphes en bas de page : curseur « Contact », un clic ouvre la modal contact (souris uniquement)
     var more = $('.svc-more', container), blocks = $$('.svc-block', container);
     if (more && root.classList.contains('has-cursor')) more.setAttribute('data-contact', 'open');
@@ -2865,6 +2871,137 @@
     }
     return { destroy: function () { ac.abort(); if (io) io.disconnect(); }, play: play };
   }
+  // Déformation d'une photo au passage de la souris : calque WebGL posé sur l'image, taches douces laissées par
+  // le curseur (masque basse résolution) qui déplacent la photo selon un bruit lent ; calque masqué au repos
+  function imgWarp(frame, img) {
+    if (reduce || !img) return null;
+    var cv = document.createElement('canvas');
+    cv.className = 'svc-warp';
+    cv.setAttribute('aria-hidden', 'true');
+    var gl = cv.getContext('webgl', { alpha: false, antialias: false, premultipliedAlpha: false });
+    if (!gl) return null;
+    var VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
+    var FS = [
+      'precision mediump float;varying vec2 v;uniform sampler2D uImg,uMask;uniform float uT;uniform vec2 uAsp,uCov;',
+      'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+      'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);',
+      'return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}',
+      'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<3;i++){s+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}',
+      'void main(){',
+      '  vec2 p=v*uAsp*2.2;float t=uT*.3;',
+      '  vec2 q=vec2(fbm(p+vec2(0.,t)),fbm(p+vec2(5.2,1.3)-vec2(t*.8,0.)));',
+      '  vec2 r=vec2(fbm(p+1.6*q+vec2(1.7,9.2)+t*.6),fbm(p+1.6*q+vec2(8.3,2.8)-t*.5));',
+      '  float m=texture2D(uMask,v).a;',
+      '  vec2 d=(r-.5)*vec2(.07,.09)*smoothstep(0.,.7,m);',
+      '  gl_FragColor=vec4(texture2D(uImg,(v-.5)*uCov+.5+d).rgb,1.);',
+      '}'
+    ].join('\n');
+    function sh(type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null; }
+    var vs = sh(gl.VERTEX_SHADER, VS), fs = sh(gl.FRAGMENT_SHADER, FS);
+    if (!vs || !fs) return null;
+    var pr = gl.createProgram();
+    gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) return null;
+    gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(pr, 'p');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    var U = {};
+    ['uImg', 'uMask', 'uT', 'uAsp', 'uCov'].forEach(function (k) { U[k] = gl.getUniformLocation(pr, k); });
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    function tex(unit) {
+      var t = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return t;
+    }
+    var texImg = tex(0), texMask = tex(1);
+    gl.uniform1i(U.uImg, 0); gl.uniform1i(U.uMask, 1);
+    var mk = document.createElement('canvas'), mctx = mk.getContext('2d'), MS = 0.25;
+    var src = new Image(), ready = false, iw = 1, ih = 1;
+    src.crossOrigin = 'anonymous';
+    src.onload = function () {
+      iw = src.naturalWidth; ih = src.naturalHeight; ready = true;
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texImg);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    };
+    src.src = img.currentSrc || img.src;
+    frame.appendChild(cv);
+    var parts = [], raf = null, last = 0, clock = 0, W = 0, H = 0, lx = null, ly = null;
+    function size() {
+      var r = cv.getBoundingClientRect(), k = Math.min(window.devicePixelRatio || 1, 1.5);
+      W = r.width; H = r.height;
+      cv.width = Math.max(1, Math.round(W * k)); cv.height = Math.max(1, Math.round(H * k));
+      mk.width = Math.max(1, Math.ceil(W * MS)); mk.height = Math.max(1, Math.ceil(H * MS));
+      gl.viewport(0, 0, cv.width, cv.height);
+    }
+    function puff(x, y, v) {
+      parts.push({ x: x, y: y, r: 26 + Math.random() * 20, g: 70 + Math.random() * 60 + Math.min(v, 50), a: 0.3 + Math.min(v, 40) * 0.008,
+        t: 0, d: 1400 + Math.random() * 700, vx: (Math.random() - 0.5) * 14, vy: -4 - Math.random() * 8, ph: Math.random() * 6.28 });
+      if (parts.length > 120) parts.shift();
+    }
+    function move(e) {
+      if (!ready) return;
+      if (!W) size();
+      var r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      if (lx === null) { lx = x; ly = y; puff(x, y, 0); }
+      var dx = x - lx, dy = y - ly, dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist >= 8) {
+        var n = Math.min(5, Math.ceil(dist / 18));
+        for (var i = 1; i <= n; i++) puff(lx + dx * i / n, ly + dy * i / n, dist / n);
+        lx = x; ly = y;
+      }
+      if (!raf) { cv.style.transform = img.style.transform; cv.style.opacity = '1'; last = performance.now(); raf = requestAnimationFrame(frameFn); }
+    }
+    function frameFn(now) {
+      var dt = Math.max(0, Math.min(50, now - last)); last = now; clock += dt;
+      mctx.clearRect(0, 0, mk.width, mk.height);
+      for (var i = parts.length - 1; i >= 0; i--) {
+        var p = parts[i];
+        p.t += dt;
+        var k = p.t / p.d;
+        if (k >= 1) { parts.splice(i, 1); continue; }
+        p.x += (p.vx + Math.sin(p.t * 0.0016 + p.ph) * 14) * dt / 1000;
+        p.y += p.vy * dt / 1000;
+        var rr = (p.r + p.g * Math.pow(k, 0.65)) * MS, al = p.a * Math.min(1, k * 7) * Math.pow(1 - k, 1.5);
+        var gx = p.x * MS, gy = p.y * MS, gr = mctx.createRadialGradient(gx, gy, 0, gx, gy, rr);
+        gr.addColorStop(0, 'rgba(255,255,255,' + al + ')');
+        gr.addColorStop(0.5, 'rgba(255,255,255,' + al * 0.6 + ')');
+        gr.addColorStop(1, 'rgba(255,255,255,0)');
+        mctx.fillStyle = gr;
+        mctx.beginPath(); mctx.arc(gx, gy, rr, 0, 6.2832); mctx.fill();
+      }
+      var ia = iw / ih, sa = W / H;
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texMask);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mk);
+      gl.uniform1f(U.uT, clock / 1000);
+      gl.uniform2f(U.uAsp, sa, 1);
+      gl.uniform2f(U.uCov, Math.min(1, sa / ia), Math.min(1, ia / sa));
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      if (parts.length) raf = requestAnimationFrame(frameFn);
+      else { raf = null; cv.style.opacity = '0'; lx = null; }   // au repos : la photo d'origine reprend la main
+    }
+    function leave() { lx = null; }
+    function rs() { if (W) size(); }
+    frame.addEventListener('mousemove', move);
+    frame.addEventListener('mouseleave', leave);
+    window.addEventListener('resize', rs, { passive: true });
+    return {
+      destroy: function () {
+        if (raf) cancelAnimationFrame(raf);
+        frame.removeEventListener('mousemove', move);
+        frame.removeEventListener('mouseleave', leave);
+        window.removeEventListener('resize', rs);
+      }
+    };
+  }
+
   // Textes d'une page service (page elle-même ou copie dans la zone « service suivant ») : titre en lignes
   // masquées, lettres des noms de projets, libellé masqué. hide() les cache, show(k) les fait apparaître
   // (k : facteur de durée), done() les affiche directement
@@ -2954,7 +3091,9 @@
         var r = aside.getBoundingClientRect(), vh = window.innerHeight;
         if (!r.height || r.bottom < -50 || r.top > vh + 50) return;
         var k = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2)));
-        asideImg.style.transform = 'translate3d(0,' + (-k * r.height * 0.1).toFixed(1) + 'px,0)';
+        var tf = 'translate3d(0,' + (-k * r.height * 0.1).toFixed(1) + 'px,0)', wc = $('.svc-warp', aside);
+        asideImg.style.transform = tf;
+        if (wc) wc.style.transform = tf;   // calque de déformation (survol) : même position que la photo
       };
       var pxOn = function () { if (!pxRaf) pxRaf = requestAnimationFrame(px); };
       window.addEventListener('scroll', pxOn, { passive: true });
