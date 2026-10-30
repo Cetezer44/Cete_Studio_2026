@@ -1,5 +1,5 @@
-/* Be Vietnam Pro 600 (SemiBold) : graisse absente des polices chargées par Webflow (300 et 400) */
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600&display=swap');
+/* Be Vietnam Pro 500 et 600 (Medium, SemiBold) : graisses absentes des polices chargées par Webflow (300 et 400) */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600&display=swap');
 /* Cete Studio 2026 — CSS en complément du Designer Webflow
    Ici : uniquement ce que le Designer ne sait pas faire (états posés par le JS, éléments créés par le JS,
    sélecteurs parent/enfant, variables calculées). Tout le reste est dans les classes Webflow.
@@ -430,3 +430,11 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
   .svc-projects:hover .svc-row:not(:hover) { opacity: .15; }
 }
 .svc-media { cursor: pointer; }
+/* Paragraphes en bas de la page d'un service (texte riche du CMS) */
+.svc-block-text p { margin: 0 0 1.1em; }
+.svc-block-text p:last-child { margin-bottom: 0; }
+/* Service suivant (créé par le JS en fin de page) : sa photo monte et recouvre le panneau de gauche */
+.svc-next { position: relative; z-index: 2; height: 100vh; pointer-events: none; }
+.svc-next__media { position: absolute; left: 0; top: 0; width: 32.36vw; height: 100%; overflow: hidden; background: #000; }
+.svc-next__media img { display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+@media (max-width: 767px) { .svc-next__media { width: 100%; height: 60vh; } }

@@ -34,7 +34,7 @@
   var media = c.querySelector('.c-cursor__media'), over = null;   // vidéo survolée
   var disc = c.querySelector('.c-cursor__disc');
   var cue = c.querySelector('.c-cursor__cue');
-  var closer = c.querySelector('.c-cursor__close');
+  var closer = c.querySelector('.c-cursor__close'), closeTxt = c.querySelector('.c-cursor__close-in');
   var mx = -100, my = -100, rx = mx, ry = my;
   var LINKS = 'a, button, [role="button"], input[type="submit"], label, select';
 
@@ -54,8 +54,13 @@
     c.classList.toggle('is-view', see);
     view.classList.toggle('is-on', see);
     c.classList.toggle('is-hover', !video && !over && !see && !!(t && t.closest(LINKS)));
-    c.classList.toggle('is-close', !!(t && ((document.documentElement.classList.contains('is-menu') && t.closest('.cm, .cm-bg') && !t.closest(LINKS)) ||
-      (!document.documentElement.classList.contains('is-menu') && t.closest('[data-cursor="close"]')))));
+    var menuOn = document.documentElement.classList.contains('is-menu');
+    // « Contact » (ex. paragraphes en bas de la page d'un service) : même pastille que « Fermer », autre libellé
+    var contact = !!(t && !menuOn && t.closest('[data-cursor="contact"]') && !t.closest(LINKS));
+    var closeOn = !!(t && ((menuOn && t.closest('.cm, .cm-bg') && !t.closest(LINKS)) || (!menuOn && t.closest('[data-cursor="close"]'))));
+    if (contact) closeTxt.textContent = 'Contact';
+    else if (closeOn) closeTxt.textContent = 'Fermer';
+    c.classList.toggle('is-close', closeOn || contact);
     mediaState();
   });
   // « Voir » piloté par le script de la page (ex. image au centre du cylindre des services, rendue en WebGL)
@@ -2756,6 +2761,69 @@
       return Promise.resolve();
     }
     prep();
+
+    // Image secondaire (à droite, sous les projets) : masquée si le champ est vide
+    var aside = $('.svc-aside', container), asideImg = aside && $('img', aside);
+    if (aside && (!asideImg || asideImg.classList.contains('w-dyn-bind-empty') || !asideImg.getAttribute('src'))) aside.style.display = 'none';
+    // Paragraphes en bas de page : curseur « Contact », un clic ouvre la modal contact (souris uniquement)
+    var more = $('.svc-more', container), blocks = $$('.svc-block', container);
+    if (more && root.classList.contains('has-cursor')) more.setAttribute('data-contact', 'open');
+    // Apparition au défilement : l'image se dévoile depuis le bas, les paragraphes montent en fondu
+    var io = null;
+    if (!reduce && 'IntersectionObserver' in window) {
+      var watch = blocks.slice();
+      if (aside && aside.style.display !== 'none') watch.push(aside);
+      watch.forEach(function (el) {
+        if (el === aside) el.style.clipPath = 'inset(100% 0 0 0)';
+        else { el.style.opacity = '0'; el.style.transform = 'translateY(40px)'; }
+      });
+      io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          io.unobserve(en.target);
+          var el = en.target;
+          if (el === aside) { el.style.transition = 'clip-path 1100ms ' + INOUT; el.style.clipPath = 'inset(0 0 0 0)'; }
+          else { el.style.transition = 'opacity 900ms ease, transform 1100ms ' + EASE; el.style.opacity = ''; el.style.transform = ''; }
+        });
+      }, { rootMargin: '0px 0px -12% 0px' });
+      watch.forEach(function (el) { io.observe(el); });
+    }
+
+    // Service suivant (ordre de l'accueil, en boucle) : en fin de page, sa photo monte et recouvre le panneau
+    // de gauche ; arrivé tout en bas, la page suivante s'ouvre (l'URL change) et ses textes apparaissent
+    var nextZone = null, next = null, going = false;
+    svcOrder().then(function (list) {
+      if (ac.signal.aborted || !list.length) return;
+      var slug = window.location.pathname.replace(/\/+$/, '').split('/').pop();
+      var i = -1;
+      list.forEach(function (x, k) { if (x.slug === slug) i = k; });
+      if (i >= 0 && list.length < 2) return;
+      next = list[(i + 1) % list.length];
+      nextZone = document.createElement('div');
+      nextZone.className = 'svc-next';
+      nextZone.setAttribute('aria-hidden', 'true');
+      var nm = document.createElement('div'), ni = document.createElement('img');
+      nm.className = 'svc-next__media';
+      ni.alt = ''; ni.decoding = 'async';
+      if (next.img) ni.src = next.img;
+      nm.appendChild(ni); nextZone.appendChild(nm);
+      container.appendChild(nextZone);
+      checkNext();
+    });
+    function checkNext() {
+      if (!next || going || !nextZone) return;
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max > 0 && window.scrollY > 0 && window.scrollY >= max - 2) goNext();
+    }
+    function goNext() {
+      going = true;
+      var href = '/services/' + next.slug;
+      if (reduce || !window.barba) { window.location.href = href; return; }
+      svcNext = { img: $('img', nextZone) };
+      barba.go(href, 'svc-next');
+    }
+    on(window, 'scroll', checkNext, { passive: true });
+
     if (!opts.transition) {
       // arrivée directe : l'image se dévoile depuis le bas, puis les textes
       if (media && !reduce) {
@@ -2766,7 +2834,29 @@
       }
       setTimeout(play, reduce ? 0 : 500);
     }
-    return { destroy: function () { ac.abort(); }, play: play };
+    return { destroy: function () { ac.abort(); if (io) io.disconnect(); }, play: play };
+  }
+  // Ordre des services (celui de l'accueil : services affichés, triés par « Ordre ») et leur photo, lus une fois
+  // sur la page d'accueil
+  var svcListP = null, svcNext = null;
+  function svcOrder() {
+    if (svcListP) return svcListP;
+    svcListP = fetch('/', { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
+      var d = new DOMParser().parseFromString(html, 'text/html');
+      return $$('.hs-item', d).filter(function (it) { return !it.classList.contains('w-condition-invisible'); }).map(function (it) {
+        var img = $('.hs-img', it), src = '';
+        if (img) {
+          var want = window.innerWidth * 0.33 * Math.min(2, window.devicePixelRatio || 1);
+          var set = (img.getAttribute('srcset') || '').split(',').map(function (c) {
+            var q = c.trim().split(/\s+/); return { u: q[0], w: parseInt(q[1], 10) || 0 };
+          }).filter(function (c) { return c.u && c.w; }).sort(function (a, b) { return a.w - b.w; });
+          for (var k = 0; k < set.length && !src; k++) if (set[k].w >= want) src = set[k].u;
+          if (!src) src = set.length ? set[set.length - 1].u : img.getAttribute('src') || '';
+        }
+        return { slug: it.getAttribute('data-slug'), order: +it.getAttribute('data-order') || 0, img: src };
+      }).filter(function (x) { return x.slug; }).sort(function (a, b) { return a.order - b.order; });
+    }).catch(function () { svcListP = null; return []; });
+    return svcListP;
   }
 
   function Studio(container) {
@@ -3836,6 +3926,42 @@
           fixed(data.next.container, false);
           root.setAttribute('data-page', 'work');
           window.scrollTo(0, 0);
+        }
+      },
+      {
+        name: 'service-suivant',           // fin de page d'un service : la photo du suivant, déjà plein cadre à gauche, sert de relais
+        custom: function (d) { return d.trigger === 'svc-next'; },
+        from: { namespace: ['service'] },
+        to: { namespace: ['service'] },
+        leave: function () {
+          flyData = null;
+          var im = svcNext && svcNext.img;
+          svcNext = null;
+          if (!im || !im.parentNode) return;
+          var r = im.parentNode.getBoundingClientRect();
+          var ov = document.createElement('div'), cl = im.cloneNode();
+          ov.className = 'svc-fly';
+          ov.style.cssText = 'position:fixed;z-index:60;overflow:hidden;background:#000;pointer-events:none;' +
+            'left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
+          cl.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;max-width:none';
+          ov.appendChild(cl);
+          document.body.appendChild(ov);
+          flyData = { overlay: ov };
+        },
+        beforeEnter: function (data) {
+          window.scrollTo(0, 0);
+          runScripts(data.next.container);
+          initPage(data.next.container, { transition: !!flyData });
+        },
+        enter: function (data) {
+          if (!flyData || !flyData.overlay) return;
+          var ov = flyData.overlay, img = $('.svc-img', data.next.container);
+          var ready = img && img.decode ? img.decode().catch(function () {}) : Promise.resolve();
+          return Promise.race([ready, wait(1500)]).then(function () {
+            ov.remove();
+            flyData = null;
+            return page && page.play ? page.play() : null;
+          });
         }
       },
       {
