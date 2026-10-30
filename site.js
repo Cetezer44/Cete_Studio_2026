@@ -2979,6 +2979,7 @@
     menu: [['Projets', '/projets'], ['Studio', '/studio']],   // « Services » retiré en attendant la page
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
+  var CONTACT_BG = 'https://cdn.prod.website-files.com/6acf743eb4f622a1815188f4/6ae47f8c33e7c74b6ffbeb2b_contact-bg.webp';
   var Menu = (function () {
     var isOpen = false, busy = false, lastFocus = null, timers = [], shownAt = 0;
     function later(ms, fn) { timers.push(setTimeout(fn, ms)); }
@@ -3013,6 +3014,92 @@
     document.body.appendChild(box);
     // clic en dehors des liens (curseur « Fermer ») : la modal se ferme
     bg.addEventListener('click', function () { if (isOpen && !busy) shut(); });
+
+    // Fond noir ; au passage du curseur, la photo se révèle en traînée de fumée (bouffées qui gonflent, dérivent
+    // et s'estompent). Masque dessiné en basse résolution puis agrandi : bords naturellement flous.
+    var Smoke = (function () {
+      if (reduce) return { start: function () {}, stop: function () {} };
+      var cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+      var mk = document.createElement('canvas'), mctx = mk.getContext('2d');
+      cv.className = 'cm-smoke';
+      bg.appendChild(cv);
+      var img = new Image(), ready = false;
+      img.decoding = 'async';
+      img.onload = function () { ready = true; };
+      var parts = [], raf = null, on = false, W = 0, H = 0, dpr = 1, lx = null, ly = null, last = 0, MS = 0.25;
+      function size() {
+        dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        W = window.innerWidth; H = window.innerHeight;
+        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        mk.width = Math.ceil(W * MS); mk.height = Math.ceil(H * MS);
+      }
+      function puff(x, y, v) {
+        parts.push({
+          x: x + (Math.random() - 0.5) * 16, y: y + (Math.random() - 0.5) * 16,
+          r: 26 + Math.random() * 26, g: 70 + Math.random() * 70 + Math.min(v, 60) * 1.2,
+          a: 0.32 + Math.min(v, 40) * 0.006, t: 0, d: 1500 + Math.random() * 1100,
+          vx: (Math.random() - 0.5) * 24, vy: -10 - Math.random() * 22, ph: Math.random() * 6.28
+        });
+        if (parts.length > 160) parts.shift();
+      }
+      function move(e) {
+        if (!on) return;
+        var x = e.clientX, y = e.clientY;
+        if (lx === null) { lx = x; ly = y; puff(x, y, 0); return; }
+        var dx = x - lx, dy = y - ly, dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 10) return;
+        var n = Math.min(6, Math.ceil(dist / 22));
+        for (var i = 1; i <= n; i++) puff(lx + dx * i / n, ly + dy * i / n, dist / n);
+        lx = x; ly = y;
+        if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
+      }
+      function cover() {
+        var s = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * s, h = img.naturalHeight * s;
+        ctx.drawImage(img, (W - w) / 2 * dpr, (H - h) / 2 * dpr, w * dpr, h * dpr);
+      }
+      function frame(now) {
+        var dt = Math.min(50, now - last); last = now;
+        mctx.clearRect(0, 0, mk.width, mk.height);
+        for (var i = parts.length - 1; i >= 0; i--) {
+          var p = parts[i];
+          p.t += dt;
+          var k = p.t / p.d;
+          if (k >= 1) { parts.splice(i, 1); continue; }
+          // dérive lente + ondulation : la bouffée monte en se tordant comme une fumée
+          p.x += (p.vx + Math.sin(p.t * 0.0024 + p.ph) * 22) * dt / 1000;
+          p.y += p.vy * dt / 1000;
+          var r = (p.r + p.g * Math.pow(k, 0.7)) * MS, al = p.a * Math.min(1, k * 8) * Math.pow(1 - k, 1.6);
+          var gx = p.x * MS, gy = p.y * MS, gr = mctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+          gr.addColorStop(0, 'rgba(255,255,255,' + al + ')');
+          gr.addColorStop(0.55, 'rgba(255,255,255,' + al * 0.45 + ')');
+          gr.addColorStop(1, 'rgba(255,255,255,0)');
+          mctx.fillStyle = gr;
+          mctx.beginPath(); mctx.arc(gx, gy, r, 0, 6.2832); mctx.fill();
+        }
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (ready && parts.length) {
+          ctx.globalCompositeOperation = 'source-over';
+          cover();
+          ctx.globalCompositeOperation = 'destination-in';
+          ctx.drawImage(mk, 0, 0, cv.width, cv.height);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        raf = parts.length ? requestAnimationFrame(frame) : null;
+      }
+      window.addEventListener('pointermove', move, { passive: true });
+      window.addEventListener('resize', function () { if (on) size(); });
+      return {
+        start: function () {
+          if (!img.src) img.src = CONTACT_BG;
+          size(); on = true; lx = null; ly = null;
+        },
+        stop: function () {
+          on = false; parts = [];
+          if (raf) { cancelAnimationFrame(raf); raf = null; }
+          ctx.clearRect(0, 0, cv.width, cv.height);
+        }
+      };
+    })();
 
     // Adresse e-mail : un clic la copie dans le presse-papier, une infobulle le confirme
     var mailLink = $('.cm-mail-link', box), tip = $('.cm-tip', box), tipTimer = null;
@@ -3106,6 +3193,7 @@
       lastFocus = document.activeElement;
       root.classList.add('is-menu'); root.classList.remove('is-discover');
       burger(true);
+      Smoke.start();
       all.forEach(hide);
       logo.style.transition = 'none';
       logo.style.clipPath = 'inset(-2% 102% -2% -2%)';
@@ -3148,6 +3236,7 @@
           later(out ? 950 : 0, function () {
             box.style.visibility = 'hidden';
             busy = false;
+            Smoke.stop();
             if (lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
             res();
           });
@@ -3181,6 +3270,7 @@
     // Après le changement de page : la modal est remise à zéro sans animation (cachée par la page noire)
     function reset() {
       clearLater();
+      Smoke.stop();
       isOpen = false; busy = false;
       box.style.visibility = 'hidden';
       bg.style.transition = 'none';
