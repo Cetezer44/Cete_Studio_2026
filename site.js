@@ -2718,12 +2718,19 @@
       if (window.barba) barba.go('/'); else window.location.href = '/';
     });
 
-    // Textes : déjà visibles si la page vient d'apparaître pendant le défilement de la page précédente
+    // Textes : si la page a commencé à apparaître pendant le défilement de la page précédente (opts.revealAt),
+    // son animation d'apparition reprend exactement où elle en était
     var parts = svcParts(container);
     var aside = parts.aside;
-    if (opts.shown) parts.done(); else parts.hide();
+    var resume = !!opts.revealAt && aside && aside.style.display !== 'none' && aside.getBoundingClientRect().top < window.innerHeight;
+    parts.hide();
+    if (resume) parts.hideAside();
+    if (opts.revealAt) {   // reprise immédiate (même image que la copie qui disparaît) : aucune image intermédiaire
+      void container.offsetWidth;
+      parts.show(1, performance.now() - opts.revealAt, resume);
+    }
     function play() {
-      if (!opts.shown) parts.show(1);
+      if (!opts.revealAt) parts.show(1);
       return Promise.resolve();
     }
 
@@ -2734,7 +2741,7 @@
     var io = null;
     if (!reduce && 'IntersectionObserver' in window) {
       var watch = blocks.slice();
-      if (aside && aside.style.display !== 'none' && !(opts.shown && aside.getBoundingClientRect().top < window.innerHeight)) watch.push(aside);
+      if (aside && aside.style.display !== 'none' && !resume) watch.push(aside);
       watch.forEach(function (el) {
         if (el === aside) el.style.clipPath = 'inset(100% 0 0 0)';
         else { el.style.opacity = '0'; el.style.transform = 'translateY(40px)'; }
@@ -2789,7 +2796,7 @@
         nextZone.appendChild(pg);
         nextParts = svcParts(pg);
         nextParts.hide();
-        if (nextParts.aside && !reduce) nextParts.aside.style.clipPath = 'inset(100% 0 0 0)';
+        nextParts.hideAside();
       }).catch(function () {});
     });
     function checkNext() {
@@ -2801,7 +2808,7 @@
       going = true;
       var href = '/services/' + next.slug;
       if (reduce || !window.barba) { window.location.href = href; return; }
-      svcNext = { img: $('img', nextZone), shown: revealed };
+      svcNext = { img: $('img', nextZone), revealAt: revealed ? revealAt : 0 };
       barba.go(href, 'svc-next');
     }
     function nextProgress() {
@@ -2817,16 +2824,16 @@
       checkNext();
     }
     // Ancre : glissement automatique jusqu'en bas de page (la molette est neutralisée pendant le glissement)
+    var revealAt = 0;
     function revealNext() {
       if (revealed || !nextParts) return;
       revealed = true;
-      nextParts.show(0.55);   // même animation que l'arrivée sur la page, resserrée pour finir avec le défilement
-      var as = nextParts.aside;
-      if (as && !reduce) { as.style.transition = 'clip-path 800ms ' + INOUT + ' 250ms'; as.style.clipPath = 'inset(0 0 0 0)'; }
+      revealAt = performance.now();
+      nextParts.show(1, 0, true);   // mêmes animations d'apparition que sur la page ; elles se poursuivent après l'ouverture
     }
     function anchorNext() {
       anchoring = true;
-      setTimeout(revealNext, reduce ? 0 : 200);
+      setTimeout(revealNext, reduce ? 0 : 300);
       var y0 = window.scrollY, y1 = document.documentElement.scrollHeight - window.innerHeight;
       if (reduce) { window.scrollTo(0, y1); return; }
       var t0 = null, D = 1400;
@@ -2900,17 +2907,24 @@
         lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'translateY(110%)'; });
         fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(24px)'; });
       },
-      show: function (k) {
-        k = k || 1;
+      // off : temps (ms) déjà écoulé de cette animation (reprise exacte sur la nouvelle page via des délais négatifs)
+      show: function (k, off, withAside) {
+        k = k || 1; off = off || 0;
         if (reduce) { if (lab) lab.style.transform = 'none'; return; }
-        lines.forEach(function (l, i) { l.style.transition = 'transform ' + Math.round(1100 * k) + 'ms ' + EASE + ' ' + Math.round(i * 90 * k) + 'ms'; l.style.transform = 'translateY(0)'; });
+        var ms = function (v) { return Math.round(v) + 'ms'; };
+        lines.forEach(function (l, i) { l.style.transition = 'transform ' + ms(1100 * k) + ' ' + EASE + ' ' + ms(i * 90 * k - off); l.style.transform = 'translateY(0)'; });
         fades.forEach(function (el, i) {
-          var d = Math.round((350 + (i ? 150 + i * 70 : 0)) * k);
-          el.style.transition = 'opacity ' + Math.round(900 * k) + 'ms ease ' + d + 'ms, transform ' + Math.round(1000 * k) + 'ms ' + EASE + ' ' + d + 'ms';
+          var d = (350 + (i ? 150 + i * 70 : 0)) * k - off;
+          el.style.transition = 'opacity ' + ms(900 * k) + ' ease ' + ms(d) + ', transform ' + ms(1000 * k) + ' ' + EASE + ' ' + ms(d);
           el.style.opacity = ''; el.style.transform = '';
         });
-        if (lab) reveal([lab], Math.round(450 * k), 0, Math.round(900 * k));
+        if (lab) { lab.style.transition = 'transform ' + ms(900 * k) + ' ' + EASE + ' ' + ms(450 * k - off); lab.style.transform = 'translateY(0)'; }
+        if (withAside && aside && aside.style.display !== 'none') {
+          aside.style.transition = 'clip-path ' + ms(1100 * k) + ' ' + INOUT + ' ' + ms(500 * k - off);
+          aside.style.clipPath = 'inset(0 0 0 0)';
+        }
       },
+      hideAside: function () { if (aside && !reduce) { aside.style.transition = 'none'; aside.style.clipPath = 'inset(100% 0 0 0)'; } },
       done: function () {
         lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'none'; });
         fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = ''; el.style.transform = ''; });
@@ -4017,7 +4031,7 @@
         to: { namespace: ['service'] },
         leave: function (data) {
           flyData = null;
-          var im = svcNext && svcNext.img, shown = svcNext && svcNext.shown;
+          var im = svcNext && svcNext.img, revealAt = svcNext && svcNext.revealAt;
           svcNext = null;
           // l'ancienne page reste dans le DOM jusqu'à la fin de l'entrée (Barba) : on la masque tout de suite,
           // sinon son haut de page réapparaît au retour en haut et la nouvelle page « saute » ensuite
@@ -4032,12 +4046,12 @@
           ov.appendChild(cl);
           document.body.appendChild(ov);
           old.style.display = 'none';
-          flyData = { overlay: ov, shown: !!shown };
+          flyData = { overlay: ov, revealAt: revealAt || 0 };
         },
         beforeEnter: function (data) {
           window.scrollTo(0, 0);
           runScripts(data.next.container);
-          initPage(data.next.container, { transition: !!flyData, shown: !!(flyData && flyData.shown) });
+          initPage(data.next.container, { transition: !!flyData, revealAt: flyData ? flyData.revealAt : 0 });
         },
         enter: function (data) {
           if (!flyData || !flyData.overlay) return;
