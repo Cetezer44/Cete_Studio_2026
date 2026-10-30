@@ -3041,32 +3041,110 @@
       });
     });
 
-    // Fond noir ; au passage du curseur, la photo se révèle en traînée de fumée (bouffées qui gonflent, dérivent
-    // et s'estompent). Masque dessiné en basse résolution puis agrandi : bords naturellement flous.
+    // Fond noir ; au passage du curseur, la photo se révèle en volutes de fumée animées.
+    // 1. Traînée : bouffées qui montent, gonflent et s'estompent, dessinées dans un masque basse résolution.
+    // 2. Rendu WebGL : le masque est déformé par un bruit fractal qui s'écoule vers le haut (les volutes
+    //    continuent d'onduler même curseur immobile), puis découpe la photo. Sans WebGL : masque appliqué tel quel.
     var Smoke = (function () {
       if (reduce) return { start: function () {}, stop: function () {} };
-      var cv = document.createElement('canvas'), ctx = cv.getContext('2d');
-      var mk = document.createElement('canvas'), mctx = mk.getContext('2d');
+      var RES = 0.6;   // résolution de rendu (fumée douce : inutile de calculer chaque pixel)
+      var cv = document.createElement('canvas');
       cv.className = 'cm-smoke';
       bg.appendChild(cv);
+      var mk = document.createElement('canvas'), mctx = mk.getContext('2d');
       var img = new Image(), ready = false;
+      img.crossOrigin = 'anonymous';
       img.decoding = 'async';
-      img.onload = function () { ready = true; };
-      var parts = [], raf = null, on = false, W = 0, H = 0, dpr = 1, lx = null, ly = null, last = 0, MS = 0.25;
+      var parts = [], raf = null, on = false, W = 0, H = 0, lx = null, ly = null, last = 0, clock = 0, MS = 0.25;
+      var gl = null, ctx = null, U = {}, texImg = null, texMask = null;
+
+      var VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
+      var FS = [
+        'precision mediump float;varying vec2 v;uniform sampler2D uImg,uMask;uniform float uT;uniform vec2 uAsp,uCov;',
+        'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+        'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);',
+        'return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}',
+        'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}',
+        'void main(){',
+        '  vec2 p=v*uAsp*2.6;float t=uT;',
+        // déformation en cascade (domain warping) qui dérive vers le haut : effet de volutes
+        '  vec2 q=vec2(fbm(p-vec2(0.,t*.22)),fbm(p+vec2(5.2,1.3)-vec2(t*.03,t*.28)));',
+        '  vec2 r=vec2(fbm(p+2.8*q+vec2(1.7,9.2)-vec2(0.,t*.36)),fbm(p+2.8*q+vec2(8.3,2.8)-vec2(-t*.04,t*.31)));',
+        '  float f=fbm(p+2.4*r-vec2(0.,t*.2));',
+        '  float m=texture2D(uMask,v+(r-.5)*vec2(.07,.1)).a;',
+        '  float s=smoothstep(.04,.8,m*(.25+1.45*f));',
+        '  float g=dot(texture2D(uImg,(v-.5)*uCov+.5).rgb,vec3(.299,.587,.114));',
+        '  gl_FragColor=vec4(vec3(g*s),1.);',
+        '}'
+      ].join('\n');
+      function initGL() {
+        var g = cv.getContext('webgl', { alpha: false, antialias: false, premultipliedAlpha: false });
+        if (!g) return null;
+        function sh(type, src) { var s = g.createShader(type); g.shaderSource(s, src); g.compileShader(s); return g.getShaderParameter(s, g.COMPILE_STATUS) ? s : null; }
+        var vs = sh(g.VERTEX_SHADER, VS), fs = sh(g.FRAGMENT_SHADER, FS);
+        if (!vs || !fs) return null;
+        var pr = g.createProgram();
+        g.attachShader(pr, vs); g.attachShader(pr, fs); g.linkProgram(pr);
+        if (!g.getProgramParameter(pr, g.LINK_STATUS)) return null;
+        g.useProgram(pr);
+        var buf = g.createBuffer();
+        g.bindBuffer(g.ARRAY_BUFFER, buf);
+        g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), g.STATIC_DRAW);
+        var loc = g.getAttribLocation(pr, 'p');
+        g.enableVertexAttribArray(loc);
+        g.vertexAttribPointer(loc, 2, g.FLOAT, false, 0, 0);
+        ['uImg', 'uMask', 'uT', 'uAsp', 'uCov'].forEach(function (k) { U[k] = g.getUniformLocation(pr, k); });
+        g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL, true);
+        function tex(unit) {
+          var t = g.createTexture();
+          g.activeTexture(g.TEXTURE0 + unit);
+          g.bindTexture(g.TEXTURE_2D, t);
+          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR);
+          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
+          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+          return t;
+        }
+        texImg = tex(0); texMask = tex(1);
+        g.uniform1i(U.uImg, 0); g.uniform1i(U.uMask, 1);
+        return g;
+      }
+      try { gl = initGL(); } catch (e) { gl = null; }
+      if (!gl) {   // repli 2D sur un nouveau canvas (celui-ci a peut-être déjà un contexte WebGL)
+        var c2 = document.createElement('canvas');
+        c2.className = 'cm-smoke';
+        bg.replaceChild(c2, cv);
+        cv = c2; ctx = cv.getContext('2d');
+      }
+      img.onload = function () {
+        ready = true;
+        if (gl) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texImg); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); }
+      };
+      img.onerror = function () {   // image refusée en WebGL (CORS) : repli 2D
+        if (!gl) return;
+        gl = null;
+        var c2 = document.createElement('canvas');
+        c2.className = 'cm-smoke';
+        bg.replaceChild(c2, cv);
+        cv = c2; ctx = cv.getContext('2d'); size();
+        img = new Image(); img.decoding = 'async'; img.onload = function () { ready = true; }; img.src = CONTACT_BG;
+      };
+
       function size() {
-        dpr = Math.min(window.devicePixelRatio || 1, 1.5);
         W = window.innerWidth; H = window.innerHeight;
-        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        var k = gl ? RES : Math.min(window.devicePixelRatio || 1, 1.5);
+        cv.width = Math.round(W * k); cv.height = Math.round(H * k);
         mk.width = Math.ceil(W * MS); mk.height = Math.ceil(H * MS);
+        if (gl) gl.viewport(0, 0, cv.width, cv.height);
       }
       function puff(x, y, v) {
         parts.push({
           x: x + (Math.random() - 0.5) * 16, y: y + (Math.random() - 0.5) * 16,
-          r: 26 + Math.random() * 26, g: 70 + Math.random() * 70 + Math.min(v, 60) * 1.2,
-          a: 0.32 + Math.min(v, 40) * 0.006, t: 0, d: 1500 + Math.random() * 1100,
-          vx: (Math.random() - 0.5) * 24, vy: -10 - Math.random() * 22, ph: Math.random() * 6.28
+          r: 30 + Math.random() * 30, g: 90 + Math.random() * 90 + Math.min(v, 60) * 1.4,
+          a: 0.4 + Math.min(v, 40) * 0.008, t: 0, d: 2200 + Math.random() * 1400,
+          vx: (Math.random() - 0.5) * 30, vy: -30 - Math.random() * 40, ph: Math.random() * 6.28
         });
-        if (parts.length > 160) parts.shift();
+        if (parts.length > 180) parts.shift();
       }
       function move(e) {
         if (!on) return;
@@ -3079,22 +3157,17 @@
         lx = x; ly = y;
         if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
       }
-      function cover() {
-        var s = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * s, h = img.naturalHeight * s;
-        ctx.drawImage(img, (W - w) / 2 * dpr, (H - h) / 2 * dpr, w * dpr, h * dpr);
-      }
-      function frame(now) {
-        var dt = Math.max(0, Math.min(50, now - last)); last = now;   // l'horodatage rAF peut précéder performance.now()
+      function drawMask(dt) {
         mctx.clearRect(0, 0, mk.width, mk.height);
         for (var i = parts.length - 1; i >= 0; i--) {
           var p = parts[i];
           p.t += dt;
           var k = p.t / p.d;
           if (k >= 1) { parts.splice(i, 1); continue; }
-          // dérive lente + ondulation : la bouffée monte en se tordant comme une fumée
-          p.x += (p.vx + Math.sin(p.t * 0.0024 + p.ph) * 22) * dt / 1000;
+          // la bouffée monte en ondulant, comme une vapeur
+          p.x += (p.vx + Math.sin(p.t * 0.0022 + p.ph) * 26) * dt / 1000;
           p.y += p.vy * dt / 1000;
-          var r = (p.r + p.g * Math.pow(k, 0.7)) * MS, al = p.a * Math.min(1, k * 8) * Math.pow(1 - k, 1.6);
+          var r = (p.r + p.g * Math.pow(k, 0.65)) * MS, al = p.a * Math.min(1, k * 7) * Math.pow(1 - k, 1.5);
           var gx = p.x * MS, gy = p.y * MS, gr = mctx.createRadialGradient(gx, gy, 0, gx, gy, r);
           gr.addColorStop(0, 'rgba(255,255,255,' + al + ')');
           gr.addColorStop(0.55, 'rgba(255,255,255,' + al * 0.45 + ')');
@@ -3102,15 +3175,35 @@
           mctx.fillStyle = gr;
           mctx.beginPath(); mctx.arc(gx, gy, r, 0, 6.2832); mctx.fill();
         }
+      }
+      function renderGL() {
+        var ia = img.naturalWidth / img.naturalHeight, sa = W / H;
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, texMask);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mk);
+        gl.uniform1f(U.uT, clock / 1000);
+        gl.uniform2f(U.uAsp, sa, 1);
+        gl.uniform2f(U.uCov, Math.min(1, sa / ia), Math.min(1, ia / sa));
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+      function render2D() {
+        var dpr = cv.width / W;
         ctx.clearRect(0, 0, cv.width, cv.height);
-        if (ready && parts.length) {
-          ctx.globalCompositeOperation = 'source-over';
-          cover();
-          ctx.globalCompositeOperation = 'destination-in';
-          ctx.drawImage(mk, 0, 0, cv.width, cv.height);
-          ctx.globalCompositeOperation = 'source-over';
-        }
+        if (!parts.length) return;
+        var s = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * s, h = img.naturalHeight * s;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(img, (W - w) / 2 * dpr, (H - h) / 2 * dpr, w * dpr, h * dpr);
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(mk, 0, 0, cv.width, cv.height);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      function frame(now) {
+        var dt = Math.max(0, Math.min(50, now - last)); last = now;   // l'horodatage rAF peut précéder performance.now()
+        clock += dt;
+        drawMask(dt);
+        if (ready) { if (gl) renderGL(); else render2D(); }
         raf = parts.length ? requestAnimationFrame(frame) : null;
+        if (!raf && gl) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
       }
       window.addEventListener('pointermove', move, { passive: true });
       window.addEventListener('resize', function () { if (on) size(); });
@@ -3122,7 +3215,7 @@
         stop: function () {
           on = false; parts = [];
           if (raf) { cancelAnimationFrame(raf); raf = null; }
-          ctx.clearRect(0, 0, cv.width, cv.height);
+          if (gl) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } else if (ctx) ctx.clearRect(0, 0, cv.width, cv.height);
         }
       };
     })();
