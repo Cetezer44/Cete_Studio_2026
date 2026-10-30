@@ -3074,7 +3074,7 @@
         '  float m=texture2D(uMask,v+(r-.5)*vec2(.09,.13)).a;',
         // filaments : densité contrastée (zones vides et volutes plus denses) à l'intérieur de la traînée
         '  float w=smoothstep(.32,.78,f);',
-        '  float s=smoothstep(.06,.85,m*(.12+1.35*w));',
+        '  float s=smoothstep(.02,.7,m*(.28+1.2*w));',
         '  float g=dot(texture2D(uImg,(v-.5)*uCov+.5).rgb,vec3(.299,.587,.114));',
         '  gl_FragColor=vec4(vec3(g*s),1.);',
         '}'
@@ -3143,8 +3143,8 @@
         parts.push({
           x: x + (Math.random() - 0.5) * 16, y: y + (Math.random() - 0.5) * 16,
           r: 30 + Math.random() * 30, g: 90 + Math.random() * 90 + Math.min(v, 60) * 1.4,
-          a: 0.32 + Math.min(v, 40) * 0.007, t: 0, d: 2200 + Math.random() * 1400,
-          vx: (Math.random() - 0.5) * 30, vy: -30 - Math.random() * 40, ph: Math.random() * 6.28
+          a: 0.38 + Math.min(v, 40) * 0.007, t: 0, d: 2200 + Math.random() * 1400,
+          vx: (Math.random() - 0.5) * 30, vy: -14 - Math.random() * 24, ph: Math.random() * 6.28
         });
         if (parts.length > 180) parts.shift();
       }
