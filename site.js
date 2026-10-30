@@ -2976,7 +2976,7 @@
   var CONTACT = {
     email: 'cetestudio.pro@gmail.com',
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
-    menu: [['Projets', '/projets'], ['Studio', '/studio']],   // « Services » retiré en attendant la page
+    menu: [['Projets', '/projets']],   // « Services » et « Studio » retirés pour le moment
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
   var CONTACT_BG = 'https://cdn.prod.website-files.com/6acf743eb4f622a1815188f4/6ae47f8c33e7c74b6ffbeb2b_contact-bg.webp';
@@ -3045,7 +3045,7 @@
       function move(e) {
         if (!on) return;
         var x = e.clientX, y = e.clientY;
-        if (lx === null) { lx = x; ly = y; puff(x, y, 0); return; }
+        if (lx === null) { lx = x; ly = y; puff(x, y, 0); }
         var dx = x - lx, dy = y - ly, dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 10) return;
         var n = Math.min(6, Math.ceil(dist / 22));
@@ -3058,7 +3058,7 @@
         ctx.drawImage(img, (W - w) / 2 * dpr, (H - h) / 2 * dpr, w * dpr, h * dpr);
       }
       function frame(now) {
-        var dt = Math.min(50, now - last); last = now;
+        var dt = Math.max(0, Math.min(50, now - last)); last = now;   // l'horodatage rAF peut précéder performance.now()
         mctx.clearRect(0, 0, mk.width, mk.height);
         for (var i = parts.length - 1; i >= 0; i--) {
           var p = parts[i];
