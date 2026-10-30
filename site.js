@@ -2820,6 +2820,9 @@
       var y = window.scrollY, p = nextProgress();
       nextMedia.style.opacity = String(p * p * (3 - 2 * p));   // fondu de la photo suivante sur le panneau de gauche
       if (!anchoring && !going && y > lastY && p > 0.12 && p < 0.98) anchorNext();
+      // apparition déclenchée quand le haut de la page suivante est bien à l'écran (titre au premier tiers) :
+      // l'animation se voit, puis se termine sur la nouvelle page
+      if (p >= 0.68 || reduce) revealNext();
       lastY = y;
       checkNext();
     }
@@ -2833,7 +2836,6 @@
     }
     function anchorNext() {
       anchoring = true;
-      setTimeout(revealNext, reduce ? 0 : 300);
       var y0 = window.scrollY, y1 = document.documentElement.scrollHeight - window.innerHeight;
       if (reduce) { window.scrollTo(0, y1); return; }
       var t0 = null, D = 1400;
