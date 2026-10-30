@@ -412,6 +412,9 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 [data-barba-namespace="home"].is-dark .hs-stage { background-color: #000; }
 .hs-gl { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .hs-stage.has-gl .hs-shape { display: none; }
+/* Indicateur de slide (créé par le JS dans .hs-dots) : un trait par service, le service affiché en noir */
+.hs-dot { display: block; width: 30px; height: 3px; background-color: #d9dae2; transition: background-color 400ms ease; }
+.hs-dot.is-on { background-color: #000; }
 /* Accueil, section noire : le trait se construit puis se déconstruit vers le bas, en boucle (invitation au scroll) */
 .home-about-line { animation: aboutLine 2400ms cubic-bezier(.65,0,.35,1) infinite; }
 @keyframes aboutLine {

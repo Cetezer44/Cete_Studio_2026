@@ -792,7 +792,7 @@
             t.style.opacity = '1';
           }
           var sh = $('.hs-shape', it), img = $('.hs-img', it);
-          return { el: it, sh: sh, img: img, t: t, lines: lines, src: img ? bestSrc(img) : '', tex: null, iw: 1, ih: 1, ready: false };
+          return { el: it, sh: sh, img: img, t: t, lines: lines, intro: (it.getAttribute('data-intro') || '').trim(), src: img ? bestSrc(img) : '', tex: null, iw: 1, ih: 1, ready: false };
         });
       var N = data.length;
       if (!N || !stage) return;
@@ -820,7 +820,8 @@
         cv = document.createElement('canvas');
         cv.className = 'hs-gl';
         cv.setAttribute('aria-hidden', 'true');
-        stage.insertBefore(cv, stage.firstChild);
+        var ln = $('.hs-line', stage);
+        stage.insertBefore(cv, ln ? ln.nextSibling : stage.firstChild);   // le trait vertical reste derrière les images
         var o = { premultipliedAlpha: true, antialias: true, alpha: true };
         gl = cv.getContext('webgl2', o) || cv.getContext('webgl', o);
         if (!gl) { cv.remove(); cv = null; return; }
@@ -1006,8 +1007,64 @@
       function secY() { return svcSec.getBoundingClientRect().top + window.scrollY; }
       function update() {
         tT = 1 + Math.max(0, Math.min(N - 1, (window.scrollY - secY()) / (window.innerHeight * SEG)));
+        if (shown) setActive(Math.round(tT) - 1);
         kick();
       }
+
+      // Trait vertical (se construit de bas en haut à l'arrivée), indicateur de slide en bas à gauche et courte
+      // introduction du service actif en haut à droite (texte dans un masque, remplacé à chaque changement)
+      var vLine = $('.hs-line', stage), introEl = $('.hs-intro', stage), dotsEl = $('.hs-dots', stage);
+      var dots = [], active = -1, shown = false, introTok = 0, introIn = null;
+      if (dotsEl) {
+        dotsEl.innerHTML = '';
+        for (var di = 0; di < N; di++) { var dd = document.createElement('span'); dd.className = 'hs-dot'; dotsEl.appendChild(dd); dots.push(dd); }
+        dotsEl.setAttribute('aria-hidden', 'true');
+      }
+      if (introEl) introEl.setAttribute('aria-live', 'polite');
+      function introSet(txt, instant) {
+        if (!introEl) return;
+        var tok = ++introTok, old = introIn;
+        var put = function () {
+          if (tok !== introTok) return;
+          introEl.innerHTML = '';
+          var m = document.createElement('span'), s = document.createElement('span');
+          m.style.cssText = 'display:block;overflow:hidden;padding:.1em 0 .2em;margin:-.1em 0 -.2em';
+          s.style.cssText = 'display:block;transform:translateY(110%)';
+          s.textContent = txt;
+          m.appendChild(s); introEl.appendChild(m);
+          introIn = s;
+          if (instant || reduce) { s.style.transform = 'none'; return; }
+          void s.offsetWidth;
+          s.style.transition = 'transform 900ms ' + EASE;
+          s.style.transform = 'translateY(0)';
+        };
+        if (old && !instant && !reduce) {
+          old.style.transition = 'transform 420ms ' + INOUT;
+          old.style.transform = 'translateY(-110%)';
+          setTimeout(put, 380);
+        } else put();
+      }
+      function setActive(i, instant) {
+        i = Math.max(0, Math.min(N - 1, i));
+        if (i === active) return;
+        active = i;
+        dots.forEach(function (d, k) { d.classList.toggle('is-on', k === i); });
+        introSet(data[i].intro, instant);
+      }
+      function chrome(on) {
+        shown = on;
+        if (vLine) {
+          vLine.style.transition = on && !reduce ? 'transform 1400ms ' + INOUT : 'none';
+          vLine.style.transform = on ? 'scaleY(1)' : 'scaleY(0)';
+        }
+        if (dotsEl) {
+          dotsEl.style.transition = on && !reduce ? 'opacity 600ms ease 700ms' : 'none';
+          dotsEl.style.opacity = on ? '1' : '0';
+        }
+        if (on) { active = -1; introIn = null; setActive(Math.round(tT) - 1); }
+        else { introTok++; introIn = null; active = -1; if (introEl) introEl.innerHTML = ''; }
+      }
+      chrome(false);
       // flottement des images au mouvement du curseur
       on(window, 'mousemove', function (e) {
         if (reduce || zone !== 'svc') return;
@@ -1105,12 +1162,14 @@
         },
         // arrivée sur la section : la première image glisse depuis la droite jusque sous son titre
         enter: function () {
+          update();
+          chrome(true);
           if (reduce) { intro = 0; draw(); return; }
           introTw = { a: intro, b: 0, t0: performance.now(), d: 1800 };
           kick();
         },
         // retour à la section noire : la scène est hors écran, on la remet en position de départ
-        leave: function () { introTw = null; intro = reduce ? 0 : -1; fx = fy = cx = cy = 0; draw(); }
+        leave: function () { introTw = null; intro = reduce ? 0 : -1; fx = fy = cx = cy = 0; chrome(false); draw(); }
       };
     })();
 
