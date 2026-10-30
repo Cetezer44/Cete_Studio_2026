@@ -59,7 +59,25 @@
     mediaState();
   });
   // « Voir » piloté par le script de la page (ex. image au centre du cylindre des services, rendue en WebGL)
-  window.__cursorView = function (on) { c.classList.toggle('is-view', !!on); view.classList.toggle('is-on', !!on); };
+  // host/before : la pastille est insérée dans ce conteneur (ex. scène des services, sous les titres) au lieu de
+  // passer au-dessus de toute la page ; elle revient dans <body> une fois éteinte
+  var viewBack = null;
+  function viewHome() {
+    clearTimeout(viewBack);
+    if (view.parentNode !== document.body) { document.body.appendChild(view); view.classList.remove('is-under'); }
+  }
+  window.__cursorView = function (on, host, before) {
+    c.classList.toggle('is-view', !!on);
+    clearTimeout(viewBack);
+    if (on && host && view.parentNode !== host) {
+      host.insertBefore(view, before || null);
+      view.classList.add('is-under');
+      void view.offsetWidth;   // la transition d'apparition repart du bon état après le déplacement
+    }
+    view.classList.toggle('is-on', !!on);
+    if (!on && view.parentNode !== document.body) viewBack = setTimeout(function () { if (!view.classList.contains('is-on')) viewHome(); }, 450);
+  };
+  window.__cursorViewHome = viewHome;
   function mediaState() {
     c.classList.toggle('is-media', !!over);
     c.classList.toggle('is-paused', !!over && over.paused);
@@ -1152,12 +1170,15 @@
       function setHover(i) {
         if (i === hovered) return;
         hovered = i;
-        if (window.__cursorView) window.__cursorView(i >= 0);
+        if (window.__cursorView) window.__cursorView(i >= 0, stage, $('.hs-list-wrap', stage));   // « Voir » sous les titres des services
         stage.style.cursor = i >= 0 ? 'pointer' : '';
       }
       on(window, 'mousemove', function (e) { setHover(cardAt(e.clientX, e.clientY)); }, { passive: true });
       on(window, 'scroll', function () { if (hovered >= 0) setHover(-1); }, { passive: true });
-      ac.signal.addEventListener('abort', function () { if (hovered >= 0 && window.__cursorView) window.__cursorView(false); });
+      ac.signal.addEventListener('abort', function () {
+        if (hovered >= 0 && window.__cursorView) window.__cursorView(false);
+        if (window.__cursorViewHome) window.__cursorViewHome();   // la pastille ne doit pas partir avec l'ancienne page
+      });
       var flyIdx = -1;
       on(stage, 'click', function (e) {
         var i = cardAt(e.clientX, e.clientY);

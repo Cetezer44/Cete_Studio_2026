@@ -150,6 +150,7 @@ html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45d
   color: #fff; font-family: 'Be Vietnam Pro', Arial, sans-serif; font-size: 12px; line-height: .85; font-weight: 300; letter-spacing: -.05em; text-transform: uppercase;
   opacity: 0; transform: scale(.3); transition: transform 500ms cubic-bezier(.16,1,.3,1), opacity 300ms ease; }
 .c-view.is-on .c-view__in { opacity: 1; transform: scale(1); }
+.c-view.is-under { z-index: auto; }   /* insérée dans la scène des services, avant les titres : elle passe dessous */
 /* Hero du Studio : pastille « Découvrir » de 100 px (cercle 1 px, texte 12 px), en mode différence comme le curseur */
 .c-cursor__disc { position: fixed; top: 0; left: 0; will-change: transform; }
 .c-cursor__disc-in { display: block; transform: translate(-50%, -50%) scale(.6); opacity: 0; white-space: nowrap; color: #fff;
