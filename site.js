@@ -2945,6 +2945,22 @@
     // image secondaire masquée si le champ est vide
     var aside = $('.svc-aside', scope), asideImg = aside && $('img', aside);
     if (aside && (!asideImg || asideImg.classList.contains('w-dyn-bind-empty') || !asideImg.getAttribute('src'))) aside.style.display = 'none';
+    // parallaxe légère dans le cadre de l'image secondaire : la photo défile un peu moins vite que son cadre
+    if (aside && asideImg && aside.style.display !== 'none' && !reduce) {
+      var pxRaf = null;
+      var px = function () {
+        pxRaf = null;
+        if (!aside.isConnected) { window.removeEventListener('scroll', pxOn); window.removeEventListener('resize', pxOn); return; }
+        var r = aside.getBoundingClientRect(), vh = window.innerHeight;
+        if (!r.height || r.bottom < -50 || r.top > vh + 50) return;
+        var k = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2)));
+        asideImg.style.transform = 'translate3d(0,' + (-k * r.height * 0.1).toFixed(1) + 'px,0)';
+      };
+      var pxOn = function () { if (!pxRaf) pxRaf = requestAnimationFrame(px); };
+      window.addEventListener('scroll', pxOn, { passive: true });
+      window.addEventListener('resize', pxOn, { passive: true });
+      px();
+    }
     return {
       aside: aside,
       hide: function () {
