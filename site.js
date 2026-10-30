@@ -35,6 +35,7 @@
   var disc = c.querySelector('.c-cursor__disc');
   var cue = c.querySelector('.c-cursor__cue');
   var closer = c.querySelector('.c-cursor__close'), closeTxt = c.querySelector('.c-cursor__close-in');
+  var contactOff = null;
   var mx = -100, my = -100, rx = mx, ry = my;
   var LINKS = 'a, button, [role="button"], input[type="submit"], label, select';
 
@@ -59,8 +60,10 @@
     var contact = !!(t && !menuOn && t.closest('[data-cursor="contact"]') && !t.closest(LINKS));
     var closeOn = !!(t && ((menuOn && t.closest('.cm, .cm-bg') && !t.closest(LINKS)) || (!menuOn && t.closest('[data-cursor="close"]'))));
     // libellé et style changés seulement à l'activation (pas pendant la disparition de la pastille)
+    clearTimeout(contactOff);
     if (contact) { closeTxt.textContent = 'Contact'; c.classList.add('is-contact'); }
     else if (closeOn) { closeTxt.textContent = 'Fermer'; c.classList.remove('is-contact'); }
+    else if (c.classList.contains('is-contact')) contactOff = setTimeout(function () { c.classList.remove('is-contact'); }, 350);
     c.classList.toggle('is-close', closeOn || contact);
     mediaState();
   });
