@@ -3156,10 +3156,10 @@
       });
     });
 
-    // Fond noir ; au passage du curseur, la photo se révèle en volutes de fumée animées.
-    // 1. Traînée : bouffées qui montent, gonflent et s'estompent, dessinées dans un masque basse résolution.
-    // 2. Rendu WebGL : le masque est déformé par un bruit fractal qui s'écoule vers le haut (les volutes
-    //    continuent d'onduler même curseur immobile), puis découpe la photo. Sans WebGL : masque appliqué tel quel.
+    // Fond noir ; au passage du curseur, la photo se révèle dans une aura animée (halo doux qui ondule et respire).
+    // 1. Traînée : grandes taches douces qui gonflent, flottent et s'estompent, dans un masque basse résolution.
+    // 2. Rendu WebGL : le masque est déformé par un bruit basse fréquence qui s'écoule lentement (ondes amples,
+    //    sans filaments), puis découpe la photo. Sans WebGL : masque appliqué tel quel.
     var Smoke = (function () {
       if (reduce) return { start: function () {}, stop: function () {} };
       var RES = 0.6;   // résolution de rendu (fumée douce : inutile de calculer chaque pixel)
@@ -3179,17 +3179,18 @@
         'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
         'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);',
         'return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}',
-        'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}',
+        'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<3;i++){s+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}',
         'void main(){',
-        '  vec2 p=v*uAsp*3.4;float t=uT;',
-        // déformation en cascade (domain warping) qui dérive vers le haut : effet de volutes
-        '  vec2 q=vec2(fbm(p-vec2(0.,t*.22)),fbm(p+vec2(5.2,1.3)-vec2(t*.03,t*.28)));',
-        '  vec2 r=vec2(fbm(p+2.8*q+vec2(1.7,9.2)-vec2(0.,t*.36)),fbm(p+2.8*q+vec2(8.3,2.8)-vec2(-t*.04,t*.31)));',
-        '  float f=fbm(p+2.4*r-vec2(0.,t*.2));',
-        '  float m=texture2D(uMask,v+(r-.5)*vec2(.09,.13)).a;',
-        // filaments : densité contrastée (zones vides et volutes plus denses) à l'intérieur de la traînée
-        '  float w=smoothstep(.32,.78,f);',
-        '  float s=smoothstep(.02,.7,m*(.28+1.2*w));',
+        '  vec2 p=v*uAsp*1.3;float t=uT*.3;',
+        // déformation ample et lente (domain warping basse fréquence) : le halo ondule comme une aura
+        '  vec2 q=vec2(fbm(p+vec2(0.,t)),fbm(p+vec2(5.2,1.3)-vec2(t*.8,0.)));',
+        '  vec2 r=vec2(fbm(p+1.6*q+vec2(1.7,9.2)+t*.6),fbm(p+1.6*q+vec2(8.3,2.8)-t*.5));',
+        '  float f=fbm(p*1.4+2.*r);',
+        '  float m=texture2D(uMask,v+(r-.5)*vec2(.16,.2)).a;',
+        // densité pleine et douce, bord lumineux qui se fond dans le noir ; légère respiration
+        '  float s=smoothstep(0.,.75,m)*(.82+.4*(f-.5));',
+        '  s*=.92+.08*sin(uT*1.6);',
+        '  s=clamp(s,0.,1.);',
         '  float g=dot(texture2D(uImg,(v-.5)*uCov+.5).rgb,vec3(.299,.587,.114));',
         '  gl_FragColor=vec4(vec3(g*s),1.);',
         '}'
@@ -3257,9 +3258,9 @@
       function puff(x, y, v) {
         parts.push({
           x: x + (Math.random() - 0.5) * 16, y: y + (Math.random() - 0.5) * 16,
-          r: 30 + Math.random() * 30, g: 90 + Math.random() * 90 + Math.min(v, 60) * 1.4,
-          a: 0.38 + Math.min(v, 40) * 0.007, t: 0, d: 2200 + Math.random() * 1400,
-          vx: (Math.random() - 0.5) * 30, vy: -14 - Math.random() * 24, ph: Math.random() * 6.28
+          r: 55 + Math.random() * 40, g: 150 + Math.random() * 110 + Math.min(v, 60) * 1.6,
+          a: 0.3 + Math.min(v, 40) * 0.006, t: 0, d: 2800 + Math.random() * 1400,
+          vx: (Math.random() - 0.5) * 16, vy: -4 - Math.random() * 10, ph: Math.random() * 6.28
         });
         if (parts.length > 180) parts.shift();
       }
@@ -3281,13 +3282,13 @@
           p.t += dt;
           var k = p.t / p.d;
           if (k >= 1) { parts.splice(i, 1); continue; }
-          // la bouffée monte en ondulant, comme une vapeur
-          p.x += (p.vx + Math.sin(p.t * 0.0022 + p.ph) * 26) * dt / 1000;
+          // la tache flotte doucement en dérivant à peine vers le haut
+          p.x += (p.vx + Math.sin(p.t * 0.0016 + p.ph) * 18) * dt / 1000;   // flottement lent
           p.y += p.vy * dt / 1000;
           var r = (p.r + p.g * Math.pow(k, 0.65)) * MS, al = p.a * Math.min(1, k * 7) * Math.pow(1 - k, 1.5);
           var gx = p.x * MS, gy = p.y * MS, gr = mctx.createRadialGradient(gx, gy, 0, gx, gy, r);
           gr.addColorStop(0, 'rgba(255,255,255,' + al + ')');
-          gr.addColorStop(0.55, 'rgba(255,255,255,' + al * 0.45 + ')');
+          gr.addColorStop(0.5, 'rgba(255,255,255,' + al * 0.6 + ')');
           gr.addColorStop(1, 'rgba(255,255,255,0)');
           mctx.fillStyle = gr;
           mctx.beginPath(); mctx.arc(gx, gy, r, 0, 6.2832); mctx.fill();
