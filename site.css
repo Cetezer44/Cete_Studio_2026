@@ -440,6 +440,7 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 .svc-aside-alt { display: block; max-width: none; object-fit: cover; opacity: 0; transition: opacity 500ms ease; }
 .svc-aside-alt.is-on { opacity: 1; }
 .svc-warp { display: block; opacity: 0; pointer-events: none; }   /* calque WebGL de déformation au survol */
+.svc-media .svc-warp { top: 0; height: 100%; }   /* grande image de gauche : pas de parallaxe, calque au format du cadre */
 .svc-block-text p { margin: 0 0 1.1em; }
 .svc-block-text p:last-child { margin-bottom: 0; }
 /* Service suivant (créé par le JS en fin de page) : sa photo apparaît en fondu à la place du panneau de gauche */

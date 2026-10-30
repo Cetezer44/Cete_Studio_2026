@@ -2739,6 +2739,11 @@
       var warp = imgWarp(aside, $('img', aside));
       if (warp) ac.signal.addEventListener('abort', warp.destroy);
     }
+    // grande image de gauche : même déformation au passage de la souris
+    if (media && root.classList.contains('has-cursor')) {
+      var warpL = imgWarp(media, $('.svc-img', media));
+      if (warpL) ac.signal.addEventListener('abort', warpL.destroy);
+    }
 
     // Survol d'un projet de la liste : sa photo apparaît en fondu dans le cadre de droite ; hors de la liste,
     // retour à la photo du service
