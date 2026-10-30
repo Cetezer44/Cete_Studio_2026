@@ -3107,6 +3107,20 @@
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
   var CONTACT_BG = 'https://cdn.prod.website-files.com/6acf743eb4f622a1815188f4/6ae47f8c33e7c74b6ffbeb2b_contact-bg.webp';
+  // « Projets » dans la navigation ou le menu de la modal contact : la page s'ouvre toujours en vue Grille
+  // (la vue mémorisée ne sert qu'aux retours depuis un projet)
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a.nav-link[href], a.cm-link[href]');
+    if (!a) return;
+    var u;
+    try { u = new URL(a.href, window.location.href); } catch (err) { return; }
+    if (u.origin === window.location.origin && u.pathname.replace(/\/+$/, '') === '/projets') {
+      try { sessionStorage.removeItem('cete-works-view'); } catch (err) {}
+      // déjà sur la page Projets en vue Liste : on rebascule sur la Grille
+      var g = window.location.pathname.replace(/\/+$/, '') === '/projets' && document.querySelector('.works-tg[data-view="grid"]');
+      if (g && g.getAttribute('aria-pressed') !== 'true') g.click();
+    }
+  }, true);
   var Menu = (function () {
     var isOpen = false, busy = false, lastFocus = null, timers = [], shownAt = 0;
     function later(ms, fn) { timers.push(setTimeout(fn, ms)); }
