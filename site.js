@@ -2534,7 +2534,7 @@
     };
 
     // Arrivée depuis le projet précédent : tout est déjà à sa place —
-    // la photo (pleine largeur) se découvre en masque vers le haut, le titre descend dans son masque,
+    // la photo (pleine largeur) se découvre en masque du haut vers le bas, le titre descend dans son masque,
     // les catégories suivent et l'introduction apparaît ligne par ligne
     api.enterNext = function () {
       heading.style.transition = 'none';
@@ -2543,7 +2543,7 @@
       hIn.style.transition = 'none';
       hIn.style.transform = 'translateY(-110%)';
       media.style.transition = 'none';
-      media.style.clipPath = 'inset(50% 0 50% 0)';
+      media.style.clipPath = 'inset(0 0 100% 0)';   // se découvre du haut vers le bas
       var ready = img && img.decode ? img.decode().catch(function () {}) : Promise.resolve();
       return Promise.race([ready, wait(1200)]).then(function () {
         media.offsetWidth;
