@@ -435,7 +435,10 @@ html.is-scrollcue .c-cursor__cue-in { opacity: 1; transform: none; transition-de
 .svc-media { cursor: pointer; }
 /* Paragraphes en bas de la page d'un service (texte riche du CMS) */
 /* Image secondaire : photo plus haute que son cadre, déplacée par le JS (parallaxe) */
-.svc-aside .svc-img, .svc-warp { position: absolute; left: 0; top: -12%; width: 100%; height: 124%; will-change: transform; }
+.svc-aside .svc-img, .svc-warp, .svc-aside-alt { position: absolute; left: 0; top: -12%; width: 100%; height: 124%; will-change: transform; }
+/* Photo du projet survolé dans la liste (fondu au-dessus de la photo du service) */
+.svc-aside-alt { display: block; max-width: none; object-fit: cover; opacity: 0; transition: opacity 500ms ease; }
+.svc-aside-alt.is-on { opacity: 1; }
 .svc-warp { display: block; opacity: 0; pointer-events: none; }   /* calque WebGL de déformation au survol */
 .svc-block-text p { margin: 0 0 1.1em; }
 .svc-block-text p:last-child { margin-bottom: 0; }

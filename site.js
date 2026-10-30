@@ -2740,6 +2740,29 @@
       if (warp) ac.signal.addEventListener('abort', warp.destroy);
     }
 
+    // Survol d'un projet de la liste : sa photo apparaît en fondu dans le cadre de droite ; hors de la liste,
+    // retour à la photo du service
+    if (aside && aside.style.display !== 'none' && root.classList.contains('has-cursor')) {
+      var alts = [], baseImg = $('img', aside), firstRow = $('.svc-row', container);
+      var list = firstRow && (firstRow.closest('.w-dyn-list') || firstRow.parentNode);   // la liste seule (pas le cadre photo)
+      $$('.svc-row', container).forEach(function (row) {
+        var ri = $('.svc-row-img', row);
+        if (!ri || ri.classList.contains('w-dyn-bind-empty') || !ri.getAttribute('src')) return;
+        var im = document.createElement('img');
+        im.className = 'svc-aside-alt';
+        im.alt = '';
+        im.decoding = 'async';
+        if (ri.getAttribute('srcset')) { im.setAttribute('srcset', ri.getAttribute('srcset')); im.setAttribute('sizes', '(max-width: 991px) 60vw, 20vw'); }
+        im.src = ri.getAttribute('src');
+        if (baseImg) im.style.transform = baseImg.style.transform;
+        aside.insertBefore(im, $('.svc-warp', aside));
+        alts.push(im);
+        on(row, 'mouseenter', function () { showAlt(im); });
+      });
+      var showAlt = function (im) { alts.forEach(function (a) { a.classList.toggle('is-on', a === im); }); };
+      if (alts.length && list) on(list, 'mouseleave', function () { showAlt(null); });
+    }
+
     // Paragraphes en bas de page : curseur « Contact », un clic ouvre la modal contact (souris uniquement)
     var more = $('.svc-more', container), blocks = $$('.svc-block', container);
     if (more && root.classList.contains('has-cursor')) more.setAttribute('data-contact', 'open');
@@ -3091,9 +3114,9 @@
         var r = aside.getBoundingClientRect(), vh = window.innerHeight;
         if (!r.height || r.bottom < -50 || r.top > vh + 50) return;
         var k = Math.max(-1, Math.min(1, (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2)));
-        var tf = 'translate3d(0,' + (-k * r.height * 0.1).toFixed(1) + 'px,0)', wc = $('.svc-warp', aside);
-        asideImg.style.transform = tf;
-        if (wc) wc.style.transform = tf;   // calque de déformation (survol) : même position que la photo
+        var tf = 'translate3d(0,' + (-k * r.height * 0.1).toFixed(1) + 'px,0)';
+        // photo, photos des projets (survol de la liste) et calque de déformation : même décalage
+        $$('img, .svc-warp', aside).forEach(function (el) { el.style.transform = tf; });
       };
       var pxOn = function () { if (!pxRaf) pxRaf = requestAnimationFrame(px); };
       window.addEventListener('scroll', pxOn, { passive: true });
