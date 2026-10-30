@@ -3186,13 +3186,17 @@
         '  vec2 q=vec2(fbm(p+vec2(0.,t)),fbm(p+vec2(5.2,1.3)-vec2(t*.8,0.)));',
         '  vec2 r=vec2(fbm(p+1.6*q+vec2(1.7,9.2)+t*.6),fbm(p+1.6*q+vec2(8.3,2.8)-t*.5));',
         '  float f=fbm(p*1.4+2.*r);',
-        '  float m=texture2D(uMask,v+(r-.5)*vec2(.16,.2)).a;',
-        // densité pleine et douce, bord lumineux qui se fond dans le noir ; légère respiration
-        '  float s=smoothstep(0.,.75,m)*(.82+.4*(f-.5));',
-        '  s*=.92+.08*sin(uT*1.6);',
+        '  float m=texture2D(uMask,v+(r-.5)*vec2(.26,.32)).a;',
+        // densité pleine et douce, ondes plus marquées ; respiration
+        '  float s=smoothstep(0.,.7,m)*(.72+.75*(f-.5));',
+        '  s*=.86+.14*sin(uT*1.6+f*3.);',
         '  s=clamp(s,0.,1.);',
-        '  float g=dot(texture2D(uImg,(v-.5)*uCov+.5).rgb,vec3(.299,.587,.114));',
-        '  gl_FragColor=vec4(vec3(g*s),1.);',
+        // la photo ondule avec le halo : déplacement proportionnel à la densité de l'aura
+        '  vec2 d=(r-.5)*vec2(.05,.06)*smoothstep(0.,.6,m);',
+        '  float g=dot(texture2D(uImg,(v-.5)*uCov+.5+d).rgb,vec3(.299,.587,.114));',
+        // liseré lumineux diffus sur le bord du halo
+        '  float rim=smoothstep(.04,.3,s)*(1.-smoothstep(.3,.75,s));',
+        '  gl_FragColor=vec4(vec3(g*s+rim*.16),1.);',
         '}'
       ].join('\n');
       function initGL() {
