@@ -2895,7 +2895,50 @@
         m.appendChild(sp); title.appendChild(m); lines.push(sp);
       });
     }
-    var fades = [text, $('.svc-all', scope)].concat(rows).filter(Boolean);
+    // introduction découpée en lignes réelles (selon la largeur), chaque ligne dans son masque
+    var tLines = [], tShown = false, tW = 0, tRaw = text ? text.textContent.trim().replace(/\s+/g, ' ') : '';
+    function splitText() {
+      if (!text || !tRaw) return;
+      tW = text.clientWidth;
+      text.setAttribute('aria-label', tRaw);
+      var keep = tLines.map(function (l) { return l.parentNode; });
+      text.innerHTML = '';
+      var words = tRaw.split(' '), spans = words.map(function (w) {
+        var sp = document.createElement('span');
+        sp.textContent = w + ' ';
+        text.appendChild(sp);
+        return sp;
+      });
+      var groups = [], top = null;
+      spans.forEach(function (sp, k) {
+        if (sp.offsetTop !== top) { groups.push([]); top = sp.offsetTop; }
+        groups[groups.length - 1].push(words[k]);
+      });
+      text.innerHTML = '';
+      // même découpage qu'avant : on remet les lignes existantes telles quelles (animation en cours préservée)
+      if (keep.length === groups.length && keep.every(function (m, i) { return m.textContent === groups[i].join(' '); })) {
+        keep.forEach(function (m) { text.appendChild(m); });
+        return;
+      }
+      tLines = groups.map(function (g) {
+        var m = document.createElement('span'), sp = document.createElement('span');
+        m.setAttribute('aria-hidden', 'true');
+        m.style.cssText = 'display:block;overflow:hidden;padding:.08em 0 .18em;margin:-.08em 0 -.18em';
+        sp.style.cssText = 'display:block;transition:none;transform:' + (tShown || reduce ? 'none' : 'translateY(110%)');
+        sp.textContent = g.join(' ');
+        m.appendChild(sp); text.appendChild(m);
+        return sp;
+      });
+    }
+    splitText();
+    // largeur changée (fenêtre, police chargée après coup) : nouveau découpage, sans animation
+    var reSplit = function () {
+      if (!text || !text.isConnected) { window.removeEventListener('resize', reSplit); return; }
+      if (text.clientWidth !== tW) splitText();
+    };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (text && text.isConnected) splitText(); });
+    window.addEventListener('resize', reSplit, { passive: true });
+    var fades = [$('.svc-all', scope)].concat(rows).filter(Boolean);
     var lab = label ? maskText(label) : null;
     // image secondaire masquée si le champ est vide
     var aside = $('.svc-aside', scope), asideImg = aside && $('img', aside);
@@ -2904,7 +2947,8 @@
       aside: aside,
       hide: function () {
         if (reduce) return;
-        lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'translateY(110%)'; });
+        tShown = false;
+        lines.concat(tLines).forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'translateY(110%)'; });
         fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(24px)'; });
       },
       // off : temps (ms) déjà écoulé de cette animation (reprise exacte sur la nouvelle page via des délais négatifs)
@@ -2913,6 +2957,9 @@
         if (reduce) { if (lab) lab.style.transform = 'none'; return; }
         var ms = function (v) { return Math.round(v) + 'ms'; };
         lines.forEach(function (l, i) { l.style.transition = 'transform ' + ms(1100 * k) + ' ' + EASE + ' ' + ms(i * 90 * k - off); l.style.transform = 'translateY(0)'; });
+        tShown = true;
+        // introduction : ligne par ligne, juste après le titre
+        tLines.forEach(function (l, i) { l.style.transition = 'transform ' + ms(1000 * k) + ' ' + EASE + ' ' + ms((300 + i * 70) * k - off); l.style.transform = 'translateY(0)'; });
         fades.forEach(function (el, i) {
           var d = (350 + (i ? 150 + i * 70 : 0)) * k - off;
           el.style.transition = 'opacity ' + ms(900 * k) + ' ease ' + ms(d) + ', transform ' + ms(1000 * k) + ' ' + EASE + ' ' + ms(d);
@@ -2926,7 +2973,8 @@
       },
       hideAside: function () { if (aside && !reduce) { aside.style.transition = 'none'; aside.style.clipPath = 'inset(100% 0 0 0)'; } },
       done: function () {
-        lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'none'; });
+        tShown = true;
+        lines.concat(tLines).forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'none'; });
         fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = ''; el.style.transform = ''; });
         if (lab) { lab.style.transition = 'none'; lab.style.transform = 'none'; }
       }
