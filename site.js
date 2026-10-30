@@ -1168,7 +1168,8 @@
         return Math.abs(lx) <= r.w / 2 && Math.abs(ly) <= r.h / 2 ? best : -1;
       }
       function setHover(i) {
-        if (i === hovered) return;
+        // même vignette : rien à faire, sauf si la pastille a été éteinte entre-temps (souris sortie de la fenêtre)
+        if (i === hovered && (i < 0 || document.querySelector('.c-view.is-on'))) return;
         hovered = i;
         if (window.__cursorView) window.__cursorView(i >= 0, stage, $('.hs-list-wrap', stage));   // « Voir » sous les titres des services
         stage.style.cursor = i >= 0 ? 'pointer' : '';
