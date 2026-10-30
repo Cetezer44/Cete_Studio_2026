@@ -58,8 +58,9 @@
     // « Contact » (ex. paragraphes en bas de la page d'un service) : même pastille que « Fermer », autre libellé
     var contact = !!(t && !menuOn && t.closest('[data-cursor="contact"]') && !t.closest(LINKS));
     var closeOn = !!(t && ((menuOn && t.closest('.cm, .cm-bg') && !t.closest(LINKS)) || (!menuOn && t.closest('[data-cursor="close"]'))));
-    if (contact) closeTxt.textContent = 'Contact';
-    else if (closeOn) closeTxt.textContent = 'Fermer';
+    // libellé et style changés seulement à l'activation (pas pendant la disparition de la pastille)
+    if (contact) { closeTxt.textContent = 'Contact'; c.classList.add('is-contact'); }
+    else if (closeOn) { closeTxt.textContent = 'Fermer'; c.classList.remove('is-contact'); }
     c.classList.toggle('is-close', closeOn || contact);
     mediaState();
   });

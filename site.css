@@ -173,6 +173,9 @@ html.is-discover .c-cursor__disc-in { transition: transform 1000ms cubic-bezier(
 .c-cursor.is-close .c-cursor__ring { width: 60px; height: 60px; margin: -30px 0 0 -30px; }
 .c-cursor.is-close .c-cursor__dot { opacity: 0; }
 .c-cursor.is-close .c-cursor__close-in { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+/* « Contact » : pastille pleine (blanche + texte noir dans le groupe en différence : disque noir, texte clair sur fond clair) */
+.c-cursor.is-contact .c-cursor__ring { background-color: #fff; }
+.c-cursor.is-contact .c-cursor__close-in { color: #000; }
 html.is-menu .cm-bg { cursor: none; }
 
 /* ---------- Modal showreel ---------- */
