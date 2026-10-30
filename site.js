@@ -1006,9 +1006,19 @@
       ac.signal.addEventListener('abort', function () { if (raf) cancelAnimationFrame(raf); });
       function secY() { return svcSec.getBoundingClientRect().top + window.scrollY; }
       function update() {
-        tT = 1 + Math.max(0, Math.min(N - 1, (window.scrollY - secY()) / (window.innerHeight * SEG)));
+        var raw = Math.max(0, Math.min(N - 1, (window.scrollY - secY()) / (window.innerHeight * SEG)));
+        tT = 1 + magnet(raw);
         if (shown) setActive(Math.round(tT) - 1);
         kick();
+      }
+
+      // Magnétisme : autour de chaque service, le défilement ne fait presque pas bouger les vignettes (zone
+      // d'accroche), puis le passage au service suivant se fait d'un coup, dans la seconde moitié du geste
+      function magnet(raw) {
+        var i = Math.floor(raw), f = raw - i;
+        if (i >= N - 1) return N - 1;
+        var k = Math.max(0, Math.min(1, (f - 0.22) / 0.56));
+        return i + k * k * k * (k * (k * 6 - 15) + 10);   // smootherstep
       }
 
       // Trait vertical (se construit de bas en haut à l'arrivée), indicateur de slide en bas à gauche et courte
@@ -1021,27 +1031,51 @@
         dotsEl.setAttribute('aria-hidden', 'true');
       }
       if (introEl) introEl.setAttribute('aria-live', 'polite');
+      // texte découpé en lignes (selon la largeur réelle), chaque ligne dans son masque : entrée et sortie
+      // ligne par ligne
+      function introLines(txt) {
+        introEl.innerHTML = '';
+        var words = txt.split(/\s+/).filter(Boolean), spans = [];
+        words.forEach(function (w) {
+          var sp = document.createElement('span');
+          sp.textContent = w + ' ';
+          introEl.appendChild(sp); spans.push(sp);
+        });
+        var lines = [], top = null;
+        spans.forEach(function (sp, k) {
+          if (sp.offsetTop !== top) { lines.push([]); top = sp.offsetTop; }
+          lines[lines.length - 1].push(words[k]);
+        });
+        introEl.innerHTML = '';
+        return lines.map(function (l) {
+          var m = document.createElement('span'), sp = document.createElement('span');
+          m.style.cssText = 'display:block;overflow:hidden;padding:.1em 0 .2em;margin:-.1em 0 -.2em';
+          sp.style.cssText = 'display:block;transform:translateY(110%)';
+          sp.textContent = l.join(' ');
+          m.appendChild(sp); introEl.appendChild(m);
+          return sp;
+        });
+      }
       function introSet(txt, instant) {
         if (!introEl) return;
         var tok = ++introTok, old = introIn;
         var put = function () {
           if (tok !== introTok) return;
-          introEl.innerHTML = '';
-          var m = document.createElement('span'), s = document.createElement('span');
-          m.style.cssText = 'display:block;overflow:hidden;padding:.1em 0 .2em;margin:-.1em 0 -.2em';
-          s.style.cssText = 'display:block;transform:translateY(110%)';
-          s.textContent = txt;
-          m.appendChild(s); introEl.appendChild(m);
-          introIn = s;
-          if (instant || reduce) { s.style.transform = 'none'; return; }
-          void s.offsetWidth;
-          s.style.transition = 'transform 900ms ' + EASE;
-          s.style.transform = 'translateY(0)';
+          var ls = introLines(txt);
+          introIn = ls;
+          ls.forEach(function (sp, k) {
+            if (instant || reduce) { sp.style.transform = 'none'; return; }
+            void sp.offsetWidth;
+            sp.style.transition = 'transform 900ms ' + EASE + ' ' + (k * 90) + 'ms';
+            sp.style.transform = 'translateY(0)';
+          });
         };
-        if (old && !instant && !reduce) {
-          old.style.transition = 'transform 420ms ' + INOUT;
-          old.style.transform = 'translateY(-110%)';
-          setTimeout(put, 380);
+        if (old && old.length && !instant && !reduce) {
+          old.forEach(function (sp, k) {
+            sp.style.transition = 'transform 420ms ' + INOUT + ' ' + (k * 60) + 'ms';
+            sp.style.transform = 'translateY(-110%)';
+          });
+          setTimeout(put, 380 + (old.length - 1) * 60);
         } else put();
       }
       function setActive(i, instant) {
