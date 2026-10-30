@@ -1,3 +1,5 @@
+/* Be Vietnam Pro 600 (SemiBold) : graisse absente des polices chargées par Webflow (300 et 400) */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600&display=swap');
 /* Cete Studio 2026 — CSS en complément du Designer Webflow
    Ici : uniquement ce que le Designer ne sait pas faire (états posés par le JS, éléments créés par le JS,
    sélecteurs parent/enfant, variables calculées). Tout le reste est dans les classes Webflow.
@@ -77,10 +79,9 @@ html.is-menu .cm-bg { pointer-events: auto; }
 .cm-main { position: absolute; left: 5.556vw; bottom: 5.556vw; display: flex; align-items: flex-end; }
 .cm-title { margin: 0; width: 34.375vw; font-size: clamp(44px, 5.556vw, 80px); line-height: 1; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
 .cm-tl { display: block; }
-.cm-name { font-weight: 300; }
-.cm-mail-link, .cm-tel { font-weight: 600; }
 .cm-coords { display: flex; flex-direction: column; align-items: flex-start; row-gap: 16px; }
 .cm-coord { font-size: clamp(15px, 1.18vw, 17px); line-height: .85; font-weight: 300; letter-spacing: 0; }
+.cm-coord.cm-mail-link, .cm-coord.cm-tel { font-weight: 600; }   /* maquette : e-mail et téléphone en SemiBold, nom en Light */
 /* E-mail : icône « copier » en exposant, infobulle de confirmation au clic */
 .cm-mail { position: relative; }
 .cm-copy { display: inline-block; width: .79em; height: .79em; margin-left: .25em; vertical-align: top; fill: currentColor; }
