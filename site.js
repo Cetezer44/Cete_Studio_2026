@@ -1172,7 +1172,17 @@
     var api = {
       destroy: function () { alive = false; ac.abort(); clearTimeout(timer); clearTimeout(snapTimer); },
       leaveTo: leaveTo,
-      leaveToService: function () { return svcCtl && svcCtl.fly ? svcCtl.fly() : Promise.resolve(null); }
+      leaveToService: function () { return svcCtl && svcCtl.fly ? svcCtl.fly() : Promise.resolve(null); },
+      goServices: function () {   // lien « Services » de la modal contact : saut direct (la modal couvre l'écran)
+        if (!svcCtl) return;
+        var was = zone === 'svc';
+        setFree(true);
+        zone = 'svc'; svcOn = true;
+        container.classList.remove('is-dark');
+        socialsShow(false);
+        window.scrollTo(0, secTop('.home-services'));
+        if (!was) svcCtl.enter();
+      }
     };
     // Retour depuis la page d'un service (clic sur son image, curseur « Fermer ») : on reprend directement
     // sur la section services
@@ -2974,9 +2984,11 @@
      MODAL CONTACT : le fond noir s'étend depuis la droite sur toute la largeur, le contenu apparaît en masque
      ===================================================================== */
   var CONTACT = {
+    name: 'Charles Tremblais',
     email: 'cetestudio.pro@gmail.com',
+    tel: ['06.58.02.66.87', '+33658026687'],
     social: [['Instagram', 'https://www.instagram.com/cete.studio_/'], ['Awwwards', 'https://www.awwwards.com/cetestudio/'], ['Dribbble', 'https://dribbble.com/Cete']],
-    menu: [['Projets', '/projets']],   // « Services » et « Studio » retirés pour le moment
+    menu: [['Projets', '/projets'], ['Services', '/']],   // « Studio » retiré pour le moment ; « Services » : section de l'accueil
     legal: [['Cookies', '/cookies'], ['Données', '/protection-des-donnees'], ['Mentions légales', '/mentions-legales']]
   };
   var CONTACT_BG = 'https://cdn.prod.website-files.com/6acf743eb4f622a1815188f4/6ae47f8c33e7c74b6ffbeb2b_contact-bg.webp';
@@ -3002,18 +3014,32 @@
     box.setAttribute('tabindex', '-1');   // focus sur la modal à l'ouverture (le bouton « Fermer » ne s'affiche qu'au clavier)
     box.innerHTML =
       '<div class="cm-cols">' + col('Social', CONTACT.social) + col('Menu', CONTACT.menu) + col('Légal', CONTACT.legal) + '</div>' +
-      '<div class="cm-main"><p class="cm-title">Discutons de votre projet</p><div class="cm-coords">' +
+      '<div class="cm-main"><p class="cm-title"><span class="cm-tl">Discutons</span><span class="cm-tl">de votre</span><span class="cm-tl">projet</span></p><div class="cm-coords">' +
+        '<p class="cm-coord cm-name">' + CONTACT.name + '</p>' +
         '<div class="cm-mail">' +
           '<a class="cm-coord cm-mail-link" href="mailto:' + CONTACT.email + '" aria-label="Copier l’adresse ' + CONTACT.email + '">' + CONTACT.email +
             '<svg class="cm-copy" viewBox="17 17 15.75 15.75" aria-hidden="true"><path d="M20.7654 20.7905V21.5878H17.7973V31.9527H28.1622V28.9846H28.9595V32.75H17V20.7905H20.7654Z"/><path d="M32.75 17V26.5676H23.1824V17H32.75ZM23.9797 25.7703H31.9527V17.7973H23.9797V25.7703Z"/></svg></a>' +
           '<span class="cm-tip" role="status" aria-live="polite"></span>' +
-        '</div></div></div>' +
+        '</div>' +
+        '<a class="cm-coord cm-tel" href="tel:' + CONTACT.tel[1] + '">' + CONTACT.tel[0] + '</a>' +
+      '</div></div>' +
       '<button type="button" class="cm-close">Fermer</button>' +
       '<div class="cm-logo" aria-hidden="true"><img src="' + LOADER_LOGO + '" alt=""></div>';
     document.body.appendChild(bg);
     document.body.appendChild(box);
     // clic en dehors des liens (curseur « Fermer ») : la modal se ferme
     bg.addEventListener('click', function () { if (isOpen && !busy) shut(); });
+    // « Services » : sur l'accueil, la modal se ferme sur la section services ; ailleurs, retour à l'accueil
+    // directement sur cette section
+    $$('.cm-link', box).forEach(function (a) {
+      if (a.textContent !== 'Services') return;
+      a.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        if (page && page.goServices) { page.goServices(); shut(); return; }
+        try { sessionStorage.setItem('cete-home-at', 'services'); } catch (err) {}
+        if (window.barba) barba.go('/'); else window.location.href = '/';
+      });
+    });
 
     // Fond noir ; au passage du curseur, la photo se révèle en traînée de fumée (bouffées qui gonflent, dérivent
     // et s'estompent). Masque dessiné en basse résolution puis agrandi : bords naturellement flous.
@@ -3135,7 +3161,7 @@
 
     // Chaque texte dans son masque (même système que le loader et l'accueil)
     $$('.cm-head, .cm-link', box).forEach(function (el) { maskText(el); });
-    var title = maskText($('.cm-title', box));
+    var title = $$('.cm-tl', box).map(function (el) { return maskText(el); });   // titre : une ligne par masque
     var coords = $$('.cm-coord', box).map(function (el) { return maskText(el); });
     var close = maskText($('.cm-close', box));
     var logo = $('.cm-logo', box);
@@ -3181,7 +3207,7 @@
     }
     var cols = [];   // ordre d'apparition : colonne par colonne
     $$('.cm-col', box).forEach(function (c) { cols = cols.concat($$('span[data-axis]', c)); });
-    var all = cols.concat([title], coords, [close]);
+    var all = cols.concat(title, coords, [close]);
 
     function burger(open) {
       $$('.burger-line').forEach(function (b) { b.style.transform = ''; b.style.transformOrigin = ''; b.style.transition = ''; });
@@ -3207,7 +3233,7 @@
       bg.style.clipPath = 'inset(0 0 0 0)';
       // 2. Les textes montent depuis leur masque, colonne par colonne
       reveal(cols, 650, 35, 900);
-      reveal([title], 800, 0, 1100);
+      reveal(title, 800, 70, 1100);
       reveal(coords, 900, 80, 1000);
       reveal([close], 950, 0, 900);
       // 3. Le grand logo se construit lettre par lettre

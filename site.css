@@ -74,8 +74,11 @@ html.is-menu .cm-bg { pointer-events: auto; }
 .cm-col { display: flex; flex-direction: column; align-items: flex-start; row-gap: 20px; }
 .cm-head { margin: 0; font-size: 11px; line-height: .85; font-weight: 300; letter-spacing: 0; text-decoration: underline; }
 .cm-link { font-size: 13px; line-height: .85; font-weight: 300; letter-spacing: 0; text-transform: uppercase; }
-.cm-main { position: absolute; left: 5.556vw; top: 50%; transform: translateY(-50%); display: flex; align-items: flex-end; column-gap: 10.42vw; }
-.cm-title { margin: 0; font-size: clamp(30px, 3.472vw, 50px); line-height: 1; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
+.cm-main { position: absolute; left: 5.556vw; bottom: 5.556vw; display: flex; align-items: flex-end; }
+.cm-title { margin: 0; width: 34.375vw; font-size: clamp(44px, 5.556vw, 80px); line-height: 1; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
+.cm-tl { display: block; }
+.cm-name { font-weight: 300; }
+.cm-mail-link, .cm-tel { font-weight: 600; }
 .cm-coords { display: flex; flex-direction: column; align-items: flex-start; row-gap: 16px; }
 .cm-coord { font-size: clamp(15px, 1.18vw, 17px); line-height: .85; font-weight: 300; letter-spacing: 0; }
 /* E-mail : icône « copier » en exposant, infobulle de confirmation au clic */
@@ -95,8 +98,8 @@ html.is-menu .burger-line:nth-child(2) { transform: scaleX(0); }
 html.is-menu .burger-line:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 @media (max-width: 767px) {
   .cm-cols { left: 20px; right: 20px; flex-wrap: wrap; column-gap: 40px; row-gap: 30px; }
-  .cm-main { left: 20px; right: 20px; flex-direction: column; align-items: flex-start; row-gap: 24px; }
-  .cm-title { white-space: normal; }
+  .cm-main { left: 20px; right: 20px; bottom: 150px; flex-direction: column; align-items: flex-start; row-gap: 24px; }
+  .cm-title { width: auto; white-space: normal; }
   .cm-close { top: auto; bottom: 30px; right: 20px; transform: none; }
   .cm-logo { right: 20px; bottom: 90px; }
   .cm-tip { left: 0; top: auto; bottom: 100%; margin: 0 0 10px; transform: translateY(6px); }
