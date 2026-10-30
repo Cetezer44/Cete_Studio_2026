@@ -799,7 +799,7 @@
        Rendu WebGL (photo plaquée sur une portion de cylindre ; tout le bandeau est incliné de 8° autour du centre) ; à défaut, cartes HTML en 3D. */
     var svcSec = $('.home-services', container);
     if (svcSec) (function () {
-      var stage = $('.hs-stage', svcSec), head = $('.hs-head', svcSec);
+      var stage = $('.hs-stage', svcSec);
       var data = $$('.hs-item', svcSec).filter(function (it) { return !it.classList.contains('w-condition-invisible'); })
         .sort(function (a, b) { return (+a.getAttribute('data-order') || 0) - (+b.getAttribute('data-order') || 0); })
         .map(function (it) {
@@ -966,12 +966,6 @@
       var fx = 0, fy = 0, cx = 0, cy = 0;
       function draw() {
         var u = tC + intro, list = [];
-        // « Services » et le trait s'effacent dès qu'on commence à défiler dans la section
-        if (head) {
-          var ho = Math.max(0, Math.min(1, 1 - (tC - 1) * 5));
-          head.style.opacity = ho.toFixed(3);
-          head.style.transform = 'translateY(' + (-20 * (1 - ho)).toFixed(1) + 'px)';
-        }
         // titre du service courant : il change quand l'image précédente est sortie à gauche
         var ti = Math.max(0, Math.min(N - 1, Math.round(u - 1)));
         if (ti !== titled) {
@@ -2574,26 +2568,6 @@
     var ac = new AbortController();
     function on(t, type, fn, o) { o = o || {}; o.signal = ac.signal; t.addEventListener(type, fn, o); }
     root.classList.remove('is-wintro');
-    // Dernier projet : liens /projets/<slug> (slug lié au CMS via data-slug)
-    $$('[data-slug]', container).forEach(function (a) {
-      var slug = a.getAttribute('data-slug');
-      if (slug) a.setAttribute('href', '/projets/' + slug);
-    });
-    var cards = $$('.legal-latest .works-card', container);
-    cards.forEach(function (c) {
-      var icon = $('.works-arrow-icon', c);
-      if (!icon) return;
-      on(icon, 'animationend', function () { icon.classList.remove('is-nudge'); });
-      on(c, 'mouseenter', function () {
-        if (reduce) return;
-        icon.classList.remove('is-nudge');
-        void icon.offsetWidth;
-        icon.classList.add('is-nudge');
-      });
-    });
-    function leaveTo(path) {
-      return leaveFromCards(container, cards, '.home-logo, .home-nav, .home-socials, .legal-title, .legal-body, .legal-nav, .legal-tag', path);
-    }
     var links = $$('.legal-link', container);
     links.forEach(function (a) {
       var icon = $('.works-arrow-icon', a);
@@ -2606,7 +2580,7 @@
         icon.classList.add('is-nudge');
       });
     });
-    if (reduce) return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
+    if (reduce) return { destroy: function () { ac.abort(); } };
 
     var title = maskText($('.legal-title', container));
     // En-tête (navigation, réseaux) : en masque comme le reste, pour une entrée sans à-coup
@@ -2620,30 +2594,6 @@
       var icon = $('.works-arrow-icon', a);
       if (icon) { icon.dataset.axis = 'y'; hide(icon); navTexts.push(icon); }
     });
-    // Dernier projet : pastille et nom en masque, photo dévoilée de bas en haut
-    var tag = $('.legal-tag', container);
-    if (tag) {
-      tag.style.clipPath = 'inset(0 100% 0 0 round 20px)';
-      setTimeout(function () {
-        tag.style.transition = 'clip-path 800ms ' + INOUT;
-        tag.style.clipPath = 'inset(0 0% 0 0 round 20px)';
-      }, 550);
-    }
-    var latest = [];
-    cards.forEach(function (c) {
-      var media = $('.works-media', c);
-      if (media) {
-        media.style.clipPath = 'inset(100% 0 0 0)';
-        setTimeout(function () {
-          media.style.transition = 'clip-path 1200ms ' + INOUT;
-          media.style.clipPath = 'inset(0% 0 0 0)';
-          setTimeout(function () { media.style.transition = ''; media.style.clipPath = ''; }, 1250);
-        }, 650);
-      }
-      latest.push(maskText($('.works-card-title', c)));
-      var icon = $('.works-arrow-icon', c);
-      if (icon) { icon.dataset.axis = 'y'; hide(icon); latest.push(icon); }
-    });
     reveal([title], 150, 0, 1000);
     reveal(head, 250, 40, 900);
     if (logoEl) setTimeout(function () {
@@ -2652,7 +2602,6 @@
       setTimeout(function () { logoEl.style.transition = ''; logoEl.style.clipPath = ''; }, 950);
     }, 250);
     reveal(navTexts, 450, 70, 900);
-    reveal(latest, 1200, 80, 900);
 
     // Blocs de texte : chapô, sections, date de mise à jour
     var blocks = $$('.legal-body > *', container);
@@ -2685,7 +2634,7 @@
     } else {
       blocks.forEach(function (b, i) { show(b, 400 + i * 100); });
     }
-    return { destroy: function () { ac.abort(); }, leaveTo: leaveTo };
+    return { destroy: function () { ac.abort(); } };
   }
 
 
@@ -2899,33 +2848,23 @@
     }
     return { destroy: function () { ac.abort(); if (io) io.disconnect(); }, play: play };
   }
-  // Déformation d'une photo au passage de la souris : calque WebGL posé sur l'image, taches douces laissées par
-  // le curseur (masque basse résolution) qui déplacent la photo selon un bruit lent ; calque masqué au repos
-  function imgWarp(frame, img) {
-    if (reduce || !img) return null;
-    var cv = document.createElement('canvas');
-    cv.className = 'svc-warp';
-    cv.setAttribute('aria-hidden', 'true');
+  /* ---------- Outils WebGL partagés : aura de la modal contact, ondulation des photos des services ---------- */
+  // Bruit fractal (3 octaves) et déformation lente en cascade (domain warping) : warp(p, t) renvoie un
+  // décalage animé, base de l'aura et de l'ondulation des photos
+  var GLSL_HEAD = 'precision mediump float;varying vec2 v;uniform sampler2D uImg,uMask;uniform float uT;uniform vec2 uAsp,uCov;' +
+    'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}' +
+    'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);' +
+    'return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}' +
+    'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<3;i++){s+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}' +
+    'vec2 warp(vec2 p,float t){vec2 q=vec2(fbm(p+vec2(0.,t)),fbm(p+vec2(5.2,1.3)-vec2(t*.8,0.)));' +
+    'return vec2(fbm(p+1.6*q+vec2(1.7,9.2)+t*.6),fbm(p+1.6*q+vec2(8.3,2.8)-t*.5));}';
+  // Rendu plein cadre : photo (texture 0) + masque de la traînée (texture 1) ; null si WebGL est indisponible
+  function glQuad(cv, fsMain) {
     var gl = cv.getContext('webgl', { alpha: false, antialias: false, premultipliedAlpha: false });
     if (!gl) return null;
-    var VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
-    var FS = [
-      'precision mediump float;varying vec2 v;uniform sampler2D uImg,uMask;uniform float uT;uniform vec2 uAsp,uCov;',
-      'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
-      'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);',
-      'return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}',
-      'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<3;i++){s+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}',
-      'void main(){',
-      '  vec2 p=v*uAsp*2.2;float t=uT*.3;',
-      '  vec2 q=vec2(fbm(p+vec2(0.,t)),fbm(p+vec2(5.2,1.3)-vec2(t*.8,0.)));',
-      '  vec2 r=vec2(fbm(p+1.6*q+vec2(1.7,9.2)+t*.6),fbm(p+1.6*q+vec2(8.3,2.8)-t*.5));',
-      '  float m=texture2D(uMask,v).a;',
-      '  vec2 d=(r-.5)*vec2(.07,.09)*smoothstep(0.,.7,m);',
-      '  gl_FragColor=vec4(texture2D(uImg,(v-.5)*uCov+.5+d).rgb,1.);',
-      '}'
-    ].join('\n');
     function sh(type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null; }
-    var vs = sh(gl.VERTEX_SHADER, VS), fs = sh(gl.FRAGMENT_SHADER, FS);
+    var vs = sh(gl.VERTEX_SHADER, 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}');
+    var fs = sh(gl.FRAGMENT_SHADER, GLSL_HEAD + fsMain);
     if (!vs || !fs) return null;
     var pr = gl.createProgram();
     gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
@@ -2943,79 +2882,115 @@
       var t = gl.createTexture();
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, t);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]
+        .forEach(function (q) { gl.texParameteri(gl.TEXTURE_2D, q[0], q[1]); });
       return t;
     }
     var texImg = tex(0), texMask = tex(1);
     gl.uniform1i(U.uImg, 0); gl.uniform1i(U.uMask, 1);
-    var mk = document.createElement('canvas'), mctx = mk.getContext('2d'), MS = 0.25;
-    var src = new Image(), ready = false, iw = 1, ih = 1;
-    src.crossOrigin = 'anonymous';
-    src.onload = function () {
-      iw = src.naturalWidth; ih = src.naturalHeight; ready = true;
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texImg);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    return {
+      size: function (w, h) { gl.viewport(0, 0, w, h); },
+      image: function (img) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texImg); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); },
+      // w/h : taille du cadre ; iw/ih : taille de la photo (cadrage « cover »)
+      draw: function (mask, t, w, h, iw, ih) {
+        var ia = iw / ih, sa = w / h;
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texMask);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mask);
+        gl.uniform1f(U.uT, t);
+        gl.uniform2f(U.uAsp, sa, 1);
+        gl.uniform2f(U.uCov, Math.min(1, sa / ia), Math.min(1, ia / sa));
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      },
+      clear: function () { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
     };
+  }
+  // Traînée du curseur : taches douces qui gonflent, flottent et s'estompent, dessinées dans un masque basse
+  // résolution (canvas 2D agrandi : bords naturellement flous). o : taille, croissance, opacité, durée, dérive…
+  function mouseTrail(o) {
+    var mk = document.createElement('canvas'), ctx = mk.getContext('2d'), parts = [], lx = null, ly = null, MS = 0.25;
+    function rnd(a) { return (Math.random() - 0.5) * a; }
+    function puff(x, y, v) {
+      parts.push({ x: x + rnd(o.jitter), y: y + rnd(o.jitter), r: o.r[0] + Math.random() * o.r[1], g: o.g[0] + Math.random() * o.g[1] + Math.min(v, o.g[2]) * o.g[3],
+        a: o.a[0] + Math.min(v, 40) * o.a[1], t: 0, d: o.d[0] + Math.random() * o.d[1], vx: rnd(o.vx), vy: -o.vy[0] - Math.random() * o.vy[1], ph: Math.random() * 6.28 });
+      if (parts.length > o.max) parts.shift();
+    }
+    return {
+      canvas: mk,
+      size: function (w, h) { mk.width = Math.max(1, Math.ceil(w * MS)); mk.height = Math.max(1, Math.ceil(h * MS)); },
+      // nouvelle position du curseur (dans le repère du cadre) : bouffées réparties le long du trajet
+      move: function (x, y) {
+        if (lx === null) { lx = x; ly = y; puff(x, y, 0); return; }
+        var dx = x - lx, dy = y - ly, dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < o.minDist) return;
+        var n = Math.min(o.maxN, Math.ceil(dist / o.step));
+        for (var i = 1; i <= n; i++) puff(lx + dx * i / n, ly + dy * i / n, dist / n);
+        lx = x; ly = y;
+      },
+      reset: function () { lx = null; ly = null; },
+      clear: function () { parts = []; },
+      count: function () { return parts.length; },
+      // avance de dt ms et redessine le masque ; renvoie le nombre de taches encore visibles
+      draw: function (dt) {
+        ctx.clearRect(0, 0, mk.width, mk.height);
+        for (var i = parts.length - 1; i >= 0; i--) {
+          var p = parts[i];
+          p.t += dt;
+          var k = p.t / p.d;
+          if (k >= 1) { parts.splice(i, 1); continue; }
+          p.x += (p.vx + Math.sin(p.t * 0.0016 + p.ph) * o.wob) * dt / 1000;   // flottement lent
+          p.y += p.vy * dt / 1000;
+          var r = (p.r + p.g * Math.pow(k, 0.65)) * MS, al = p.a * Math.min(1, k * 7) * Math.pow(1 - k, 1.5);
+          var gx = p.x * MS, gy = p.y * MS, gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+          gr.addColorStop(0, 'rgba(255,255,255,' + al + ')');
+          gr.addColorStop(0.5, 'rgba(255,255,255,' + al * 0.6 + ')');
+          gr.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = gr;
+          ctx.beginPath(); ctx.arc(gx, gy, r, 0, 6.2832); ctx.fill();
+        }
+        return parts.length;
+      }
+    };
+  }
+
+  // Déformation d'une photo au passage de la souris : calque WebGL posé sur l'image, la traînée du curseur
+  // déplace la photo selon la déformation lente ; calque masqué au repos (la photo d'origine reprend la main)
+  function imgWarp(frame, img) {
+    if (reduce || !img) return null;
+    var cv = document.createElement('canvas');
+    cv.className = 'svc-warp';
+    cv.setAttribute('aria-hidden', 'true');
+    var q = glQuad(cv, 'void main(){vec2 r=warp(v*uAsp*2.2,uT*.3);float m=texture2D(uMask,v).a;' +
+      'vec2 d=(r-.5)*vec2(.07,.09)*smoothstep(0.,.7,m);gl_FragColor=vec4(texture2D(uImg,(v-.5)*uCov+.5+d).rgb,1.);}');
+    if (!q) return null;
+    var trail = mouseTrail({ jitter: 0, r: [26, 20], g: [70, 60, 50, 1], a: [0.3, 0.008], d: [1400, 700], vx: 14, vy: [4, 8], wob: 14, max: 120, minDist: 8, maxN: 5, step: 18 });
+    var src = new Image(), ready = false;
+    src.crossOrigin = 'anonymous';
+    src.onload = function () { ready = true; q.image(src); };
     src.src = img.currentSrc || img.src;
     frame.appendChild(cv);
-    var parts = [], raf = null, last = 0, clock = 0, W = 0, H = 0, lx = null, ly = null;
+    var raf = null, last = 0, clock = 0, W = 0, H = 0;
     function size() {
       var r = cv.getBoundingClientRect(), k = Math.min(window.devicePixelRatio || 1, 1.5);
       W = r.width; H = r.height;
       cv.width = Math.max(1, Math.round(W * k)); cv.height = Math.max(1, Math.round(H * k));
-      mk.width = Math.max(1, Math.ceil(W * MS)); mk.height = Math.max(1, Math.ceil(H * MS));
-      gl.viewport(0, 0, cv.width, cv.height);
-    }
-    function puff(x, y, v) {
-      parts.push({ x: x, y: y, r: 26 + Math.random() * 20, g: 70 + Math.random() * 60 + Math.min(v, 50), a: 0.3 + Math.min(v, 40) * 0.008,
-        t: 0, d: 1400 + Math.random() * 700, vx: (Math.random() - 0.5) * 14, vy: -4 - Math.random() * 8, ph: Math.random() * 6.28 });
-      if (parts.length > 120) parts.shift();
+      trail.size(W, H);
+      q.size(cv.width, cv.height);
     }
     function move(e) {
       if (!ready) return;
       if (!W) size();
-      var r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-      if (lx === null) { lx = x; ly = y; puff(x, y, 0); }
-      var dx = x - lx, dy = y - ly, dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist >= 8) {
-        var n = Math.min(5, Math.ceil(dist / 18));
-        for (var i = 1; i <= n; i++) puff(lx + dx * i / n, ly + dy * i / n, dist / n);
-        lx = x; ly = y;
-      }
+      var r = cv.getBoundingClientRect();
+      trail.move(e.clientX - r.left, e.clientY - r.top);
       if (!raf) { cv.style.transform = img.style.transform; cv.style.opacity = '1'; last = performance.now(); raf = requestAnimationFrame(frameFn); }
     }
     function frameFn(now) {
       var dt = Math.max(0, Math.min(50, now - last)); last = now; clock += dt;
-      mctx.clearRect(0, 0, mk.width, mk.height);
-      for (var i = parts.length - 1; i >= 0; i--) {
-        var p = parts[i];
-        p.t += dt;
-        var k = p.t / p.d;
-        if (k >= 1) { parts.splice(i, 1); continue; }
-        p.x += (p.vx + Math.sin(p.t * 0.0016 + p.ph) * 14) * dt / 1000;
-        p.y += p.vy * dt / 1000;
-        var rr = (p.r + p.g * Math.pow(k, 0.65)) * MS, al = p.a * Math.min(1, k * 7) * Math.pow(1 - k, 1.5);
-        var gx = p.x * MS, gy = p.y * MS, gr = mctx.createRadialGradient(gx, gy, 0, gx, gy, rr);
-        gr.addColorStop(0, 'rgba(255,255,255,' + al + ')');
-        gr.addColorStop(0.5, 'rgba(255,255,255,' + al * 0.6 + ')');
-        gr.addColorStop(1, 'rgba(255,255,255,0)');
-        mctx.fillStyle = gr;
-        mctx.beginPath(); mctx.arc(gx, gy, rr, 0, 6.2832); mctx.fill();
-      }
-      var ia = iw / ih, sa = W / H;
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texMask);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mk);
-      gl.uniform1f(U.uT, clock / 1000);
-      gl.uniform2f(U.uAsp, sa, 1);
-      gl.uniform2f(U.uCov, Math.min(1, sa / ia), Math.min(1, ia / sa));
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      if (parts.length) raf = requestAnimationFrame(frameFn);
-      else { raf = null; cv.style.opacity = '0'; lx = null; }   // au repos : la photo d'origine reprend la main
+      var alive = trail.draw(dt);
+      q.draw(trail.canvas, clock / 1000, W, H, src.naturalWidth, src.naturalHeight);
+      if (alive) raf = requestAnimationFrame(frameFn);
+      else { raf = null; cv.style.opacity = '0'; trail.reset(); }
     }
-    function leave() { lx = null; }
+    function leave() { trail.reset(); }
     function rs() { if (W) size(); }
     frame.addEventListener('mousemove', move);
     frame.addEventListener('mouseleave', leave);
@@ -3460,7 +3435,7 @@
         if (document.fonts && document.fonts.ready) document.fonts.ready.then(go);
         setTimeout(go, 1200);   // filet de sécurité
       }
-      var texts = $$('.st-intro, .st-label, .st-head-text, .st-big, .st-small, .st-cta-title, .st-cta-link', container);
+      var texts = $$('.st-intro, .st-label, .st-head-text, .st-big', container);
       var masks = texts.map(function (el) { return maskText(el); });
       var blocks = $$('.st-discover, .st-service', container);
       blocks.forEach(function (b) { b.style.opacity = '0'; b.style.transform = 'translateY(40px)'; });
@@ -3589,188 +3564,87 @@
       });
     });
 
-    // Fond noir ; au passage du curseur, la photo se révèle dans une aura animée (halo doux qui ondule et respire).
-    // 1. Traînée : grandes taches douces qui gonflent, flottent et s'estompent, dans un masque basse résolution.
-    // 2. Rendu WebGL : le masque est déformé par un bruit basse fréquence qui s'écoule lentement (ondes amples,
-    //    sans filaments), puis découpe la photo. Sans WebGL : masque appliqué tel quel.
+    // Fond noir ; au passage du curseur, la photo se révèle dans une aura animée (halo doux qui ondule et respire) :
+    // la traînée du curseur, déformée par le bruit lent, découpe la photo (WebGL) ; sans WebGL, masque appliqué tel quel
     var Smoke = (function () {
       if (reduce) return { start: function () {}, stop: function () {} };
-      var RES = 0.6;   // résolution de rendu (fumée douce : inutile de calculer chaque pixel)
-      var cv = document.createElement('canvas');
-      cv.className = 'cm-smoke';
-      bg.appendChild(cv);
-      var mk = document.createElement('canvas'), mctx = mk.getContext('2d');
-      var img = new Image(), ready = false;
+      var RES = 0.6;   // résolution de rendu (halo doux : inutile de calculer chaque pixel)
+      var trail = mouseTrail({ jitter: 16, r: [45, 30], g: [120, 80, 60, 1.3], a: [0.26, 0.005], d: [2800, 1400], vx: 16, vy: [4, 10], wob: 18, max: 180, minDist: 10, maxN: 6, step: 22 });
+      var img = new Image(), ready = false, raf = null, on = false, W = 0, H = 0, last = 0, clock = 0, q = null, ctx = null;
       img.crossOrigin = 'anonymous';
       img.decoding = 'async';
-      var parts = [], raf = null, on = false, W = 0, H = 0, lx = null, ly = null, last = 0, clock = 0, MS = 0.25;
-      var gl = null, ctx = null, U = {}, texImg = null, texMask = null;
-
-      var VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
-      var FS = [
-        'precision mediump float;varying vec2 v;uniform sampler2D uImg,uMask;uniform float uT;uniform vec2 uAsp,uCov;',
-        'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
-        'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);',
-        'return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}',
-        'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<3;i++){s+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return s;}',
-        'void main(){',
-        '  vec2 p=v*uAsp*1.3;float t=uT*.3;',
-        // déformation ample et lente (domain warping basse fréquence) : le halo ondule comme une aura
-        '  vec2 q=vec2(fbm(p+vec2(0.,t)),fbm(p+vec2(5.2,1.3)-vec2(t*.8,0.)));',
-        '  vec2 r=vec2(fbm(p+1.6*q+vec2(1.7,9.2)+t*.6),fbm(p+1.6*q+vec2(8.3,2.8)-t*.5));',
-        '  float f=fbm(p*1.4+2.*r);',
-        '  float m=texture2D(uMask,v+(r-.5)*vec2(.2,.25)).a;',
-        // densité pleine et douce, ondes plus marquées ; respiration
-        '  float s=smoothstep(0.,.7,m)*(.78+.55*(f-.5));',
-        '  s*=.9+.1*sin(uT*1.6+f*3.);',
-        '  s=clamp(s,0.,1.);',
-        // la photo ondule avec le halo : déplacement proportionnel à la densité de l'aura
-        '  vec2 d=(r-.5)*vec2(.03,.04)*smoothstep(0.,.6,m);',
-        '  float g=dot(texture2D(uImg,(v-.5)*uCov+.5+d).rgb,vec3(.299,.587,.114));',
-        // liseré lumineux diffus sur le bord du halo
-        '  float rim=smoothstep(.04,.3,s)*(1.-smoothstep(.3,.75,s));',
-        '  gl_FragColor=vec4(vec3((g*s+rim*.09)*.85),1.);',   // intensité générale retenue
-        '}'
-      ].join('\n');
-      function initGL() {
-        var g = cv.getContext('webgl', { alpha: false, antialias: false, premultipliedAlpha: false });
-        if (!g) return null;
-        function sh(type, src) { var s = g.createShader(type); g.shaderSource(s, src); g.compileShader(s); return g.getShaderParameter(s, g.COMPILE_STATUS) ? s : null; }
-        var vs = sh(g.VERTEX_SHADER, VS), fs = sh(g.FRAGMENT_SHADER, FS);
-        if (!vs || !fs) return null;
-        var pr = g.createProgram();
-        g.attachShader(pr, vs); g.attachShader(pr, fs); g.linkProgram(pr);
-        if (!g.getProgramParameter(pr, g.LINK_STATUS)) return null;
-        g.useProgram(pr);
-        var buf = g.createBuffer();
-        g.bindBuffer(g.ARRAY_BUFFER, buf);
-        g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), g.STATIC_DRAW);
-        var loc = g.getAttribLocation(pr, 'p');
-        g.enableVertexAttribArray(loc);
-        g.vertexAttribPointer(loc, 2, g.FLOAT, false, 0, 0);
-        ['uImg', 'uMask', 'uT', 'uAsp', 'uCov'].forEach(function (k) { U[k] = g.getUniformLocation(pr, k); });
-        g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL, true);
-        function tex(unit) {
-          var t = g.createTexture();
-          g.activeTexture(g.TEXTURE0 + unit);
-          g.bindTexture(g.TEXTURE_2D, t);
-          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR);
-          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
-          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
-          g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
-          return t;
-        }
-        texImg = tex(0); texMask = tex(1);
-        g.uniform1i(U.uImg, 0); g.uniform1i(U.uMask, 1);
-        return g;
+      function canvas() {
+        var c = document.createElement('canvas');
+        c.className = 'cm-smoke';
+        return c;
       }
-      try { gl = initGL(); } catch (e) { gl = null; }
-      if (!gl) {   // repli 2D sur un nouveau canvas (celui-ci a peut-être déjà un contexte WebGL)
-        var c2 = document.createElement('canvas');
-        c2.className = 'cm-smoke';
+      var cv = canvas();
+      bg.appendChild(cv);
+      try {
+        q = glQuad(cv, 'void main(){vec2 p=v*uAsp*1.3;vec2 r=warp(p,uT*.3);float f=fbm(p*1.4+2.*r);' +
+          'float m=texture2D(uMask,v+(r-.5)*vec2(.2,.25)).a;' +
+          // densité pleine et douce, ondes marquées, respiration
+          'float s=clamp(smoothstep(0.,.7,m)*(.78+.55*(f-.5))*(.9+.1*sin(uT*1.6+f*3.)),0.,1.);' +
+          // la photo ondule avec le halo
+          'vec2 d=(r-.5)*vec2(.03,.04)*smoothstep(0.,.6,m);' +
+          'float g=dot(texture2D(uImg,(v-.5)*uCov+.5+d).rgb,vec3(.299,.587,.114));' +
+          // liseré lumineux diffus sur le bord du halo ; intensité générale retenue
+          'float rim=smoothstep(.04,.3,s)*(1.-smoothstep(.3,.75,s));gl_FragColor=vec4(vec3((g*s+rim*.09)*.85),1.);}');
+      } catch (e) { q = null; }
+      function fallback2D() {   // nouveau canvas : celui-ci a peut-être déjà un contexte WebGL
+        q = null;
+        var c2 = canvas();
         bg.replaceChild(c2, cv);
         cv = c2; ctx = cv.getContext('2d');
       }
-      img.onload = function () {
-        ready = true;
-        if (gl) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texImg); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); }
-      };
+      if (!q) fallback2D();
+      img.onload = function () { ready = true; if (q) q.image(img); };
       img.onerror = function () {   // image refusée en WebGL (CORS) : repli 2D
-        if (!gl) return;
-        gl = null;
-        var c2 = document.createElement('canvas');
-        c2.className = 'cm-smoke';
-        bg.replaceChild(c2, cv);
-        cv = c2; ctx = cv.getContext('2d'); size();
+        if (!q) return;
+        fallback2D(); size();
         img = new Image(); img.decoding = 'async'; img.onload = function () { ready = true; }; img.src = CONTACT_BG;
       };
-
       function size() {
         W = window.innerWidth; H = window.innerHeight;
-        var k = gl ? RES : Math.min(window.devicePixelRatio || 1, 1.5);
+        var k = q ? RES : Math.min(window.devicePixelRatio || 1, 1.5);
         cv.width = Math.round(W * k); cv.height = Math.round(H * k);
-        mk.width = Math.ceil(W * MS); mk.height = Math.ceil(H * MS);
-        if (gl) gl.viewport(0, 0, cv.width, cv.height);
-      }
-      function puff(x, y, v) {
-        parts.push({
-          x: x + (Math.random() - 0.5) * 16, y: y + (Math.random() - 0.5) * 16,
-          r: 45 + Math.random() * 30, g: 120 + Math.random() * 80 + Math.min(v, 60) * 1.3,
-          a: 0.26 + Math.min(v, 40) * 0.005, t: 0, d: 2800 + Math.random() * 1400,
-          vx: (Math.random() - 0.5) * 16, vy: -4 - Math.random() * 10, ph: Math.random() * 6.28
-        });
-        if (parts.length > 180) parts.shift();
-      }
-      function move(e) {
-        if (!on) return;
-        var x = e.clientX, y = e.clientY;
-        if (lx === null) { lx = x; ly = y; puff(x, y, 0); }
-        var dx = x - lx, dy = y - ly, dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 10) return;
-        var n = Math.min(6, Math.ceil(dist / 22));
-        for (var i = 1; i <= n; i++) puff(lx + dx * i / n, ly + dy * i / n, dist / n);
-        lx = x; ly = y;
-        if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
-      }
-      function drawMask(dt) {
-        mctx.clearRect(0, 0, mk.width, mk.height);
-        for (var i = parts.length - 1; i >= 0; i--) {
-          var p = parts[i];
-          p.t += dt;
-          var k = p.t / p.d;
-          if (k >= 1) { parts.splice(i, 1); continue; }
-          // la tache flotte doucement en dérivant à peine vers le haut
-          p.x += (p.vx + Math.sin(p.t * 0.0016 + p.ph) * 18) * dt / 1000;   // flottement lent
-          p.y += p.vy * dt / 1000;
-          var r = (p.r + p.g * Math.pow(k, 0.65)) * MS, al = p.a * Math.min(1, k * 7) * Math.pow(1 - k, 1.5);
-          var gx = p.x * MS, gy = p.y * MS, gr = mctx.createRadialGradient(gx, gy, 0, gx, gy, r);
-          gr.addColorStop(0, 'rgba(255,255,255,' + al + ')');
-          gr.addColorStop(0.5, 'rgba(255,255,255,' + al * 0.6 + ')');
-          gr.addColorStop(1, 'rgba(255,255,255,0)');
-          mctx.fillStyle = gr;
-          mctx.beginPath(); mctx.arc(gx, gy, r, 0, 6.2832); mctx.fill();
-        }
-      }
-      function renderGL() {
-        var ia = img.naturalWidth / img.naturalHeight, sa = W / H;
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, texMask);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mk);
-        gl.uniform1f(U.uT, clock / 1000);
-        gl.uniform2f(U.uAsp, sa, 1);
-        gl.uniform2f(U.uCov, Math.min(1, sa / ia), Math.min(1, ia / sa));
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        trail.size(W, H);
+        if (q) q.size(cv.width, cv.height);
       }
       function render2D() {
         var dpr = cv.width / W;
         ctx.clearRect(0, 0, cv.width, cv.height);
-        if (!parts.length) return;
+        if (!trail.count()) return;
         var s = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * s, h = img.naturalHeight * s;
         ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(img, (W - w) / 2 * dpr, (H - h) / 2 * dpr, w * dpr, h * dpr);
         ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(mk, 0, 0, cv.width, cv.height);
+        ctx.drawImage(trail.canvas, 0, 0, cv.width, cv.height);
         ctx.globalCompositeOperation = 'source-over';
       }
       function frame(now) {
         var dt = Math.max(0, Math.min(50, now - last)); last = now;   // l'horodatage rAF peut précéder performance.now()
         clock += dt;
-        drawMask(dt);
-        if (ready) { if (gl) renderGL(); else render2D(); }
-        raf = parts.length ? requestAnimationFrame(frame) : null;
-        if (!raf && gl) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+        var alive = trail.draw(dt);
+        if (ready) { if (q) q.draw(trail.canvas, clock / 1000, W, H, img.naturalWidth, img.naturalHeight); else render2D(); }
+        raf = alive ? requestAnimationFrame(frame) : null;
+        if (!raf && q) q.clear();
       }
-      window.addEventListener('pointermove', move, { passive: true });
+      window.addEventListener('pointermove', function (e) {
+        if (!on) return;
+        trail.move(e.clientX, e.clientY);
+        if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
+      }, { passive: true });
       window.addEventListener('resize', function () { if (on) size(); });
       return {
         start: function () {
           if (!img.src) img.src = CONTACT_BG;
-          size(); on = true; lx = null; ly = null;
+          size(); on = true; trail.reset();
         },
         stop: function () {
-          on = false; parts = [];
+          on = false; trail.clear();
           if (raf) { cancelAnimationFrame(raf); raf = null; }
-          if (gl) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } else if (ctx) ctx.clearRect(0, 0, cv.width, cv.height);
+          if (q) q.clear(); else if (ctx) ctx.clearRect(0, 0, cv.width, cv.height);
         }
       };
     })();
