@@ -2389,22 +2389,17 @@
       showLabel();
       // le libellé reste lisible au moins 1,3 s avant de sortir
       wait(Math.max(0, labelShownAt + 1300 - Date.now())).then(function () {
-        // 1. le libellé sort en masque vers le haut, le trait se rétracte
+        // 1. « Projet suivant » disparaît : le libellé sort en masque vers le haut, le trait se rétracte
         if (nextTextIn) conceal([nextTextIn], 0, 0, 600);
         if (nextLine) {
           nextLine.style.transformOrigin = '50% 0';
           nextLine.style.transition = 'transform 500ms ' + INOUT + ' 150ms';
           nextLine.style.transform = 'scaleY(0)';
         }
-        return wait(600);
+        return wait(700);
       }).then(function () {
-        // 2. la photo apparaît en masque, du bas vers le haut, à la place du libellé
-        nextCard.style.transition = 'clip-path 1100ms ' + INOUT;
-        nextCard.style.clipPath = 'inset(0% 0 0 0)';
-        return wait(1150);
-      }).then(function () {
-        // 3. l'animation d'ouverture du projet prend le relais (photo plein écran, titre…)
-        barba.go(next.href);
+        // 2. la page suivante apparaît directement à sa place (voir api.enterNext)
+        barba.go(next.href, 'work-next');
       });
     }
     if (next) {
@@ -2450,6 +2445,18 @@
       return s;
     });
 
+    // Introduction : ligne par ligne, chacune dans son masque
+    function showText(delay) {
+      if (!text || text.style.display === 'none') return;
+      var lines = splitLines(text);
+      text.style.visibility = '';
+      text.offsetHeight;   // les lignes partent bien de leur masque (sinon elles s'affichent d'un coup)
+      lines.forEach(function (s, i) {
+        s.style.transition = 'transform 900ms ' + EASE + ' ' + (delay + i * 65) + 'ms';
+        s.style.transform = 'translateY(0)';
+      });
+    }
+
     // Étape 4 : le titre descend sous la photo, les catégories puis l'introduction (centrées) apparaissent en masque
     function settle(delay) {
       return wait(delay).then(function () {
@@ -2457,15 +2464,7 @@
         heading.style.transition = 'transform 900ms ' + INOUT;
         heading.style.transform = 'translate(0,0)';
         reveal(tags, 440, 55, 750);
-        if (text && text.style.display !== 'none') {
-          var lines = splitLines(text);
-          text.style.visibility = '';
-          text.offsetHeight;   // les lignes partent bien de leur masque (sinon elles s'affichent d'un coup)
-          lines.forEach(function (s, i) {
-            s.style.transition = 'transform 900ms ' + EASE + ' ' + (600 + i * 65) + 'ms';
-            s.style.transform = 'translateY(0)';
-          });
-        }
+        showText(600);
         return wait(950);
       }).then(function () {
         heading.style.transition = '';
@@ -2534,17 +2533,34 @@
       }
     };
 
-    // Vers le projet suivant : la photo centrée sert de relais, comme une carte de l'accueil
-    api.leaveTo = function (path) {
-      if (nextCard && next && path && path.replace(/\/+$/, '') === next.href) {
-        // le verrouillage du défilement pendant la transition renverrait la page en haut :
-        // on la fige à l'écran (même rendu) pour que la photo grandisse depuis sa place réelle
-        var y = window.pageYOffset;
-        container.style.marginTop = (-y) + 'px';
-        window.scrollTo(0, 0);
-        return Promise.resolve({ card: nextCard, radius: 0 });
-      }
-      return Promise.resolve(null);
+    // Arrivée depuis le projet précédent : tout est déjà à sa place —
+    // la photo (pleine largeur) se découvre en masque vers le haut, le titre descend dans son masque,
+    // les catégories suivent et l'introduction apparaît ligne par ligne
+    api.enterNext = function () {
+      heading.style.transition = 'none';
+      heading.style.transform = '';
+      heading.style.overflow = 'hidden';
+      hIn.style.transition = 'none';
+      hIn.style.transform = 'translateY(-110%)';
+      media.style.transition = 'none';
+      media.style.clipPath = 'inset(50% 0 50% 0)';
+      var ready = img && img.decode ? img.decode().catch(function () {}) : Promise.resolve();
+      return Promise.race([ready, wait(1200)]).then(function () {
+        media.offsetWidth;
+        media.style.transition = 'clip-path 1200ms ' + INOUT;
+        media.style.clipPath = 'inset(0 0 50% 0)';
+        setTimeout(function () {
+          hIn.style.transition = 'transform 1000ms ' + EASE;
+          hIn.style.transform = 'translateY(0)';
+        }, 450);
+        reveal(tags, 750, 55, 750);
+        showText(850);
+        return wait(1250);
+      }).then(function () {
+        media.style.transition = '';
+        media.style.clipPath = '';
+        heading.style.overflow = '';
+      });
     };
     api.destroy = function () { wac.abort(); };
     if (opts.transition) return api;
@@ -4101,8 +4117,21 @@
     prevent: function (o) { return o.el && (o.el.closest('.w-editor') || (o.el.getAttribute('href') || '').charAt(0) === '#'); },
     transitions: [
       {
+        name: 'projet-suivant',            // fin d'un projet : « Projet suivant » est sorti, la page suivante apparaît en place
+        custom: function (d) { return d.trigger === 'work-next'; },
+        from: { namespace: ['work'] },
+        to: { namespace: ['work'] },
+        leave: function (data) { data.current.container.style.display = 'none'; },
+        beforeEnter: function (data) {
+          window.scrollTo(0, 0);
+          runScripts(data.next.container);
+          initPage(data.next.container, { transition: true });
+        },
+        enter: function () { return page && page.enterNext ? page.enterNext() : null; }
+      },
+      {
         name: 'accueil-vers-projet',       // aussi depuis la page Works : la photo cliquée sert de relais
-        from: { namespace: ['home', 'works', 'work'] },   // work → work : projet suivant (défilement infini)
+        from: { namespace: ['home', 'works'] },
         to: { namespace: ['work'] },
         leave: function (data) {
           leaveData = null;
