@@ -2746,7 +2746,7 @@
         m.appendChild(sp); title.appendChild(m); lines.push(sp);
       });
     }
-    var fades = [text].concat(rows).filter(Boolean);
+    var fades = [text, $('.svc-all', container)].concat(rows).filter(Boolean);
     var lab2 = label ? maskText(label) : null;
     function prep() {
       if (reduce) return;
@@ -3969,11 +3969,14 @@
         custom: function (d) { return d.trigger === 'svc-next'; },
         from: { namespace: ['service'] },
         to: { namespace: ['service'] },
-        leave: function () {
+        leave: function (data) {
           flyData = null;
           var im = svcNext && svcNext.img;
           svcNext = null;
-          if (!im || !im.parentNode) return;
+          // l'ancienne page reste dans le DOM jusqu'à la fin de l'entrée (Barba) : on la masque tout de suite,
+          // sinon son haut de page réapparaît au retour en haut et la nouvelle page « saute » ensuite
+          var old = data.current.container;
+          if (!im || !im.parentNode) { old.style.display = 'none'; return; }
           var r = im.parentNode.getBoundingClientRect();
           var ov = document.createElement('div'), cl = im.cloneNode();
           ov.className = 'svc-fly';
@@ -3982,6 +3985,7 @@
           cl.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;max-width:none';
           ov.appendChild(cl);
           document.body.appendChild(ov);
+          old.style.display = 'none';
           flyData = { overlay: ov };
         },
         beforeEnter: function (data) {
