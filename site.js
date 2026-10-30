@@ -3186,17 +3186,17 @@
         '  vec2 q=vec2(fbm(p+vec2(0.,t)),fbm(p+vec2(5.2,1.3)-vec2(t*.8,0.)));',
         '  vec2 r=vec2(fbm(p+1.6*q+vec2(1.7,9.2)+t*.6),fbm(p+1.6*q+vec2(8.3,2.8)-t*.5));',
         '  float f=fbm(p*1.4+2.*r);',
-        '  float m=texture2D(uMask,v+(r-.5)*vec2(.26,.32)).a;',
+        '  float m=texture2D(uMask,v+(r-.5)*vec2(.2,.25)).a;',
         // densité pleine et douce, ondes plus marquées ; respiration
-        '  float s=smoothstep(0.,.7,m)*(.72+.75*(f-.5));',
-        '  s*=.86+.14*sin(uT*1.6+f*3.);',
+        '  float s=smoothstep(0.,.7,m)*(.78+.55*(f-.5));',
+        '  s*=.9+.1*sin(uT*1.6+f*3.);',
         '  s=clamp(s,0.,1.);',
         // la photo ondule avec le halo : déplacement proportionnel à la densité de l'aura
-        '  vec2 d=(r-.5)*vec2(.05,.06)*smoothstep(0.,.6,m);',
+        '  vec2 d=(r-.5)*vec2(.03,.04)*smoothstep(0.,.6,m);',
         '  float g=dot(texture2D(uImg,(v-.5)*uCov+.5+d).rgb,vec3(.299,.587,.114));',
         // liseré lumineux diffus sur le bord du halo
         '  float rim=smoothstep(.04,.3,s)*(1.-smoothstep(.3,.75,s));',
-        '  gl_FragColor=vec4(vec3(g*s+rim*.16),1.);',
+        '  gl_FragColor=vec4(vec3((g*s+rim*.09)*.85),1.);',   // intensité générale retenue
         '}'
       ].join('\n');
       function initGL() {
@@ -3262,8 +3262,8 @@
       function puff(x, y, v) {
         parts.push({
           x: x + (Math.random() - 0.5) * 16, y: y + (Math.random() - 0.5) * 16,
-          r: 55 + Math.random() * 40, g: 150 + Math.random() * 110 + Math.min(v, 60) * 1.6,
-          a: 0.3 + Math.min(v, 40) * 0.006, t: 0, d: 2800 + Math.random() * 1400,
+          r: 45 + Math.random() * 30, g: 120 + Math.random() * 80 + Math.min(v, 60) * 1.3,
+          a: 0.26 + Math.min(v, 40) * 0.005, t: 0, d: 2800 + Math.random() * 1400,
           vx: (Math.random() - 0.5) * 16, vy: -4 - Math.random() * 10, ph: Math.random() * 6.28
         });
         if (parts.length > 180) parts.shift();
