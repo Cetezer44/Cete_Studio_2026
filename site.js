@@ -2793,9 +2793,10 @@
       watch.forEach(function (el) { io.observe(el); });
     }
 
-    // Service suivant (ordre de l'accueil, en boucle) : en fin de page, sa photo monte et recouvre le panneau
-    // de gauche ; arrivé tout en bas, la page suivante s'ouvre (l'URL change) et ses textes apparaissent
-    var nextZone = null, next = null, going = false;
+    // Service suivant (ordre de l'accueil, en boucle) : en fin de page, sa photo apparaît en fondu à la place du
+    // panneau de gauche ; dès qu'on entame la zone, la page s'ancre d'elle-même jusqu'en bas, puis la page
+    // suivante s'ouvre (l'URL change) et ses textes apparaissent
+    var nextZone = null, nextMedia = null, next = null, going = false, anchoring = false, lastY = window.scrollY;
     svcOrder().then(function (list) {
       if (ac.signal.aborted || !list.length) return;
       var slug = window.location.pathname.replace(/\/+$/, '').split('/').pop();
@@ -2812,7 +2813,8 @@
       if (next.img) ni.src = next.img;
       nm.appendChild(ni); nextZone.appendChild(nm);
       container.appendChild(nextZone);
-      checkNext();
+      nextMedia = nm;
+      onNextScroll();
     });
     function checkNext() {
       if (!next || going || !nextZone) return;
@@ -2826,7 +2828,37 @@
       svcNext = { img: $('img', nextZone) };
       barba.go(href, 'svc-next');
     }
-    on(window, 'scroll', checkNext, { passive: true });
+    function nextProgress() {
+      var r = nextZone.getBoundingClientRect();
+      return Math.max(0, Math.min(1, 1 - r.top / window.innerHeight));
+    }
+    function onNextScroll() {
+      if (!nextZone) return;
+      var y = window.scrollY, p = nextProgress();
+      nextMedia.style.opacity = String(p * p * (3 - 2 * p));   // fondu de la photo suivante sur le panneau de gauche
+      if (!anchoring && !going && y > lastY && p > 0.12 && p < 0.98) anchorNext();
+      lastY = y;
+      checkNext();
+    }
+    // Ancre : glissement automatique jusqu'en bas de page (la molette est neutralisée pendant le glissement)
+    function anchorNext() {
+      anchoring = true;
+      var y0 = window.scrollY, y1 = document.documentElement.scrollHeight - window.innerHeight;
+      if (reduce) { window.scrollTo(0, y1); return; }
+      var t0 = null, D = Math.min(1400, 600 + (y1 - y0) * 0.9);
+      var step = function (now) {
+        if (ac.signal.aborted) return;
+        if (t0 === null) t0 = now;
+        var k = Math.min(1, (now - t0) / D), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        window.scrollTo(0, y0 + (y1 - y0) * e);
+        if (k < 1) requestAnimationFrame(step);
+        else { anchoring = false; checkNext(); }
+      };
+      requestAnimationFrame(step);
+    }
+    on(window, 'scroll', onNextScroll, { passive: true });
+    on(window, 'wheel', function (e) { if (anchoring && e.cancelable) e.preventDefault(); }, { passive: false });
+    on(window, 'touchmove', function (e) { if (anchoring && e.cancelable) e.preventDefault(); }, { passive: false });
 
     if (!opts.transition) {
       // arrivée directe : l'image se dévoile depuis le bas, puis les textes
