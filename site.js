@@ -2711,64 +2711,22 @@
       var slug = a.getAttribute('data-slug');
       if (slug) a.setAttribute('href', '/projets/' + slug);
     });
-    var media = $('.svc-media', container), title = $('.svc-title', container), text = $('.svc-text', container);
-    var proj = $('.svc-projects', container), label = $('.svc-label', container), rows = $$('.svc-row', container);
-    if (proj && (!rows.length || !label || !label.textContent.trim())) proj.style.display = 'none';
-    // nom du projet découpé en lettres : au survol, chaque lettre sort par le haut et revient par le bas
-    rows.forEach(function (r) {
-      var nm = $('.svc-name', r);
-      if (!nm) return;
-      var lab = nm.textContent.trim();
-      nm.setAttribute('aria-label', lab);
-      nm.innerHTML = lab.split('').map(function (ch, i) {
-        var c = ch === ' ' ? '&nbsp;' : ch.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-        return '<span class="wl-ch" aria-hidden="true" style="--i:' + i + '"><span data-c="' + c + '">' + c + '</span></span>';
-      }).join('');
-    });
+    var media = $('.svc-media', container);
     // clic sur l'image : retour à l'accueil, directement sur la section services
     if (media) on(media, 'click', function () {
       try { sessionStorage.setItem('cete-home-at', 'services'); } catch (e) {}
       if (window.barba) barba.go('/'); else window.location.href = '/';
     });
 
-    // Textes : titre ligne par ligne, présentation, libellé et lignes de projets dans des masques
-    var lines = [];
-    if (title) {
-      var txt = title.textContent.trim();
-      title.setAttribute('aria-label', txt.replace(/\s*\n\s*/g, ' '));
-      title.textContent = '';
-      txt.split(/\n/).forEach(function (l) {
-        var m = document.createElement('span'), sp = document.createElement('span');
-        m.setAttribute('aria-hidden', 'true');
-        m.style.cssText = 'display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em';
-        sp.style.cssText = 'display:block';
-        sp.textContent = l.trim();
-        m.appendChild(sp); title.appendChild(m); lines.push(sp);
-      });
-    }
-    var fades = [text, $('.svc-all', container)].concat(rows).filter(Boolean);
-    var lab2 = label ? maskText(label) : null;
-    function prep() {
-      if (reduce) return;
-      lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'translateY(110%)'; });
-      fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(24px)'; });
-    }
+    // Textes : déjà visibles si la page vient d'apparaître pendant le défilement de la page précédente
+    var parts = svcParts(container);
+    var aside = parts.aside;
+    if (opts.shown) parts.done(); else parts.hide();
     function play() {
-      if (reduce) { if (lab2) lab2.style.transform = 'none'; return Promise.resolve(); }
-      lines.forEach(function (l, i) { l.style.transition = 'transform 1100ms ' + EASE + ' ' + (i * 90) + 'ms'; l.style.transform = 'translateY(0)'; });
-      fades.forEach(function (el, i) {
-        var d = 350 + (i ? 150 + i * 70 : 0);
-        el.style.transition = 'opacity 900ms ease ' + d + 'ms, transform 1000ms ' + EASE + ' ' + d + 'ms';
-        el.style.opacity = ''; el.style.transform = '';
-      });
-      if (lab2) reveal([lab2], 450, 0, 900);
+      if (!opts.shown) parts.show(1);
       return Promise.resolve();
     }
-    prep();
 
-    // Image secondaire (à droite, sous les projets) : masquée si le champ est vide
-    var aside = $('.svc-aside', container), asideImg = aside && $('img', aside);
-    if (aside && (!asideImg || asideImg.classList.contains('w-dyn-bind-empty') || !asideImg.getAttribute('src'))) aside.style.display = 'none';
     // Paragraphes en bas de page : curseur « Contact », un clic ouvre la modal contact (souris uniquement)
     var more = $('.svc-more', container), blocks = $$('.svc-block', container);
     if (more && root.classList.contains('has-cursor')) more.setAttribute('data-contact', 'open');
@@ -2776,7 +2734,7 @@
     var io = null;
     if (!reduce && 'IntersectionObserver' in window) {
       var watch = blocks.slice();
-      if (aside && aside.style.display !== 'none') watch.push(aside);
+      if (aside && aside.style.display !== 'none' && !(opts.shown && aside.getBoundingClientRect().top < window.innerHeight)) watch.push(aside);
       watch.forEach(function (el) {
         if (el === aside) el.style.clipPath = 'inset(100% 0 0 0)';
         else { el.style.opacity = '0'; el.style.transform = 'translateY(40px)'; }
@@ -2797,6 +2755,7 @@
     // panneau de gauche ; dès qu'on entame la zone, la page s'ancre d'elle-même jusqu'en bas, puis la page
     // suivante s'ouvre (l'URL change) et ses textes apparaissent
     var nextZone = null, nextMedia = null, next = null, going = false, anchoring = false, lastY = window.scrollY;
+    var nextParts = null, revealed = false;
     svcOrder().then(function (list) {
       if (ac.signal.aborted || !list.length) return;
       var slug = window.location.pathname.replace(/\/+$/, '').split('/').pop();
@@ -2815,6 +2774,23 @@
       container.appendChild(nextZone);
       nextMedia = nm;
       onNextScroll();
+      // haut de la page suivante (titre, texte, projets) recopié dans la zone, à l'emplacement exact qu'il
+      // aura une fois la page ouverte : ses éléments apparaissent pendant le défilement
+      fetch('/services/' + next.slug, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
+        if (ac.signal.aborted || revealed) return;
+        var sc = $('.svc-content', new DOMParser().parseFromString(html, 'text/html'));
+        if (!sc) return;
+        var mo = $('.svc-more', sc);
+        if (mo) mo.remove();
+        $$('img', sc).forEach(function (im) { im.setAttribute('loading', 'eager'); });
+        var pg = document.createElement('div');
+        pg.className = 'svc-next__page';
+        pg.appendChild(document.importNode(sc, true));
+        nextZone.appendChild(pg);
+        nextParts = svcParts(pg);
+        nextParts.hide();
+        if (nextParts.aside && !reduce) nextParts.aside.style.clipPath = 'inset(100% 0 0 0)';
+      }).catch(function () {});
     });
     function checkNext() {
       if (!next || going || !nextZone) return;
@@ -2825,7 +2801,7 @@
       going = true;
       var href = '/services/' + next.slug;
       if (reduce || !window.barba) { window.location.href = href; return; }
-      svcNext = { img: $('img', nextZone) };
+      svcNext = { img: $('img', nextZone), shown: revealed };
       barba.go(href, 'svc-next');
     }
     function nextProgress() {
@@ -2841,11 +2817,19 @@
       checkNext();
     }
     // Ancre : glissement automatique jusqu'en bas de page (la molette est neutralisée pendant le glissement)
+    function revealNext() {
+      if (revealed || !nextParts) return;
+      revealed = true;
+      nextParts.show(0.55);   // même animation que l'arrivée sur la page, resserrée pour finir avec le défilement
+      var as = nextParts.aside;
+      if (as && !reduce) { as.style.transition = 'clip-path 800ms ' + INOUT + ' 250ms'; as.style.clipPath = 'inset(0 0 0 0)'; }
+    }
     function anchorNext() {
       anchoring = true;
+      setTimeout(revealNext, reduce ? 0 : 200);
       var y0 = window.scrollY, y1 = document.documentElement.scrollHeight - window.innerHeight;
       if (reduce) { window.scrollTo(0, y1); return; }
-      var t0 = null, D = Math.min(1400, 600 + (y1 - y0) * 0.9);
+      var t0 = null, D = 1400;
       var step = function (now) {
         if (ac.signal.aborted) return;
         if (t0 === null) t0 = now;
@@ -2871,6 +2855,68 @@
       setTimeout(play, reduce ? 0 : 500);
     }
     return { destroy: function () { ac.abort(); if (io) io.disconnect(); }, play: play };
+  }
+  // Textes d'une page service (page elle-même ou copie dans la zone « service suivant ») : titre en lignes
+  // masquées, lettres des noms de projets, libellé masqué. hide() les cache, show(k) les fait apparaître
+  // (k : facteur de durée), done() les affiche directement
+  function svcParts(scope) {
+    var title = $('.svc-title', scope), text = $('.svc-text', scope);
+    var proj = $('.svc-projects', scope), label = $('.svc-label', scope), rows = $$('.svc-row', scope);
+    if (proj && (!rows.length || !label || !label.textContent.trim())) proj.style.display = 'none';
+    // nom du projet découpé en lettres : au survol, chaque lettre sort par le haut et revient par le bas
+    rows.forEach(function (r) {
+      var nm = $('.svc-name', r);
+      if (!nm || nm.getAttribute('aria-label')) return;
+      var lab = nm.textContent.trim();
+      nm.setAttribute('aria-label', lab);
+      nm.innerHTML = lab.split('').map(function (ch, i) {
+        var c = ch === ' ' ? '&nbsp;' : ch.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        return '<span class="wl-ch" aria-hidden="true" style="--i:' + i + '"><span data-c="' + c + '">' + c + '</span></span>';
+      }).join('');
+    });
+    var lines = [];
+    if (title) {
+      var txt = title.textContent.trim();
+      title.setAttribute('aria-label', txt.replace(/\s*\n\s*/g, ' '));
+      title.textContent = '';
+      txt.split(/\n/).forEach(function (l) {
+        var m = document.createElement('span'), sp = document.createElement('span');
+        m.setAttribute('aria-hidden', 'true');
+        m.style.cssText = 'display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em';
+        sp.style.cssText = 'display:block';
+        sp.textContent = l.trim();
+        m.appendChild(sp); title.appendChild(m); lines.push(sp);
+      });
+    }
+    var fades = [text, $('.svc-all', scope)].concat(rows).filter(Boolean);
+    var lab = label ? maskText(label) : null;
+    // image secondaire masquée si le champ est vide
+    var aside = $('.svc-aside', scope), asideImg = aside && $('img', aside);
+    if (aside && (!asideImg || asideImg.classList.contains('w-dyn-bind-empty') || !asideImg.getAttribute('src'))) aside.style.display = 'none';
+    return {
+      aside: aside,
+      hide: function () {
+        if (reduce) return;
+        lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'translateY(110%)'; });
+        fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(24px)'; });
+      },
+      show: function (k) {
+        k = k || 1;
+        if (reduce) { if (lab) lab.style.transform = 'none'; return; }
+        lines.forEach(function (l, i) { l.style.transition = 'transform ' + Math.round(1100 * k) + 'ms ' + EASE + ' ' + Math.round(i * 90 * k) + 'ms'; l.style.transform = 'translateY(0)'; });
+        fades.forEach(function (el, i) {
+          var d = Math.round((350 + (i ? 150 + i * 70 : 0)) * k);
+          el.style.transition = 'opacity ' + Math.round(900 * k) + 'ms ease ' + d + 'ms, transform ' + Math.round(1000 * k) + 'ms ' + EASE + ' ' + d + 'ms';
+          el.style.opacity = ''; el.style.transform = '';
+        });
+        if (lab) reveal([lab], Math.round(450 * k), 0, Math.round(900 * k));
+      },
+      done: function () {
+        lines.forEach(function (l) { l.style.transition = 'none'; l.style.transform = 'none'; });
+        fades.forEach(function (el) { el.style.transition = 'none'; el.style.opacity = ''; el.style.transform = ''; });
+        if (lab) { lab.style.transition = 'none'; lab.style.transform = 'none'; }
+      }
+    };
   }
   // Ordre des services (celui de l'accueil : services affichés, triés par « Ordre ») et leur photo, lus une fois
   // sur la page d'accueil
@@ -3971,7 +4017,7 @@
         to: { namespace: ['service'] },
         leave: function (data) {
           flyData = null;
-          var im = svcNext && svcNext.img;
+          var im = svcNext && svcNext.img, shown = svcNext && svcNext.shown;
           svcNext = null;
           // l'ancienne page reste dans le DOM jusqu'à la fin de l'entrée (Barba) : on la masque tout de suite,
           // sinon son haut de page réapparaît au retour en haut et la nouvelle page « saute » ensuite
@@ -3986,12 +4032,12 @@
           ov.appendChild(cl);
           document.body.appendChild(ov);
           old.style.display = 'none';
-          flyData = { overlay: ov };
+          flyData = { overlay: ov, shown: !!shown };
         },
         beforeEnter: function (data) {
           window.scrollTo(0, 0);
           runScripts(data.next.container);
-          initPage(data.next.container, { transition: !!flyData });
+          initPage(data.next.container, { transition: !!flyData, shown: !!(flyData && flyData.shown) });
         },
         enter: function (data) {
           if (!flyData || !flyData.overlay) return;
